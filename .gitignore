@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Model files (large, regenerate with train.py)
+lunyoro-translator/backend/model/
+lunyoro-translator/backend/history.json
+
+# Node
+node_modules/
+.next/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
