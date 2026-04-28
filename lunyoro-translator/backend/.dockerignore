@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+.env.*
+!.env.example
+*.log
+pipeline.log
+_audit.py
+_nllb_ddp_worker.py
+_hf_upload.py
+data/raw/
+data/OCR/
+data/training/
+model/
+retrieval_index.pkl
+history.json

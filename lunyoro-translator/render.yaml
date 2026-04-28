@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: lunyoro-backend
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: .
+    envVars:
+      - key: CORS_ORIGINS
+        # Set to your frontend URL, e.g. https://lunyoro-frontend.onrender.com or your Vercel URL
+        value: https://lunyoro-frontend.onrender.com
+      - key: OLLAMA_URL
+        # Point to a hosted Ollama instance or leave as localhost (chat will be unavailable)
+        value: http://localhost:11434
+      - key: OLLAMA_MODEL
+        value: llama3.2:3b
+      - key: TRANSFORMERS_OFFLINE
+        value: "1"
+      - key: HF_DATASETS_OFFLINE
+        value: "1"
+      - key: HF_HUB_OFFLINE
+        value: "1"
+    disk:
+      name: models
+      mountPath: /opt/render/project/src/backend/model
+      sizeGB: 20
+
+  - type: web
+    name: lunyoro-frontend
+    runtime: node
+    buildCommand: cd frontend && npm ci && NEXT_PUBLIC_API_URL=https://lunyoro-backend.onrender.com npm run build
+    startCommand: cd frontend && npm start
+    rootDir: .
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://lunyoro-backend.onrender.com

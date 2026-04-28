@@ -41,6 +41,7 @@ All models are hosted on HuggingFace under [keithtwesigye](https://huggingface.c
 - Python 3.10+
 - Node.js 18+
 - [Ollama](https://ollama.com) (for AI chat)
+- `python-dotenv` (optional — auto-loads `backend/.env` at startup if present)
 
 ## Quick Setup
 
@@ -94,7 +95,48 @@ Then open **http://localhost:3002**
 
 ## Training
 
-To rebuild training data and retrain models:
+### Full Automated Pipeline (Recommended)
+
+Complete end-to-end pipeline that implements all Runyoro language rules:
+
+```bash
+cd backend
+
+# Full pipeline: OCR extraction → back-translation → training → indexing → deployment
+python full_pipeline.py
+
+# Verify grammar integration and API endpoints only (no training)
+python full_pipeline.py --verify-only
+
+# Skip OCR extraction (if already done)
+python full_pipeline.py --skip-ocr
+
+# Skip data preparation (if data already prepared)
+python full_pipeline.py --skip-data
+
+# Skip training, only push to HuggingFace/Git
+python full_pipeline.py --skip-train
+```
+
+The full pipeline executes:
+1. Extract OCR word glosses + sentence pairs using language_rules.py
+2. Back-translate sentence_submissions to augment training data
+3. Quality-filter synthetic pairs (round-trip + semantic checks)
+4. Rebuild training splits (train/val/test)
+5. Fine-tune MarianMT from checkpoint (15 epochs, LR=2e-5, label_smoothing=0.2)
+6. Fine-tune NLLB from checkpoint (8 epochs, DDP across 2+ GPUs if available)
+7. Rebuild semantic search index
+8. Push all 4 models to HuggingFace
+9. Commit and push to Git LFS
+
+Grammar rules integration:
+- Full Runyoro-Rutooro grammar context wired to /chat endpoint
+- All grammar rules exposed via /language-rules endpoint
+- OCR-derived rules from Chapters 2, 4, 7, 9, 10, 12, 13, 15, 16, 17
+
+### Manual Training Steps
+
+For more control over individual steps:
 
 ```bash
 cd backend
@@ -103,52 +145,28 @@ cd backend
 python clean_new_submissions.py
 
 # (Alternative) Clean and merge previously unprocessed raw files
-# (word_submissions_rows, word_entries_rows_root, sentence_submissions_rows)
-# then rebuild training splits
 python clean_unprocessed_raw.py
 
-# 2. (Optional) Back-translation augmentation
+# 2. Extract OCR pairs and glosses
+python extract_ocr_pairs.py
+
+# 3. Back-translation augmentation
 python back_translate.py
 python clean_backtranslated.py
 
-# (Alternative) Full improvement pipeline in one shot:
-# back-translates sentence_submissions, quality-filters, rebuilds splits,
-# then fine-tunes both MarianMT (15 epochs, LR=2e-5) and NLLB (8 epochs, label_smoothing=0.2) from existing checkpoints,
-# NLLB uses DDP across multiple GPUs if available (gloo backend for Windows compatibility),
-# then pushes all 4 models + updated dataset to HuggingFace and commits/pushes to GitHub
-python improve_and_retrain.py
-
-# Skip data preparation steps (back-translation, filtering, splits) and go straight to fine-tuning:
-python improve_and_retrain.py --skip-data
-
-# Skip training entirely — only push existing models and dataset to HuggingFace:
-python improve_and_retrain.py --skip-train
-
-# 3. Retrain MarianMT models
+# 4. Retrain MarianMT models
 python fine_tune.py --direction both --epochs 10 --batch_size 32
 
-# 4. Retrain NLLB models
+# 5. Retrain NLLB models
 python fine_tune_nllb.py --direction both --epochs 10 --batch_size 4
 
-# 5. (Optional) Evaluate all 4 models on the test set
-# Single-process (any hardware):
-python eval_models.py
-# Results saved to eval_results_full.json (BLEU, token F1, exact match)
+# 6. Rebuild semantic search index
+python train.py
 
-# Sequential single-GPU evaluation (auto-selects GPU with most free memory):
-# Useful when Ollama or another process occupies a GPU — avoids hardcoded cuda:0/cuda:1
-python run_eval.py
-# Results saved to eval_results_all.json (BLEU, token F1, exact match, ms/sample)
-
-# MarianMT-only evaluation (runs on CPU, leaving both GPUs free for NLLB training):
-# Useful for a quick check of just the two MarianMT models
-python eval_marian.py
-# Results saved to eval_marian_results.json (BLEU, token F1, exact match)
-
-# Multi-GPU parallel evaluation (requires 2 GPUs):
-# GPU 0 runs MarianMT en2lun + lun2en; GPU 1 runs NLLB en2lun + lun2en simultaneously
-python eval_all_parallel.py
-# Results saved to eval_results_all.json (BLEU, token F1, exact match, ms/sample)
+# 7. Evaluate all 4 models on the test set
+python run_eval.py  # Sequential single-GPU (auto-selects GPU)
+python eval_all_parallel.py  # Parallel across 2 GPUs
+python eval_marian.py  # MarianMT only (CPU, leaves GPUs free)
 ```
 
 ## Publishing Models to HuggingFace
@@ -172,24 +190,33 @@ You can generate a token at https://huggingface.co/settings/tokens (needs write 
 ```
 backend/
   main.py                    — FastAPI server
-  translate.py               — Translation logic (MarianMT + NLLB + retrieval)
-  language_rules.py          — Orthography constants (alphabet, vowels, diphthongs, apostrophe contexts), R/L rule, noun class system (classes 1–15 with prefixes), get_noun_class() for morphological prefix analysis, concordial agreement table (subject/object/adjective concords per class) with get_subject_concord()/get_object_concord() helpers, plural sound changes (class 11→10), get_class6_prefix() for class 5→6 plural prefix selection, verb structure constants (infinitive prefixes, subject prefixes, tense/aspect markers, negative markers, verb suffixes, derivative suffixes), full tense system reference (TENSES dict + CONDITIONAL_PARTICLES), adjective/adverb constants (COMPARISON degrees, ADJECTIVE_STEMS, ADVERBS_OF_MANNER), number system (NUMBERS 1–1B, NUMERAL_CONCORDS per noun class, ORDINAL_NOTE), particles/conjunctions/prepositions (CONJUNCTIONS, PREPOSITIONS, NEGATION_WORDS, NYA_PARTICLE), pronouns (PERSONAL_PRONOUNS, OBJECT_PRONOUNS), language names (LANGUAGE_NAMES), augmentative/pejorative prefix examples (AUGMENTATIVE_EXAMPLES, MAGNITUDE_EXAMPLES, MAGNITUDE_ERI_EXAMPLES), honorific names (EMPAAKO), interjections (INTERJECTIONS), idiomatic expressions (IDIOMS), and proverbs (PROVERBS)
-  prepare_training_data.py   — Corpus builder with domain tagging
+  translate.py               — Translation logic (MarianMT + NLLB + retrieval); post-processes en→lun MT output with Runyoro-Rutooro orthographic rules (nasal assimilation nb→mb/np→mp/nr→nd, ni→nu prefix vowel harmony, R/L rule); pre-processes lun→en input by normalising nasal clusters to canonical forms; rules are lazy-loaded from language_rules so the module loads safely even if language_rules has an import error
+  language_rules.py          — Complete Runyoro-Rutooro grammar rules: orthography (alphabet, vowels, R/L rule), noun class system (classes 1–15 with prefixes, concordial agreement, plural formation), verb structure (infinitive/subject/tense prefixes, derivative suffixes), tense system, adjectives/adverbs, numbers/ordinals, particles/conjunctions/prepositions, pronouns, cultural elements (EMPAAKO, interjections, idioms, proverbs); OCR-derived rules from grammar books (Chapters 15–17): comparison (positive/comparative/superlative), genitive particles, adverbial particles, coordinating particles, conditional mood; re-exports all symbols from language_rules_ocr_extension (Chapters 2, 4, 7, 9, 10, 12, 13) for single-module import; provides get_full_grammar_context() for comprehensive grammar context used by chat endpoint; executable transformation functions: apply_rl_rule()/apply_rl_rule_to_text() (R/L rule), apply_nasal_assimilation() (nb→mb etc.), apply_ni_prefix_change() (ni-→nu- vowel harmony), apply_y_insertion() (y-insertion after a-/ra-/raa- tense prefixes), apply_consonant_suffix_change() (r/t/j + suffix sound changes; correctly strips trailing -a from full verb forms before matching consonant endings, e.g. okubara + -ire → okubazire), apply_conversive_suffix() (reversive -ura/-ora), apply_reflexive_imperative() (wee-/mwe- reflexive imperatives), apply_concordial_agreement() (adjective prefix by noun class), build_plural() (prefix-substitution + irregular class-11 plurals), apply_class9_nasal_prefix() (en-/em- selection), build_verb_form() (full verb assembly from person/tense/stem), apply_causative()/-passive()/-neuter()/-reciprocal() (derivative verb forms), get_adjective_concord()/get_demonstrative()/get_numeral_concord() (concordial lookups), build_ordinal() (ordinal numerals in concordial agreement)
+  language_rules_ocr_extension.py — Extended grammar rules from OCR grammar books (Chapters 2, 4, 7, 9, 10, 12, 13): sound change rules (Y_INSERTION_EXAMPLES, Y_INSERTION_COUNTEREXAMPLES, Y_INSERTION_I_STEMS, REFLEXIVE_IMPERATIVES, REFLEXIVE_NON_REFLEXIVE, CONVERSIVE_EXAMPLES), derivative verb formation (APPLIED_VERB_MEANINGS, APPLIED_VERB_EXAMPLES, PREPOSITIONAL_NEW_MEANINGS, DOUBLE_PREPOSITIONAL, CAUSATIVE_FORMATION, PASSIVE_FORMATION, NEUTER_FORMATION, RECIPROCAL_FORMATION), moods and tenses (IMPERATIVE_TENSES, SUBJUNCTIVE_FUNCTIONS, SUBJUNCTIVE_EXAMPLES, INDICATIVE_TENSES, VERB_INA_CONJUGATION, VERB_LI_CONJUGATION), extended noun class details (CLASS_12_13_14_DETAILS, AUGMENTATIVE_PEJORATIVE_EXTENDED), ordinal formation (ORDINAL_FORMATION, NUMBER_CONNECTION, ORDINALS_EXTENDED), noun formation (DEVERBATIVE_SUFFIXES, NOUN_FUNCTIONS, NOUN_KINDS, VERBAL_NOUNS_CLASS5), class 6 plural rules (CLASS6_PLURAL_RULES, CLASS6_OTHER_PLURALS), words/affixes/negation (NEGATION_EXTENDED, AFFIRMATION_WORDS, POSSESSIVE_PRONOUNS, GENITIVE_ELISION_RULES, INTERROGATIVE_PARTICLES, PARTS_OF_SPEECH, IDEOPHONES), numeral adverbial use (NUMERAL_ADVERBIAL_KA), orthography rules (ORTHOGRAPHY_RULES); utility functions get_derivative_verb_type(), get_imperative_form(), is_reflexive_verb(), get_full_grammar_context() (combines base + OCR-derived rules for comprehensive grammar context)
+  prepare_training_data.py   — Corpus builder with domain tagging; merges all cleaned data sources including synthetic grammar rule pairs generated from all OCR grammar chapters (Ch.2 sound change, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional, Ch.16 comparison, Ch.17 genitive/adverbial particles) via generate_rule_training_pairs.py; strips any pre-existing domain tag(s) from english_nyoro_clean.csv before re-tagging — handles multiple stacked tags and mixed case (e.g. `[GENERAL] [GENerAL] text`) via a case-insensitive repeating regex, preventing double-tagging on repeated runs; applies four normalization steps to all Lunyoro training targets: (1) apostrophe standardisation (curly/Unicode apostrophes → straight ASCII apostrophe), (2) nasal assimilation (nb→mb, np→mp, nr→nd, nl→nd), (3) ni→nu prefix vowel harmony (nimugenda→numugenda before u-class concords), and (4) the R/L rule (L→R except adjacent to e/i), so models learn consistent orthographic forms
   clean_new_submissions.py   — Merges new crowd-sourced submissions
   clean_unprocessed_raw.py   — Cleans and merges previously unprocessed raw files (word_submissions_rows, word_entries_rows_root, sentence_submissions_rows) into english_nyoro_clean.csv and word_entries_clean.csv, then rebuilds train/val/test splits
-  extract_ocr_pairs.py       — Extracts English ↔ Runyoro-Rutooro sentence pairs from OCR grammar data (data/OCR/combined/all_ocr_combined.json) and merges them into english_nyoro_clean.csv; uses heuristic language detection (Runyoro prefix patterns + English function words) to validate pairs before merging; outputs data/cleaned/ocr_pairs_extracted.csv for review; run directly with `python extract_ocr_pairs.py`
+  analyze_ocr.py             — Analyses the OCR combined JSON (data/OCR/combined/all_ocr_combined.json): classifies lines as Runyoro-dominant, English-dominant, mixed, or unclassified using regex heuristics; reports per-source page/char/line counts; prints sample Runyoro lines and quoted lines (likely translation pairs); run directly with `python analyze_ocr.py`
+  analyze_ocr2.py            — Deep analysis of OCR grammar content: samples one full page per source, detects table/structured content (tab-separated or multi-space lines), extracts Runyoro example sentences using a broader prefix pattern set, finds inline word glosses (word 'meaning' patterns for Runyoro-prefixed terms), and summarises dominant grammar topic per source (noun_class, verb_tense, sound_change, adjective, derivative_verb, numbers, orthography); run directly with `python analyze_ocr2.py`
+  dump_ocr_sections.py       — Dumps the first 2000 chars of each page for a fixed list of unintegrated OCR sections (grammar_sound_change, grammar2_derivative_verbs, grammar2_moods_tenses_*, grammar2_compound_tenses_*, grammar_noun_classes*, grammar2_noun_formation, grammar_numbers_ordinals, grammar_words_affixes_*, runyoro_rutooro_orthography_guide) to stdout for manual review; run directly with `python dump_ocr_sections.py`
+  dump_ocr2.py               — Extracts the full text of the same unintegrated OCR sections and writes them to ocr_content.txt for offline review; unlike dump_ocr_sections.py (which truncates to 2000 chars per page and prints to stdout), this writes complete page content to a file; run directly with `python dump_ocr2.py`
+  extract_ocr_pairs.py       — Extracts English ↔ Runyoro-Rutooro sentence pairs AND word glosses from OCR grammar data (data/OCR/combined/all_ocr_combined.json); uses language_rules.py prefix/vocabulary data for detection (threshold 0.10 for Runyoro, 0.15 for English); merges sentence pairs into english_nyoro_clean.csv and word glosses into word_entries_clean.csv; outputs data/cleaned/ocr_pairs_extracted.csv (sentence pairs) and data/cleaned/ocr_glosses_extracted.csv (word glosses) for review; run directly with `python extract_ocr_pairs.py`
   push_models_hf.py            — Uploads all 4 fine-tuned model folders (en2lun, lun2en, nllb_en2lun, nllb_lun2en) to their respective HuggingFace repos; requires HF_TOKEN env var with write access
   clean_sentence_submission.py — Cleans the April sentence submission Excel file (Runyoro-English_Translation.xlsx); standardises columns, strips whitespace, drops empty rows and duplicates, writes data/cleaned/runyoro_english_sentences_clean.csv
   clean_remaining_raw.py     — Extracts translation pairs from remaining raw CSVs (word_submissions_rows*.csv, corpus_sentences_rows (1).csv); merges new pairs into english_nyoro_clean.csv after deduplication
   clean_extra.py             — Merges Excel dictionary datasets
   clean_dictionaries.py      — Cleans and converts Rutooro/Runyoro Excel dictionary files to CSV; normalises column names, strips definition noise (grammar notation, cross-references, OCR-duplicated phrases), deduplicates entries, and writes data/cleaned/rutooro_dictionary_clean.csv
   inspect_raw.py             — Inspects raw CSV files: prints row counts, column names, null counts, and sample rows for word/sentence submission and corpus files
+  _audit.py                  — Full audit of training data quality AND grammar rule coverage: (1) quality checks — double-tagged pairs, source==target, repeated word runs, short/empty rows, exact duplicates; (2) orthographic rule checks — R/L rule violations, nasal assimilation violations, ni→nu prefix violations, apostrophe normalisation violations; (3) grammar rule coverage — verifies every OCR chapter (Ch.2 sound change, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional, Ch.16 comparison, Ch.17 particles) plus cultural data and orthography examples are represented in the corpus; prints OK/MISSING per category with match counts; exits with "DATA IS CLEAN AND QUALIFIED FOR TRAINING" or "ISSUES REMAIN - DO NOT TRAIN YET"
   audit_csvs.py              — Audits all CSV files in data/: reports row counts, nulls, duplicates, and whether a cleaned version exists
   check_dups.py              — Checks whether pairs of raw CSV files are identical (e.g. versioned duplicates like word_entries_rows.csv vs word_entries_rows (1).csv)
   verify_dict.py             — Verifies the cleaned dictionary CSV: prints row count, null counts per column, and sample rows that have both a definition and a Runyoro example sentence
+  generate_rule_training_pairs.py — Generates synthetic (english, lunyoro) training pairs by mining every grammar rule constant in language_rules.py and language_rules_ocr_extension.py; covers all OCR grammar chapters (Ch.2 sound changes, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional mood, Ch.16 adjectives/comparison, Ch.17 genitive/adverbial/coordinating particles) plus cultural data (EMPAAKO, interjections, idioms) and orthography examples; also synthesises derivative verb pairs (causative, passive, neuter, reciprocal, conversive) for 18 common verb stems; deduplicates output; run directly with `python generate_rule_training_pairs.py` to preview generated pairs
   back_translate.py          — Back-translation augmentation
   clean_backtranslated.py    — Quality filtering for synthetic pairs
-  improve_and_retrain.py     — Full improvement pipeline: back-translates sentence_submissions, quality-filters synthetic pairs, rebuilds training splits, fine-tunes MarianMT (15 epochs, LR=2e-5, label_smoothing=0.2) and NLLB (8 epochs, label_smoothing=0.2) from existing checkpoints, then pushes all 4 models + updated dataset to HuggingFace and commits/pushes code and data to GitHub. NLLB training uses DistributedDataParallel (DDP) via torchrun when 2+ GPUs are available (gloo backend, compatible with Windows); falls back to single-GPU automatically. Pass --skip-data to skip steps 1-3; pass --skip-train to skip training and only push existing models to HuggingFace
+  improve_and_retrain.py     — Full improvement pipeline: extracts OCR pairs (step 0), back-translates sentence_submissions, quality-filters synthetic pairs, rebuilds training splits, fine-tunes MarianMT (15 epochs, LR=2e-5, label_smoothing=0.2) and NLLB (8 epochs, label_smoothing=0.2) from existing checkpoints, rebuilds the semantic search index, then pushes all 4 models + updated dataset to HuggingFace and commits/pushes code and data to GitHub. NLLB training uses DistributedDataParallel (DDP) via torchrun when 2+ GPUs are available (gloo backend, compatible with Windows); falls back to single-GPU automatically. Pass --skip-ocr to skip OCR extraction (step 0); pass --skip-data to skip steps 0-3; pass --skip-train to skip training and only push existing models to HuggingFace
+  verify_implementation.py   — Standalone verification script: checks grammar rules files exist and import correctly (NOUN_CLASSES, TENSES, IMPERATIVE_TENSES, CAUSATIVE_FORMATION, COMPARISON_POSITIVE, GENITIVE_PARTICLES, get_full_grammar_context()), validates R/L rule application and noun class detection, confirms /chat and /language-rules endpoints are wired in main.py, checks pipeline scripts exist, verifies OCR data and cleaned data directories, and checks all 4 model directories; run directly with `python verify_implementation.py`
+  full_pipeline.py           — Orchestrator that wraps improve_and_retrain.py with pre-flight verification: checks grammar rule integration (NOUN_CLASSES, TENSES, IMPERATIVE_TENSES, CAUSATIVE_FORMATION, COMPARISON_POSITIVE, GENITIVE_PARTICLES, get_full_grammar_context()) and API endpoint configuration (/chat wired with full grammar context, /language-rules exposing all OCR-derived rules) before running the pipeline. Accepts the same --skip-ocr / --skip-data / --skip-train flags as improve_and_retrain.py, plus --verify-only to run checks without executing the pipeline. Steps: 0 (OCR extraction) → 1 (back-translate) → 2 (quality filter) → 3 (rebuild splits) → 4 (fine-tune MarianMT) → 5 (fine-tune NLLB) → 6 (rebuild index) → 7 (push to HuggingFace) → 8 (push to Git LFS)
   fine_tune.py               — MarianMT fine-tuning
   fine_tune_nllb.py          — NLLB-200 fine-tuning
   eval_models.py             — Evaluates all 4 models on the test set (BLEU, token F1, exact match)
@@ -205,6 +232,9 @@ backend/
     sem_model/               — Sentence transformer for semantic search
 
 frontend/
+  next.config.ts             — Next.js config; standalone output is enabled only for Docker
+                               builds (DOCKER_BUILD=1 env var, set automatically by the
+                               Dockerfile). Vercel and local dev use Next.js default output.
   components/
     Translator.tsx           — Main translation UI
     Dictionary.tsx           — Dictionary lookup
@@ -217,3 +247,5 @@ frontend/
 ## Chat (LLM)
 
 The chat assistant uses **LLaMA 3.2 3B** running locally via Ollama. It generates responses in English, which are then translated to Runyoro-Rutooro by the fine-tuned MarianMT model. No internet connection required after setup.
+
+Every chat request injects the full grammar context via `get_full_grammar_context()` (from `language_rules_ocr_extension`) into the system prompt. This includes core grammar rules, OCR-derived rules (derivative verbs, moods/tenses, noun classes, ordinals), and extended rules from Chapters 2, 4, 7, 9, 10, 12, and 13 of the grammar books.
