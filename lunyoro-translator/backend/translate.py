@@ -10,7 +10,6 @@ import unicodedata
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from rapidfuzz import fuzz, process
-from preprocess import load_dictionary
 
 INDEX_PATH = os.path.join(os.path.dirname(__file__), "model", "translation_index.pkl")
 MODEL_DIR  = os.path.join(os.path.dirname(__file__), "model")
