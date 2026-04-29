@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -10,6 +10,35 @@ type ChatItem = {
   reply_marian?: string | null;
   reply_nllb?: string | null;
 };
+
+/** Convert markdown-style bullet points (* or -) into numbered lines. */
+function formatReply(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let counter = 0;
+
+  lines.forEach((line, i) => {
+    const bullet = line.match(/^[\*\-•]\s+(.*)/);
+    if (bullet) {
+      counter++;
+      nodes.push(
+        <div key={i} className="flex gap-2">
+          <span className="font-semibold text-blue-600 min-w-[1.2rem]">{counter}.</span>
+          <span>{bullet[1]}</span>
+        </div>
+      );
+    } else {
+      counter = 0; // reset numbering on non-bullet line
+      if (line.trim() === "") {
+        nodes.push(<div key={i} className="h-2" />);
+      } else {
+        nodes.push(<div key={i}>{line}</div>);
+      }
+    }
+  });
+
+  return <div className="space-y-0.5">{nodes}</div>;
+}
 
 const SECTORS = [
   { code: "ALL", label: "All Sectors",           icon: "🌐", prompt: "Give me a mix of Runyoro-Rutooro vocabulary across all topics." },
@@ -197,22 +226,22 @@ export default function ChatPage() {
                     {/* MarianMT — primary */}
                     <div className="flex-1 flex flex-col gap-1">
                       <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide px-1">MarianMT</span>
-                      <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed shadow-sm bg-blue-50 text-gray-800 border border-blue-200 whitespace-pre-wrap">
-                        {item.reply_marian || "—"}
+                      <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed shadow-sm bg-blue-50 text-gray-800 border border-blue-200">
+                        {formatReply(item.reply_marian || "—")}
                       </div>
                     </div>
                     {/* NLLB-200 — comparison */}
                     <div className="flex-1 flex flex-col gap-1">
                       <span className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide px-1">NLLB-200</span>
-                      <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed shadow-sm bg-purple-50 text-gray-800 border border-purple-200 whitespace-pre-wrap">
-                        {item.reply_nllb || "—"}
+                      <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed shadow-sm bg-purple-50 text-gray-800 border border-purple-200">
+                        {formatReply(item.reply_nllb || "—")}
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-gray-100 text-gray-800 rounded-tl-none border border-gray-200 whitespace-pre-wrap">
-                  {item.content}
+                <div className="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-gray-100 text-gray-800 rounded-tl-none border border-gray-200">
+                  {formatReply(item.content)}
                 </div>
               )}
             </div>

@@ -19,13 +19,28 @@ import re as _re
 def _clean_translation(text: str) -> str:
     """
     Post-process a translated reply:
-    - Remove repeated comma-joined phrases (e.g. "n'ebyokurya, n'ebyokurya, ...")
+    - Remove repeated comma-joined phrases
     - Deduplicate repeated sentences
     - Strip incomplete trailing fragments
     - Collapse excess whitespace/punctuation
+    - Convert markdown bullet * to numbered lines
     """
     if not text:
         return text
+
+    # 0. Convert markdown bullets (* or -) to numbered lines
+    lines = text.split("\n")
+    cleaned_lines = []
+    counter = 0
+    for line in lines:
+        m = _re.match(r'^[\*\-•]\s+(.*)', line)
+        if m:
+            counter += 1
+            cleaned_lines.append(f"{counter}. {m.group(1)}")
+        else:
+            counter = 0
+            cleaned_lines.append(line)
+    text = "\n".join(cleaned_lines)
 
     # 1. Remove runs of repeated short comma/conjunction-separated fragments
     #    e.g. "n'ebyokurya, n'ebyokurya, n'ebyokurya" → "n'ebyokurya"
@@ -440,28 +455,68 @@ def chat(req: ChatRequest):
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": msg})
 
-    # ── Call Ollama ───────────────────────────────────────────────────────────
+    # ── Call Ollama (only if it's actually reachable) ────────────────────────
+    import socket as _socket
+    _ollama_up = False
     try:
-        resp = _requests.post(
-            "http://localhost:11434/api/chat",
-            json={
-                "model": "llama3.2:3b",
-                "messages": messages,
-                "stream": False,
-                "options": {
-                    "num_ctx": 2048,
-                    "num_predict": 512,
-                    "temperature": 0.7,
-                }
-            },
-            timeout=300,
-        )
-        resp.raise_for_status()
-        reply_en = resp.json()["message"]["content"].strip()
-    except Exception as e:
-        import logging
-        logging.warning(f"Ollama call failed: {e}")
+        s = _socket.create_connection(("localhost", 11434), timeout=1)
+        s.close()
+        _ollama_up = True
+    except OSError:
+        pass
+
+    if _ollama_up:
+        try:
+            resp = _requests.post(
+                "http://localhost:11434/api/chat",
+                json={
+                    "model": "llama3.2:3b",
+                    "messages": messages,
+                    "stream": False,
+                    "options": {
+                        "num_ctx": 2048,
+                        "num_predict": 512,
+                        "temperature": 0.7,
+                    }
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            reply_en = resp.json()["message"]["content"].strip()
+        except Exception as e:
+            import logging
+            logging.warning(f"Ollama call failed: {e}")
+            reply_en = None
+    else:
         reply_en = None
+
+    # ── Fallback: generate reply without Ollama ───────────────────────────────
+    if not reply_en:
+        # Build a simple but useful reply from corpus context + grammar rules
+        from language_rules import get_grammar_context, INTERJECTIONS, NUMBERS, PROVERBS
+        import random
+
+        msg_lower = msg.lower()
+
+        # Check for common question types and give a direct answer
+        if any(w in msg_lower for w in ["hello", "hi", "greet", "oraire", "osibye"]):
+            reply_en = "In Runyoro-Rutooro, you greet someone by saying 'Oraire otya?' (How did you sleep? / Good morning) or 'Osibye otya?' (How are you? / Good afternoon). The response is 'Oraire bulungi' or 'Osibye bulungi' (I am well)."
+        elif any(w in msg_lower for w in ["number", "count", "how many", "numeral"]):
+            nums = ", ".join(f"{k}={v}" for k, v in list(NUMBERS.items())[:10])
+            reply_en = f"Numbers in Runyoro-Rutooro: {nums}. Numbers 1-5 must agree with the noun class they qualify."
+        elif any(w in msg_lower for w in ["proverb", "saying", "enfumo"]):
+            reply_en = f"Here is a Runyoro-Rutooro proverb: '{random.choice(PROVERBS)}'"
+        elif any(w in msg_lower for w in ["grammar", "noun", "class", "verb", "tense"]):
+            reply_en = get_grammar_context()
+        elif any(w in msg_lower for w in ["translate", "how do you say", "what is"]):
+            # Try to translate the query itself
+            translated = _mt_translate(msg, "en2lun")
+            if translated:
+                reply_en = f"In Runyoro-Rutooro: \"{translated}\""
+            else:
+                reply_en = "I can help translate English to Runyoro-Rutooro. Please use the Translate tab for full translation, or ask me about grammar, vocabulary, or culture."
+        else:
+            reply_en = f"I can help with Runyoro-Rutooro language questions — grammar, vocabulary, translation, culture, and proverbs. {get_grammar_context()}"
 
     # ── Translate reply with both models for comparison ──────────────────────
     from language_rules import apply_rl_rule_to_text
@@ -476,8 +531,12 @@ def chat(req: ChatRequest):
         marian_out = nllb_out = None
 
     if not marian_out and not nllb_out:
-        return {"reply": "Sorry, the chat assistant is unavailable right now. Please try again.",
-                "reply_marian": None, "reply_nllb": None}
+        # reply_en is set but translation models failed — return English reply directly
+        return {
+            "reply":        reply_en,
+            "reply_marian": None,
+            "reply_nllb":   None,
+        }
 
     return {
         "reply":         marian_out or nllb_out,  # MarianMT is primary
@@ -489,7 +548,9 @@ def chat(req: ChatRequest):
 def get_language_rules():
     """Return language rules, interjections, idioms, numbers and proverbs."""
     from language_rules import (
-        RL_RULE, EMPAAKO, INTERJECTIONS, IDIOMS, NUMBERS, PROVERBS, get_grammar_context
+        RL_RULE, EMPAAKO, INTERJECTIONS, IDIOMS, NUMBERS, PROVERBS,
+        get_grammar_context, NOUN_CLASSES, TENSES, CONJUNCTIONS,
+        PREPOSITIONS, ORTHOGRAPHY_RULES,
     )
     return {
         "rl_rule": RL_RULE.strip(),
@@ -499,6 +560,11 @@ def get_language_rules():
         "idioms": IDIOMS,
         "numbers": {str(k): v for k, v in NUMBERS.items()},
         "proverbs": PROVERBS,
+        "noun_classes": {str(k): v for k, v in NOUN_CLASSES.items()},
+        "tenses": TENSES,
+        "conjunctions": CONJUNCTIONS,
+        "prepositions": PREPOSITIONS,
+        "orthography_rules": {str(k): v for k, v in ORTHOGRAPHY_RULES.items()},
     }
 
 
@@ -519,3 +585,15 @@ def get_proverbs():
     from language_rules import PROVERBS
     import random
     return {"proverbs": PROVERBS, "random": random.choice(PROVERBS)}
+
+
+class ValidateWordRequest(BaseModel):
+    word: str
+
+@app.post("/validate-word")
+def validate_word(req: ValidateWordRequest):
+    """Validate a Runyoro-Rutooro word against grammar rules."""
+    from language_rules import validate_runyoro_word
+    if not req.word.strip():
+        raise HTTPException(status_code=400, detail="Word cannot be empty")
+    return validate_runyoro_word(req.word.strip())
