@@ -464,8 +464,8 @@ def chat(req: ChatRequest):
                 "messages": messages,
                 "stream": False,
                 "options": {
-                    "num_ctx": 2048,
-                    "num_predict": 512,
+                    "num_ctx": 1024,
+                    "num_predict": 300,
                     "temperature": 0.7,
                 }
             },
@@ -478,17 +478,21 @@ def chat(req: ChatRequest):
         logging.warning(f"Ollama call failed: {e}")
         reply_en = None
 
-    # ── Translate reply with both models for comparison ──────────────────────
+    # ── Translate reply with both models in parallel ──────────────────────────
     from language_rules import apply_rl_rule_to_text
+    import concurrent.futures as _cf
+
+    marian_out = nllb_out = None
     if reply_en:
-        marian_out = to_runyoro_marian(reply_en)
-        nllb_out   = to_runyoro_nllb(reply_en)
+        with _cf.ThreadPoolExecutor(max_workers=2) as pool:
+            f_marian = pool.submit(to_runyoro_marian, reply_en)
+            f_nllb   = pool.submit(to_runyoro_nllb,   reply_en)
+            marian_out = f_marian.result()
+            nllb_out   = f_nllb.result()
         if marian_out:
             marian_out = apply_rl_rule_to_text(_clean_translation(marian_out))
         if nllb_out:
             nllb_out = apply_rl_rule_to_text(_clean_translation(nllb_out))
-    else:
-        marian_out = nllb_out = None
 
     if not marian_out and not nllb_out:
         return {"reply": "Sorry, the chat assistant is unavailable right now. Please try again.",

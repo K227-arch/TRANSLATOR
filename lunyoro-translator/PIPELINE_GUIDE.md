@@ -98,6 +98,13 @@ This guide documents the complete implementation of the Runyoro-Rutooro translat
 - Supports multi-GPU via DataParallel
 - Directions: en2lun, lun2en
 
+**Dictionary pipeline retraining** (`dictionary_pipeline.py` Step 5):
+- Checkpoints are saved to a temp directory (`_<direction>_training_tmp/`) during training; the live model directory is never modified mid-run
+- Once training finishes, the best checkpoint is atomically copied to the live model path and the temp dir is removed
+- Each model direction (en2lun, lun2en) is then pushed to HuggingFace in a background thread, freeing the GPU for the next model without waiting for the upload to finish
+- Requires `HF_TOKEN` env var; logs a warning and skips push if not set
+- Step 6 (`step_push_to_hub`) still runs as a fallback/explicit push for all 4 models (en2lun, lun2en, nllb_en2lun, nllb_lun2en)
+
 **NLLB-200** (`fine_tune_nllb.py`):
 - Fine-tunes from existing checkpoint
 - 8 epochs, LR=2e-5, label_smoothing=0.2
@@ -194,6 +201,40 @@ python improve_and_retrain.py --skip-data
 python improve_and_retrain.py --skip-train
 ```
 
+### Option 4: Dictionary-only pipeline
+
+Use this when you have new or updated dictionary Excel files and want to retrain without running the full OCR/back-translation pipeline:
+
+```bash
+# Full dictionary pipeline (clean → augment → back-translate → merge → retrain → push to HuggingFace → rebuild index)
+python dictionary_pipeline.py
+
+# Skip retraining (data prep only — steps 1–4)
+python dictionary_pipeline.py --skip-train
+
+# Skip back-translation (faster, skips step 3)
+python dictionary_pipeline.py --skip-backtrans
+
+# Skip NLLB retraining (MarianMT only)
+python dictionary_pipeline.py --skip-nllb
+
+# Skip MarianMT, only retrain NLLB
+python dictionary_pipeline.py --only-nllb
+
+# Control training hyperparameters
+python dictionary_pipeline.py --epochs 10 --batch-size 16 --lr 5e-6
+```
+
+Input files (must exist in `data/dictionary/`):
+- `dictionary_pairs.xlsx` — flat (english, lunyoro) training pairs
+- `english_runyoro_dict.xlsx` — English headword → Runyoro equivalents
+- `runyoro_english_dict.xlsx` — Runyoro headword → English definition + examples
+
+Output files written to `data/dictionary/`:
+- `dictionary_pairs_clean.xlsx`, `english_runyoro_dict_clean.xlsx`, `runyoro_english_dict_clean.xlsx` — cleaned versions
+- `dictionary_augmented.xlsx` — derivative verb pairs (causative, passive, reciprocal, reversive)
+- `dictionary_backtranslated.xlsx` — back-translated example sentence pairs
+
 ## Verification
 
 ### Training Data Audit
@@ -280,6 +321,7 @@ from language_rules import (
     apply_consonant_suffix_change,
     apply_conversive_suffix,
     apply_reflexive_imperative,
+    apply_apostrophe_elision,
     apply_concordial_agreement,
     apply_causative,
     apply_passive,
@@ -325,6 +367,11 @@ ord2 = build_ordinal(2, 5)                      # → "lya kabiri"
 # Sound change rules
 assm = apply_nasal_assimilation("omboga")  # → "emboga"
 refl = apply_reflexive_imperative("okwesereka")  # → "weesereke"
+
+# Apostrophe elision (particle + vowel-initial word)
+elid = apply_apostrophe_elision("na ente")    # → "n'ente"
+elid = apply_apostrophe_elision("za ente")    # → "z'ente"
+elid = apply_apostrophe_elision("wa omuntu")  # → "w'omuntu"
 ```
 
 ### Via API
@@ -361,6 +408,8 @@ curl -X POST http://localhost:8000/chat \
 backend/
 ├── language_rules.py              # Core + OCR grammar rules
 ├── language_rules_ocr_extension.py # Extended OCR rules (Ch 2,4,7,9,10,12,13)
+├── extract_dictionary_pdf.py      # PDF dictionary extraction (Runyoro↔English CSVs + training pairs)
+├── dictionary_pipeline.py         # Dictionary data pipeline: clean → augment → back-translate → merge → retrain → rebuild index; clean_pairs_df() applies post-step quality filtering (length, noise, language-side validation, dedup, orthographic normalisation)
 ├── extract_ocr_pairs.py           # OCR data extraction
 ├── back_translate.py              # Back-translation augmentation
 ├── clean_backtranslated.py        # Quality filtering

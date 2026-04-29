@@ -752,6 +752,49 @@ def apply_ni_prefix_change(text: str) -> str:
     return result
 
 
+# Apostrophe elision: particle + vowel-initial word → particle' + word
+# e.g. "na ente" → "n'ente",  "za ente" → "z'ente"
+# Source: Runyoro-Rutooro Orthography Guide (1995)
+_ELISION_PARTICLES = [
+    # (full_form, elided_prefix) — order matters: longer first
+    ("na ",  "n'"),   # na + vowel-initial → n'
+    ("za ",  "z'"),   # za + vowel-initial → z'
+    ("ka ",  "k'"),   # ka + vowel-initial → k'
+    ("ya ",  "y'"),   # ya + vowel-initial → y'
+    ("wa ",  "w'"),   # wa + vowel-initial → w'
+    ("ga ",  "g'"),   # ga + vowel-initial → g'
+    ("ba ",  "b'"),   # ba + vowel-initial → b'
+]
+
+_VOWELS = set("aeiouAEIOU")
+
+def apply_apostrophe_elision(text: str) -> str:
+    """
+    Apply vowel elision with apostrophe for Runyoro-Rutooro particles
+    before vowel-initial words.
+
+    e.g.  "na ente"   → "n'ente"
+          "za ente"   → "z'ente"
+          "na omuntu" → "n'omuntu"
+
+    Only applies when the following word starts with a vowel.
+    Source: Runyoro-Rutooro Orthography Guide (1995)
+    """
+    if not text:
+        return text
+    import re as _re
+    result = text
+    for full, elided in _ELISION_PARTICLES:
+        # Match particle followed by a vowel-initial word (word boundary aware)
+        # e.g. "na ente" but not "na kazi" (k is not a vowel)
+        pattern = _re.compile(
+            r'\b' + _re.escape(full.strip()) + r'\s+(?=[aeiouAEIOU])',
+            _re.IGNORECASE
+        )
+        result = pattern.sub(elided, result)
+    return result
+
+
 def apply_y_insertion(subject_prefix: str, tense_prefix: str, verb_stem: str) -> str:
     """
     Insert 'y' between tense prefix and vowel-initial verb stem when required.

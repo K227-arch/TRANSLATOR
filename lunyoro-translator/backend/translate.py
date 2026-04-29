@@ -39,9 +39,10 @@ _rules_loaded = False
 _apply_rl      = None
 _apply_nasal   = None
 _apply_ni      = None
+_apply_apostrophe = None
 
 def _load_rules():
-    global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni
+    global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni, _apply_apostrophe
     if _rules_loaded:
         return
     try:
@@ -49,10 +50,12 @@ def _load_rules():
             apply_rl_rule_to_text,
             apply_nasal_assimilation,
             apply_ni_prefix_change,
+            apply_apostrophe_elision,
         )
-        _apply_rl    = apply_rl_rule_to_text
-        _apply_nasal = apply_nasal_assimilation
-        _apply_ni    = apply_ni_prefix_change
+        _apply_rl         = apply_rl_rule_to_text
+        _apply_nasal      = apply_nasal_assimilation
+        _apply_ni         = apply_ni_prefix_change
+        _apply_apostrophe = apply_apostrophe_elision
     except Exception as e:
         print(f"[translate] language_rules not available: {e}")
     _rules_loaded = True
@@ -65,7 +68,8 @@ def _postprocess_lunyoro(text: str) -> str:
     Order matters:
       1. Nasal assimilation  (nb→mb, np→mp, nr→nd, nl→nd)
       2. ni→nu prefix change (nimugenda→numugenda before u-class concords)
-      3. R/L rule            (L→R except adjacent to e/i)
+      3. Apostrophe elision  (na ente→n'ente, za ente→z'ente)
+      4. R/L rule            (L→R except adjacent to e/i)
     """
     if not text:
         return text
@@ -74,6 +78,8 @@ def _postprocess_lunyoro(text: str) -> str:
         text = _apply_nasal(text)
     if _apply_ni:
         text = _apply_ni(text)
+    if _apply_apostrophe:
+        text = _apply_apostrophe(text)
     if _apply_rl:
         text = _apply_rl(text)
     return text
