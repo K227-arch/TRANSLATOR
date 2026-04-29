@@ -6,10 +6,17 @@ import json
 import os
 import io
 
+# Load .env file if present (development convenience)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Ensure all HuggingFace/transformers calls stay fully offline
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", os.getenv("TRANSFORMERS_OFFLINE", "1"))
+os.environ.setdefault("HF_DATASETS_OFFLINE", os.getenv("HF_DATASETS_OFFLINE", "1"))
+os.environ.setdefault("HF_HUB_OFFLINE", os.getenv("HF_HUB_OFFLINE", "1"))
 
 from translate import translate, translate_to_english, lookup_word, spellcheck, get_index_and_model
 from translate import _mt_translate, _nllb_translate
@@ -71,6 +78,17 @@ def _clean_translation(text: str) -> str:
 
 app = FastAPI(title="Lunyoro/Rutooro Translator API")
 
+# CORS — configurable via CORS_ORIGINS env var (comma-separated)
+_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3002,http://localhost:3000")
+_cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 def preload_model():
@@ -82,15 +100,8 @@ def preload_model():
     _load_nllb("en2lun")
     _load_nllb("lun2en")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-HISTORY_FILE = os.path.join(os.path.dirname(__file__), "history.json")
+# History file — configurable via HISTORY_FILE env var
+HISTORY_FILE = os.getenv("HISTORY_FILE") or os.path.join(os.path.dirname(__file__), "history.json")
 
 
 def save_history(entry: dict):
@@ -344,7 +355,7 @@ def chat(req: ChatRequest):
     """AI Language Assistant — LLM-powered generative replies about Runyoro-Rutooro."""
     import re, requests as _requests
     from translate import _mt_translate, _load_retrieval, _normalise, _index, _sem_model
-    from language_rules import get_grammar_context, EMPAAKO, PROVERBS, NUMBERS
+    from language_rules import get_full_grammar_context, EMPAAKO, PROVERBS, NUMBERS
     import numpy as np
     from sentence_transformers import util as st_util
 
@@ -430,6 +441,7 @@ def chat(req: ChatRequest):
     corpus_ctx   = corpus_context(msg)
     sector_label = SECTOR_LABELS.get(sector, "")
     dict_ctx     = dict_context(sector) if sector else ""
+    grammar_ctx  = get_full_grammar_context()
 
     system_prompt = (
         "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda. /no_think\n"
@@ -438,6 +450,7 @@ def chat(req: ChatRequest):
         "Use numbered lists or bullet points when listing items.\n"
         "Write in clear English sentences. Do not use overly complex grammar.\n"
     )
+    system_prompt += f"\n{grammar_ctx}\n"
     if corpus_ctx:
         system_prompt += f"\nRelevant examples (English → Runyoro-Rutooro):\n{corpus_ctx}\n"
     if sector_label:
@@ -520,15 +533,19 @@ def chat(req: ChatRequest):
 
     # ── Translate reply with both models for comparison ──────────────────────
     from language_rules import apply_rl_rule_to_text
+    import concurrent.futures as _cf
+
+    marian_out = nllb_out = None
     if reply_en:
-        marian_out = to_runyoro_marian(reply_en)
-        nllb_out   = to_runyoro_nllb(reply_en)
+        with _cf.ThreadPoolExecutor(max_workers=2) as pool:
+            f_marian = pool.submit(to_runyoro_marian, reply_en)
+            f_nllb   = pool.submit(to_runyoro_nllb,   reply_en)
+            marian_out = f_marian.result()
+            nllb_out   = f_nllb.result()
         if marian_out:
             marian_out = apply_rl_rule_to_text(_clean_translation(marian_out))
         if nllb_out:
             nllb_out = apply_rl_rule_to_text(_clean_translation(nllb_out))
-    else:
-        marian_out = nllb_out = None
 
     if not marian_out and not nllb_out:
         # reply_en is set but translation models failed — return English reply directly
@@ -566,6 +583,111 @@ def get_language_rules():
         "prepositions": PREPOSITIONS,
         "orthography_rules": {str(k): v for k, v in ORTHOGRAPHY_RULES.items()},
     }
+
+
+class ApplyRuleRequest(BaseModel):
+    rule: str
+    text: str = ""
+    verb_stem: str = ""
+    person: str = "3sg"
+    tense: str = "present_imperfect"
+    negative: bool = False
+    noun_class: int = 1
+    number: str = "singular"
+    n: int = 1
+
+
+@app.post("/language-rules/apply")
+def apply_language_rule(req: ApplyRuleRequest):
+    """
+    Apply a specific Runyoro-Rutooro grammar rule programmatically.
+
+    rule options:
+      rl_rule              — apply R/L rule to text
+      nasal_assimilation   — apply nasal assimilation to text
+      ni_prefix_change     — apply ni→nu prefix change to text
+      y_insertion          — insert y between tense prefix and vowel-initial stem
+      consonant_suffix     — apply consonant+suffix sound change to verb_stem
+      conversive           — build conversive form of verb_stem
+      reflexive_imperative — build reflexive imperative from verb_stem (okw-e... infinitive)
+      concordial_agreement — prefix adjective stem (text) with concord for noun_class
+      build_plural         — build plural of noun (text)
+      class9_nasal         — apply class 9 nasal prefix to stem (text)
+      build_verb           — assemble full verb form (verb_stem, person, tense, negative)
+      causative            — build causative form of verb_stem
+      passive              — build passive form of verb_stem
+      neuter               — build neuter/stative form of verb_stem
+      reciprocal           — build reciprocal form of verb_stem
+      adjective_concord    — get adjectival concord for noun_class
+      demonstrative        — get demonstrative for noun_class
+      numeral_concord      — get numeral concord for noun_class
+      ordinal              — build ordinal n in agreement with noun_class
+    """
+    from language_rules import (
+        apply_rl_rule_to_text, apply_nasal_assimilation, apply_ni_prefix_change,
+        apply_y_insertion, apply_consonant_suffix_change, apply_conversive_suffix,
+        apply_reflexive_imperative, apply_concordial_agreement, build_plural,
+        apply_class9_nasal_prefix, build_verb_form, apply_causative, apply_passive,
+        apply_neuter, apply_reciprocal, get_adjective_concord, get_demonstrative,
+        get_numeral_concord, build_ordinal,
+    )
+
+    r = req.rule.lower().strip()
+    try:
+        if r == "rl_rule":
+            return {"result": apply_rl_rule_to_text(req.text)}
+        elif r == "nasal_assimilation":
+            return {"result": apply_nasal_assimilation(req.text)}
+        elif r == "ni_prefix_change":
+            return {"result": apply_ni_prefix_change(req.text)}
+        elif r == "y_insertion":
+            # text = "subject_prefix:tense_prefix:verb_stem"
+            parts = req.text.split(":")
+            if len(parts) == 3:
+                return {"result": apply_y_insertion(parts[0], parts[1], parts[2])}
+            return {"result": apply_y_insertion("", req.tense, req.verb_stem)}
+        elif r == "consonant_suffix":
+            # text = suffix (e.g. "-ire"), verb_stem = stem
+            return {"result": apply_consonant_suffix_change(req.verb_stem, req.text)}
+        elif r == "conversive":
+            return {"result": apply_conversive_suffix(req.verb_stem or req.text)}
+        elif r == "reflexive_imperative":
+            return {"result": apply_reflexive_imperative(req.verb_stem or req.text, req.number)}
+        elif r == "concordial_agreement":
+            return {"result": apply_concordial_agreement(req.text, req.noun_class)}
+        elif r == "build_plural":
+            result = build_plural(req.text)
+            return {"result": result or "unknown"}
+        elif r == "class9_nasal":
+            return {"result": apply_class9_nasal_prefix(req.text)}
+        elif r == "build_verb":
+            return {"result": build_verb_form(req.verb_stem, req.person, req.tense, req.negative)}
+        elif r == "causative":
+            return {"result": apply_causative(req.verb_stem or req.text)}
+        elif r == "passive":
+            return {"result": apply_passive(req.verb_stem or req.text)}
+        elif r == "neuter":
+            return {"result": apply_neuter(req.verb_stem or req.text)}
+        elif r == "reciprocal":
+            return {"result": apply_reciprocal(req.verb_stem or req.text)}
+        elif r == "adjective_concord":
+            return {"result": get_adjective_concord(req.noun_class)}
+        elif r == "demonstrative":
+            return {"result": get_demonstrative(req.noun_class)}
+        elif r == "numeral_concord":
+            return {"result": get_numeral_concord(req.noun_class)}
+        elif r == "ordinal":
+            return {"result": build_ordinal(req.n, req.noun_class)}
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown rule: '{req.rule}'. "
+                "Valid rules: rl_rule, nasal_assimilation, ni_prefix_change, y_insertion, "
+                "consonant_suffix, conversive, reflexive_imperative, concordial_agreement, "
+                "build_plural, class9_nasal, build_verb, causative, passive, neuter, "
+                "reciprocal, adjective_concord, demonstrative, numeral_concord, ordinal")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/language-rules/interjections")

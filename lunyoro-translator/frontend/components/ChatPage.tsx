@@ -2,6 +2,65 @@
 
 import React, { useState, useEffect, useRef } from "react";
 
+/** Convert LLM markdown-ish text to clean readable JSX */
+function formatMessage(text: string) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listItems: string[] = [];
+
+  const flushList = (key: string) => {
+    if (listItems.length === 0) return;
+    elements.push(
+      <ul key={key} className="list-none space-y-1 my-1">
+        {listItems.map((item, i) => (
+          <li key={i} className="flex gap-2 items-start">
+            <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+            <span>{formatInline(item)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+    listItems = [];
+  };
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList(`list-${i}`);
+      elements.push(<div key={`br-${i}`} className="h-1" />);
+      return;
+    }
+    // Bullet lines: *, -, •, or numbered
+    if (/^(\*|-|•|\d+\.)\s+/.test(trimmed)) {
+      listItems.push(trimmed.replace(/^(\*|-|•|\d+\.)\s+/, ""));
+    } else {
+      flushList(`list-${i}`);
+      elements.push(
+        <p key={`p-${i}`} className="leading-relaxed">
+          {formatInline(trimmed)}
+        </p>
+      );
+    }
+  });
+  flushList("list-end");
+  return <div className="space-y-1 text-sm text-gray-800">{elements}</div>;
+}
+
+/** Handle inline markdown: **bold**, *italic*, "quotes" → styled spans */
+function formatInline(text: string): React.ReactNode {
+  // Split on **bold**, *italic*, and "quoted" patterns
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|"[^"]{2,80}")/g);
+  return parts.map((part, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(part))
+      return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+    if (/^\*[^*]+\*$/.test(part))
+      return <em key={i} className="italic text-gray-700">{part.slice(1, -1)}</em>;
+    if (/^"[^"]{2,80}"$/.test(part))
+      return <span key={i} className="italic text-blue-700">{"\u201C"}{part.slice(1, -1)}{"\u201D"}</span>;
+    return part;
+  });
+}
+
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type ChatItem = {
