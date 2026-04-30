@@ -6,10 +6,6 @@ Sources:
   - runyorodictionary.com
 """
 import re as _re
-try:
-    from language_rules_extra import *  # noqa: F401,F403
-except ImportError:
-    pass  # extra rules not available in this environment
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ALPHABET & ORTHOGRAPHY
@@ -721,849 +717,1133 @@ def number_to_runyoro(n: int) -> str | None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# DERIVATIVE VERB FORMATION RULES (DETAILED)
-# Source: Grammar Ch.12 — Derivative verbs in particular
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Prepositional/Applied verb formation (-ira/-era)
-# Exceptions to the general -ira/-era rule:
-
-PREPOSITIONAL_FORMATION = {
-    "verbs_ending_ra": {
-        "rule": "prefix r to last syllable, causing long vowel before it",
-        "examples": {
-            "okusara": "okusaarra",   # to cut -> to cut for
-            "okukora": "okukoorra",   # to work -> to work within time
-        }
-    },
-    "verbs_ending_rra": {
-        "rule": "restore dropped vowel, then prefix r to last syllable",
-        "examples": {
-            "okukoorra": "okukoroorra",  # to cough -> to cough at
-            "okuseerra": "okuseruurra",  # to look for -> to look for somewhere
-        }
-    },
-    "verbs_ending_ja": {
-        "rule": "follow general rule but undergo sound change (j->z before -ire/-i)",
-        "note": "see consonant suffix changes"
-    },
-    "verbs_ending_za": {
-        "rule": "change -za into -liza/-leza",
-        "examples": {
-            "okuguza": "okuguliza",  # to sell -> to sell in/at a place
-            "okubaza": "okubaliza",  # to speak -> to speak while at
-        }
-    },
-    "causative_verbs_ending_ya": {
-        "rule": "change -ya into -iza/-eza",
-        "examples": {
-            "okubya": "okubiza",     # causative forms
-        }
-    },
-}
-
-# Passive verb formation (-ibwa/-ebwa)
-PASSIVE_FORMATION = {
-    "monosyllabic_simple": {
-        "rule": "add -ibwa/-ebwa with sound change",
-        "examples": {
-            "ha": "heebwa",   # give -> be given
-            "ta": "teebwa",   # put -> be put
-            "sa": "siibwa",   # grind -> be ground
-        }
-    },
-    "monosyllabic_labial_palatal": {
-        "rule": "replace final vowel with -ibwa/-ebwa",
-        "examples": {
-            "cwa": "cwibwa",      # break -> be broken
-            "lya": "liibwa",      # eat -> be eaten
-            "byamya": "byamibwa", # lay down -> be laid down
-        }
-    },
-    "causative_ya_sa_za": {
-        "rule": "replace final vowel with -ibwa/-ebwa",
-        "examples": {
-            "yegesa": "yegesebwa",  # teach -> be taught
-            "guza": "guzibwa",      # sell -> be sold
-        }
-    },
-    "other_verbs": {
-        "rule": "replace -a with -wa",
-        "examples": {
-            "genda": "gendwa",   # go -> be gone to
-            "kora": "korwa",     # work -> be worked
-        }
-    },
-}
-
-# Causative verb formation (-isa/-esa/-ya)
-CAUSATIVE_FORMATION = {
-    "monosyllabic_simple": {
-        "rule": "add -isa/-esa",
-        "examples": {
-            "ba": "baisa",   # be -> put in a state
-            "ha": "haisa",   # give -> cause to give
-            "ta": "taisa",   # put -> cause to put
-        }
-    },
-    "monosyllabic_labial_palatal": {
-        "rule": "change final a to -isa, restore original vowel if replaced",
-        "examples": {
-            "cwa": "cwisa",   # break -> help to break
-            "hwa": "hoisa",   # finish -> cause to finish
-            "hya": "hiisa",   # cook -> finish cooking
-        }
-    },
-    "verbs_ending_ra_rra": {
-        "rule": "change -ra into -za",
-        "examples": {
-            "okubara": "okubaza",     # count -> help count
-            "okuhaarra": "okuharuza", # scrape -> scrape out with
-        }
-    },
-    "verbs_ending_ta": {
-        "rule": "change -ta into -sa",
-        "examples": {
-            "okucumita": "okucumisa",  # stab -> stab with
-            "okurubata": "okurubasa",  # tread -> tread with
-        }
-    },
-    "intransitive_verbs": {
-        "rule": "replace final a with -ya",
-        "examples": {
-            "okuhaba": "okuhabya",   # go astray -> make lose way
-            "okwoga": "okwogya",     # bathe -> wash
-            "okwaka": "okwakya",     # burn -> light/blow up fire
-            "okubya": "okubyamya",   # lie down -> lay down
-        }
-    },
-}
-
-# Neuter/stative verb formation (-ika/-eka/-ooka/-uuka)
-NEUTER_FORMATION = {
-    "rule": "replace final vowel with -ika/-eka/-ooka/-uuka per sound change",
-    "examples": {
-        "okwata": "okwatika",      # smash -> be smashed
-        "okucwa": "okucweka",      # break -> be broken
-        "okugoorra": "okugoorrooka", # stretch -> be stretched out
-        "okuhuuha": "okuhuuhuuka",   # blow -> be blown off
-    },
-    "verbs_ending_ra": {
-        "rule": "replace last syllable with -ka",
-        "examples": {
-            "okusobora": "okusoboka",  # manage -> be manageable
-            "okutaagura": "okutaaguka", # tear -> get torn
-        }
-    },
-}
-
-# Conversive/reversive verb formation (-ura/-ora/-uka/-oka)
-CONVERSIVE_FORMATION = {
-    "rule": "indicates undoing or reversing the action",
-    "transitive_ura_ora": {
-        "examples": {
-            "okubamba": "okubambura",   # peg -> unpeg
-            "okuleega": "okulegura",    # tighten -> loosen
-            "okusimba": "okusimbura",   # stick upright -> uproot
-        }
-    },
-    "intransitive_uka_oka": {
-        "examples": {
-            "okubamba": "okubambuka",   # peg -> break away
-            "okuleega": "okuleguka",    # tighten -> get loose
-            "okusimba": "okusimbuka",   # stick -> get uprooted
-        }
-    },
-}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# COMPOUND TENSE CONDITIONAL CONSTRUCTIONS
-# Source: Grammar Ch.15 — Compound tenses with conditional mood
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Conditional constructions with kakuba/kuba/kakusangwa/kusangwa
-# These introduce conditional sentences with various tense combinations
-
-CONDITIONAL_CONSTRUCTIONS = {
-    "kakuba": {
-        "meaning": "if (conditional marker)",
-        "usage": "introduces conditional protasis",
-        "examples": {
-            "near_past": "Kakuba obaire ompaireomulimo nkugukozire (If you had given me work I should have done it)",
-            "present": "Kakuba omuha omulimo naagukora (If you give him work he will do it)",
-        }
-    },
-    "kuba": {
-        "meaning": "if (conditional marker, variant of kakuba)",
-        "usage": "interchangeable with kakuba in most contexts",
-        "examples": {
-            "Kuba obaire ompaireomulimo nkugukozire",
-            "Kuba okaba ompaireomulimo naakugukozire",
-        }
-    },
-    "kakusangwa": {
-        "meaning": "if it happens that (conditional marker)",
-        "usage": "emphasizes contingency or happenstance",
-        "examples": {
-            "Kakusangwa omulimo tinkukozire (If work happens, I have not done anything)",
-        }
-    },
-    "kusangwa": {
-        "meaning": "if it happens that (variant)",
-        "usage": "variant of kakusangwa",
-    },
-    "obu": {
-        "meaning": "if/when (conditional marker)",
-        "usage": "introduces conditional clauses, often with okubaire",
-        "examples": {
-            "positive": "Obu okubaire ompaireomulimo nkugukozire (If you had given me work I should have done it)",
-            "negative": "Obu okubaire otampaireomulimo tinkukozire kantu (If you had not given me work I should not have done anything)",
-            "with_verb_ina": "Obu nkubaire nyina enju naakumuraize (If I had had a house I should have put him up)",
-            "with_verb_li": "Obu nkubaire ndi mwomeezi naakukusendekeriize (If I had been healthy I should have seen you off)",
-        }
-    },
-}
-
-# Conditional tense patterns by time reference
-CONDITIONAL_TENSE_PATTERNS = {
-    "near_past": {
-        "protasis": "obaire(ge) + verb-ire",
-        "apodosis": "subject + -ku- + verb-ire",
-        "example": "Obu okubaire ompaireomulimo nkugukozire",
-    },
-    "far_past": {
-        "protasis": "okaba / waakubaire + verb",
-        "apodosis": "subject + naa- + verb-ire",
-        "example": "Obu waakubaire ompaireomulimo naakugukozire",
-    },
-    "present_imperfect": {
-        "protasis": "verb with ni- prefix or relative form",
-        "apodosis": "noo- + verb / naa- + verb",
-        "example": "Kakuba noomuhairemulimo naagukora",
-    },
-    "near_future": {
-        "protasis": "oraa- + verb",
-        "apodosis": "araa- + verb / taa- + verb-e (negative)",
-        "example": "Obu oraamuhairemulimo araagukora",
-    },
-    "far_future": {
-        "protasis": "oliba + verb",
-        "apodosis": "aligukora / talikora",
-        "example": "Obu oliba omuhairemulimo aligukora",
-    },
-}
-
-# Conditional marker -ku- (doubt/uncertainty in consequence)
-CONDITIONAL_KU_MARKER = {
-    "usage": "inserted in apodosis when consequence is doubted",
-    "examples": {
-        "positive": "Omuhairemulimo akugukora (If you gave him work he would do it)",
-        "negative": "Omuhairemulimo taakugukora? (If you gave him work, wouldn't he do it?)",
-    },
-    "note": "May be omitted in reduced forms: Nkutiire okora ki? (What would you do if I beat you?)",
-}
-
-# Infinitive as conditional introducer
-INFINITIVE_CONDITIONAL = {
-    "usage": "infinitive with nominal prefix acts as conditional introducer",
-    "examples": {
-        "simple": "Kumuha omulimo naagukora (If you gave him work he would do it)",
-        "compound": "Obaire kumuha omulimo naagukora (If you gave him work he would do it)",
-    },
-    "note": "No negative form exists for this construction",
-}
-
-# Relative form conditional
-RELATIVE_CONDITIONAL = {
-    "usage": "relative form in protasis with obu as introducer",
-    "examples": {
-        "positive": "Obu arukugumpa ningukora (If he gave it to me I should do it)",
-        "negative": "Obu atarukumpa mulimo tindikukora (If he did not give me work I should be idle)",
-    },
-    "note": "Often used to answer questions made with infinitive conditional forms",
-}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# GENITIVE PARTICLES (Possessive Connectives)
-# Source: Grammar Ch.7, Ch.9 — Genitive/possessive constructions
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Genitive particles connect possessor to possessed noun
-# Form: class concord + -a
-GENITIVE_PARTICLES = {
-    1:  {"particle": "wa",   "variant_v": "w'",   "example": "omusaija wa Petero (Peter's man)"},
-    2:  {"particle": "ba",   "variant_v": "b'",   "example": "abasaija ba Petero (Peter's men)"},
-    3:  {"particle": "gwa",  "variant_v": "gw'",  "example": "omuti gwa Petero (Peter's tree)"},
-    4:  {"particle": "gya",  "variant_v": "gy'",  "example": "emiti gya Petero (Peter's trees)"},
-    5:  {"particle": "lya",  "variant_v": "ly'",  "example": "eriiso lya Petero (Peter's eye)"},
-    6:  {"particle": "ga",   "variant_v": "g'",   "example": "amaiso ga Petero (Peter's eyes)"},
-    7:  {"particle": "kya",  "variant_v": "ky'",  "example": "ekintu kya Petero (Peter's thing)"},
-    8:  {"particle": "bya",  "variant_v": "by'",  "example": "ebintu bya Petero (Peter's things)"},
-    9:  {"particle": "ya",   "variant_v": "y'",   "example": "ente ya Petero (Peter's cow)"},
-    10: {"particle": "za",   "variant_v": "z'",   "example": "ente za Petero (Peter's cows)"},
-    11: {"particle": "rwa",  "variant_v": "rw'",  "example": "orulimi rwa Petero (Peter's tongue)"},
-    12: {"particle": "ka",   "variant_v": "k'",   "example": "akana ka Petero (Peter's small child)"},
-    13: {"particle": "twa",  "variant_v": "tw'",  "example": "ututo twa Petero (Peter's small things)"},
-    14: {"particle": "bwa",  "variant_v": "bw'",  "example": "obwire bwa Petero (Peter's millet)"},
-    15: {"particle": "kwa",  "variant_v": "kw'",  "example": "okuguru kwa Petero (Peter's leg)"},
-}
-
-def get_genitive_particle(noun_class: int | str) -> str:
-    """Return genitive particle for a noun class."""
-    entry = GENITIVE_PARTICLES.get(noun_class)
-    return entry["particle"] if entry else ""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# RELATIVE CONCORDS AND PARTICLES
-# Source: Grammar Ch.9 — Relative constructions
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Relative concords mark relative clauses (who, which, that)
-RELATIVE_CONCORDS = {
-    1:  {"concord": "-a-",   "example": "omusaija agenze (the man who went)"},
-    2:  {"concord": "-ba-",  "example": "abasaija bagenze (the men who went)"},
-    3:  {"concord": "-gu-",  "example": "omuti gugenze (the tree that fell)"},
-    4:  {"concord": "-gi-",  "example": "emiti gigenze (the trees that fell)"},
-    5:  {"concord": "-li-",  "example": "eriiso lirungi (the eye that is good)"},
-    6:  {"concord": "-ga-",  "example": "amaiso garungi (the eyes that are good)"},
-    7:  {"concord": "-ki-",  "example": "ekintu kirungi (the thing that is good)"},
-    8:  {"concord": "-bi-",  "example": "ebintu birungi (the things that are good)"},
-    9:  {"concord": "-i-",   "example": "ente irungi (the cow that is good)"},
-    10: {"concord": "-zi-",  "example": "ente zirungi (the cows that are good)"},
-    11: {"concord": "-ru-",  "example": "orulimi rurungi (the tongue that is good)"},
-    12: {"concord": "-ka-",  "example": "akana karungi (the small child that is good)"},
-    13: {"concord": "-tu-",  "example": "ututo turungi (the small things that are good)"},
-    14: {"concord": "-bu-",  "example": "obwire burungi (the millet that is good)"},
-    15: {"concord": "-ku-",  "example": "okuguru kurungi (the leg that is good)"},
-}
-
-# Relative particles -nyaku-, -owa-, -eya-
-# These mark definiteness or specificity in relative constructions
-RELATIVE_PARTICLES = {
-    "-nyaku-": {
-        "meaning": "that specific one (definite relative)",
-        "usage": "inserted before noun prefix to mark known referent",
-        "example": "nyakumotoka (that specific car we know)",
-    },
-    "-owa-": {
-        "meaning": "the one of/belonging to",
-        "usage": "possessive relative marker",
-        "example": "owaKabale (the one from/of Kabale)",
-    },
-    "-eya-": {
-        "meaning": "the one that/which",
-        "usage": "relative marker for specific reference",
-    },
-    "nya-": {
-        "meaning": "that/those (definite marker)",
-        "usage": "placed before noun prefix for definiteness",
-        "examples": {
-            "nyamotoka": "those (specific) cars",
-            "nyastookingi": "those (specific) stockings",
-        },
-        "note": "Similar to zaa-/za-/ze-/zo- prefixes of class 10a",
-    },
-}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NOUN DERIVATION SUFFIXES
-# Source: Grammar Ch.7, Ch.8 — Noun formation from verbs and other nouns
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Nouns can be derived from verbs using specific suffixes and class prefixes
-NOUN_DERIVATION = {
-    "agent_nouns_class1": {
-        "pattern": "omu- + verb_stem + -i",
-        "meaning": "person who does the action",
-        "examples": {
-            "okukora": "omukozi (worker)",
-            "okugenda": "omugenzi (traveler)",
-            "okusoma": "omusomi (reader)",
-            "okwigisha": "omwigisha (teacher)",
-        }
-    },
-    "instrument_nouns_class7": {
-        "pattern": "eki- + verb_stem + -o",
-        "meaning": "instrument/tool for doing action",
-        "examples": {
-            "okusala": "ekisalo (cutting tool)",
-            "okufumba": "ekifumbo (cooking pot)",
-            "okubaza": "ekibazo (question)",
-        }
-    },
-    "abstract_nouns_class14": {
-        "pattern": "obu- + adjective_stem / verb_stem + -i/-o",
-        "meaning": "abstract quality or state",
-        "examples": {
-            "omurungi": "oburungi (goodness)",
-            "omubi": "obubi (badness)",
-            "omukuru": "obukuru (old age)",
-            "okukora": "obukozi (work/labor as concept)",
-        }
-    },
-    "diminutive_nouns_class12": {
-        "pattern": "aka- + noun_stem",
-        "meaning": "small version of noun",
-        "examples": {
-            "omwana": "akana (small child)",
-            "enju": "akaju (small house)",
-        }
-    },
-    "augmentative_pejorative": {
-        "pattern": "oru-/eki-/eri- substituted for normal prefix",
-        "meaning": "large/clumsy/pejorative version",
-        "note": "See AUGMENTATIVE_EXAMPLES section above",
-    },
-}
-
-# Suffix patterns for noun derivation
-NOUN_DERIVATION_SUFFIXES = {
-    "-i": {
-        "usage": "agent nouns (class 1), abstract nouns (class 14)",
-        "examples": ["omukozi", "obukozi"],
-    },
-    "-o": {
-        "usage": "instrument nouns (class 7), result nouns",
-        "examples": ["ekisalo", "ekifumbo"],
-    },
-    "-zi": {
-        "usage": "plural agent nouns (class 2 from class 1)",
-        "examples": ["abakozi (workers)"],
-    },
-    "-u": {
-        "usage": "abstract/quality nouns",
-        "examples": ["obuntu (humanity)", "obukulu (greatness)"],
-    },
-}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# COMPLETE ORTHOGRAPHY RULES
-# Source: Runyoro-Rutooro Orthography Guide (1995)
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Prenasalization rules
-PRENASALIZATION_RULES = {
-    "mb": {
-        "rule": "nasal m + b always written as mb",
-        "examples": ["embwa (dog)", "omubiri (body)", "kumbira (to beg)"],
-    },
-    "mp": {
-        "rule": "nasal m + p always written as mp",
-        "examples": ["empanga (horn)", "kumpa (to give me)"],
-    },
-    "nd": {
-        "rule": "nasal n + d/r always written as nd",
-        "examples": ["enda (stomach)", "kunda (to love)", "okwendera (to visit)"],
-        "note": "n + r -> nd (Meinhof's rule)",
-    },
-    "nt": {
-        "rule": "nasal n + t always written as nt",
-        "examples": ["ente (cow)", "kunta (to beat me)"],
-    },
-    "ng": {
-        "rule": "nasal n + g written as ng",
-        "examples": ["engoma (drum)", "kunguza (to shake)"],
-    },
-    "nk": {
-        "rule": "nasal n + k written as nk",
-        "examples": ["enka (cow - variant)", "kunkuba (to beat me)"],
-    },
-    "nj": {
-        "rule": "nasal n + j written as nj",
-        "examples": ["enju (house)", "kunjura (to untie for me)"],
-    },
-    "nc": {
-        "rule": "nasal n + c written as nc",
-        "examples": ["enca (hunger)", "kuncumbagira (to kneel for me)"],
-    },
-}
-
-# Double consonant rules
-DOUBLE_CONSONANT_RULES = {
-    "rr": {
-        "rule": "double r indicates intensive/completive action or specific verb forms",
-        "examples": ["okukoorra (to cough)", "okuseerra (to look for)", "okusaarra (to cut for)"],
-    },
-    "tt": {
-        "rule": "double t rare, occurs in some borrowed words",
-        "examples": ["omuttaka (chief - variant spelling)"],
-    },
-    "kk": {
-        "rule": "double k rare, occurs in emphasis or specific dialects",
-    },
-    "long_vowel_before_consonant": {
-        "rule": "long vowel (doubled) before single consonant indicates vowel length",
-        "examples": ["kubaasa (to be able)", "kuhaamba (to give generously)"],
-    },
-}
-
-# Syllabification rules
-SYLLABIFICATION_RULES = {
-    "cv_structure": {
-        "rule": "Runyoro-Rutooro prefers open syllables (CV pattern)",
-        "examples": ["o-mu-sa-i-ja", "e-ki-ta-bu", "o-ku-ge-n-da"],
-    },
-    "nasal_syllabic": {
-        "rule": "Prenasals (mb, nd, nt, etc.) form single onset with following consonant",
-        "examples": ["e-mbu-zi (goat) = e-mbu-zi not e-m-bu-zi"],
-    },
-    "vowel_sequences": {
-        "rule": "Vowel sequences are separate syllables unless forming diphthong",
-        "examples": ["o-ku-i-ta (to call) = o-ku-i-ta", "mai (water) = single syllable with diphthong"],
-    },
-}
-
-# Initial vowel (augment) rules
-INITIAL_VOWEL_RULES = {
-    "presence": {
-        "rule": "Most nouns have initial vowel (augment) before class prefix",
-        "examples": {
-            "with_augment": "o-mu-ntu (person), e-ki-ntu (thing), a-ma-zi (water)",
-            "without_augment": "proper names, some class 1a/2a nouns, class 9a/10a",
-        },
-    },
-    "elision": {
-        "rule": "Initial vowel may be dropped in fast speech, marked with apostrophe",
-        "examples": ["n'ente (with cow)", "z'ente (of cows)", "k'ente (it is a cow)"],
-    },
-    "vowel_harmony": {
-        "rule": "Initial vowel often harmonizes with prefix vowel",
-        "patterns": {
-            "o-": "omu-, obu-, oku-, oru-",
-            "e-": "eki-, emi-, eri-, en-",
-            "a-": "aba-, aka-, ama-",
-            "u-": "utu-",
-        },
-    },
-}
-
-# Tone marking (not written in standard orthography)
-TONE_RULES = {
-    "note": "Runyoro-Rutooro is a tonal language but tone is not marked in standard orthography",
-    "importance": "Tone distinguishes meaning: omukazi (woman) vs omukazi (belt) differ only in tone",
-    "patterns": {
-        "high_tone": "typically on penultimate syllable in isolation form",
-        "low_tone": "other syllables typically low",
-        "downstep": "high tone followed by lower high tone in some contexts",
-    },
-}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# IMPERATIVE MOOD WITH OBJECT PREFIXES
-# Source: Grammar Ch.13, Ch.16 — Imperative forms
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Imperative forms with object prefixes
-IMPERATIVE_WITH_OBJECTS = {
-    "singular": {
-        "pattern": "verb_stem + -a (or modified stem)",
-        "with_object": "object_prefix + verb_stem + -a",
-        "examples": {
-            "no_object": "genda (go!)",
-            "1sg_object": "nkunde (love me!)",
-            "2sg_object": "kukunde (love you!)",
-            "3sg_object": "mukunde (love him/her!)",
-            "1pl_object": "tukunde (love us!)",
-            "3pl_object": "bakunde (love them!)",
-        },
-    },
-    "plural": {
-        "pattern": "mu- + verb_stem + -e",
-        "with_object": "mu- + object_prefix + verb_stem + -e",
-        "examples": {
-            "no_object": "mugende (go! [plural])",
-            "1sg_object": "munkunde (love me! [plural])",
-            "3sg_object": "mumukunde (love him/her! [plural])",
-            "3pl_object": "mubakunde (love them! [plural])",
-        },
-    },
-    "negative_singular": {
-        "pattern": "ota- + verb_stem + -e",
-        "examples": {
-            "otagende (don't go!)",
-            "otankunde (don't love me!)",
-        },
-    },
-    "negative_plural": {
-        "pattern": "muta- + verb_stem + -e",
-        "examples": {
-            "mutagende (don't go! [plural])",
-            "mutankunde (don't love me! [plural])",
-        },
-    },
-}
-
-# Reflexive imperative forms
-REFLEXIVE_IMPERATIVE = {
-    "singular": {
-        "pattern": "wee- + verb_stem + -e (with long vowel)",
-        "examples": {
-            "okwesereka": "weesereke (hide yourself!)",
-            "okwetegyereza": "weetegyereze (understand yourself!)",
-        },
-    },
-    "plural": {
-        "pattern": "mwe- + verb_stem + -e",
-        "examples": {
-            "okwesereka": "mwesereke (hide yourselves!)",
-            "okwetegyereza": "mweetegyereze (understand yourselves!)",
-        },
-    },
-}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# UTILITY FUNCTIONS FOR NEW RULES
-# ─────────────────────────────────────────────────────────────────────────────
-
-def get_conditional_pattern(tense: str) -> dict | None:
-    """Return conditional pattern for a given tense."""
-    return CONDITIONAL_TENSE_PATTERNS.get(tense)
-
-def get_relative_concord(noun_class: int | str) -> str:
-    """Return relative concord for a noun class."""
-    entry = RELATIVE_CONCORDS.get(noun_class)
-    return entry["concord"] if entry else ""
-
-def derive_agent_noun(verb_infinitive: str) -> str | None:
-    """
-    Derive agent noun (class 1) from verb infinitive.
-    Example: okukora -> omukozi
-    """
-    if not verb_infinitive.startswith("oku"):
-        return None
-    stem = verb_infinitive[3:]  # remove oku-
-    if stem.startswith("w"):
-        stem = stem[1:]  # remove w- before vowel
-    # Simple derivation: omu- + stem + -i
-    return f"omu{stem}i"
-
-def is_prenasalized(text: str) -> bool:
-    """Check if text contains prenasalized consonants."""
-    prenasals = ["mb", "mp", "nd", "nt", "ng", "nk", "nj", "nc"]
-    return any(pn in text.lower() for pn in prenasals)
-
-def has_initial_vowel(word: str) -> bool:
-    """Check if word has initial vowel (augment)."""
-    if not word:
-        return False
-    return word[0].lower() in VOWELS
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TRANSLATION PIPELINE INTEGRATION
-# These functions are called by translate.py and main.py
+# IMPLEMENTED RULE FUNCTIONS
+# All rules below are executable transformations, not just data constants.
 # ─────────────────────────────────────────────────────────────────────────────
 
 def apply_rl_rule_to_text(text: str) -> str:
-    """Apply R/L rule word-by-word across a full sentence/paragraph."""
+    """Apply the R/L rule to every word in a sentence."""
     if not text:
         return text
-    words = text.split(" ")
-    return " ".join(apply_rl_rule(w) for w in words)
+    return ' '.join(apply_rl_rule(w) for w in text.split(' '))
 
 
-def _apply_nasal_assimilation(text: str) -> str:
-    """Fix nasal assimilation errors: nb->mb, np->mp, nr->nd, nl->nd, nm->mm."""
+def apply_nasal_assimilation(text: str) -> str:
+    """
+    Apply nasal assimilation rules across a word or text.
+    nb→mb, np→mp, nm→mm, nr→nd, nl→nd  (Meinhof's rule).
+    Source: Grammar Ch.2
+    """
     result = text
-    for wrong, correct in NASAL_ASSIMILATION.items():
-        result = _re.sub(_re.escape(wrong), correct, result, flags=_re.IGNORECASE)
+    for src, tgt in sorted(NASAL_ASSIMILATION.items(), key=lambda x: -len(x[0])):
+        result = result.replace(src, tgt)
     return result
 
 
-def _fix_ni_prefix(text: str) -> str:
-    """Apply ni- prefix vowel change: nimu->numu, nigu->nugu, niru->nuru, etc."""
+def apply_ni_prefix_change(text: str) -> str:
+    """
+    Apply ni- → nu- vowel change before u-class concords in present imperfect.
+    e.g. nimugenda → numugenda, niguteera → nuguteera
+    Source: Grammar Ch.2
+    """
     result = text
-    for wrong, correct in NI_PREFIX_CHANGE.items():
-        result = _re.sub(r'\b' + _re.escape(wrong), correct, result, flags=_re.IGNORECASE)
+    for src, tgt in NI_PREFIX_CHANGE.items():
+        result = result.replace(src, tgt)
     return result
 
 
-def _apply_consonant_suffix_changes(text: str) -> str:
+# Apostrophe elision: particle + vowel-initial word → particle' + word
+# e.g. "na ente" → "n'ente",  "za ente" → "z'ente"
+# Source: Runyoro-Rutooro Orthography Guide (1995)
+_ELISION_PARTICLES = [
+    # (full_form, elided_prefix) — order matters: longer first
+    ("na ",  "n'"),   # na + vowel-initial → n'
+    ("za ",  "z'"),   # za + vowel-initial → z'
+    ("ka ",  "k'"),   # ka + vowel-initial → k'
+    ("ya ",  "y'"),   # ya + vowel-initial → y'
+    ("wa ",  "w'"),   # wa + vowel-initial → w'
+    ("ga ",  "g'"),   # ga + vowel-initial → g'
+    ("ba ",  "b'"),   # ba + vowel-initial → b'
+]
+
+# Merged forms the model sometimes outputs (no space between particle and word)
+# e.g. "nomukazi" → "n'omukazi", "nomwana" → "n'omwana"
+_MERGED_ELISION = [
+    (r'\bno([aeiou])', r"n'\1"),   # no + vowel → n' + vowel (na omukazi merged)
+    (r'\bzo([aeiou])', r"z'\1"),   # zo + vowel → z' + vowel
+    (r'\byo([aeiou])', r"y'\1"),   # yo + vowel → y' + vowel
+    (r'\bwo([aeiou])', r"w'\1"),   # wo + vowel → w' + vowel
+]
+
+_VOWELS = set("aeiouAEIOU")
+
+def apply_apostrophe_elision(text: str) -> str:
     """
-    Apply consonant+suffix sound changes from CONSONANT_SUFFIX_CHANGES.
-    Source: Grammar Ch.2 — r/t/j + -ire/-i/-ya transformations.
-    e.g. rora+ire -> rozire, roota+ire -> roosire
-    These fix perfect tense and applied verb forms in model output.
+    Apply vowel elision with apostrophe for Runyoro-Rutooro particles
+    before vowel-initial words.
+
+    e.g.  "na ente"   → "n'ente"
+          "za ente"   → "z'ente"
+          "na omuntu" → "n'omuntu"
+          "nomukazi"  → "n'omukazi"  (merged form from model output)
+
+    Source: Runyoro-Rutooro Orthography Guide (1995)
     """
+    if not text:
+        return text
+    import re as _re
+
+    # 1. Spaced forms: "na ente" → "n'ente"
     result = text
-    # r + -ire at word end -> -zire (only after vowel, avoids stem-internal r)
-    result = _re.sub(r'(?<=[aeiou])r(ire)\b', r'z\1', result)
-    # t + -ire at word end -> -sire (only after vowel)
-    result = _re.sub(r'(?<=[aeiou])t(ire)\b', r's\1', result)
-    # nd + -ire -> -nzire
-    result = _re.sub(r'nd(ire)\b', r'nz\1', result)
-    # nt + -ire -> -nsire
-    result = _re.sub(r'nt(ire)\b', r'ns\1', result)
-    # NOTE: r+-i and r+-ya NOT applied globally — too many false positives inside stems
+    for full, elided in _ELISION_PARTICLES:
+        pattern = _re.compile(
+            r'\b' + _re.escape(full.strip()) + r'\s+(?=[aeiouAEIOU])',
+            _re.IGNORECASE
+        )
+        result = pattern.sub(elided, result)
+
+    # 2. Merged forms: "nomukazi" → "n'omukazi"
+    for pattern, repl in _MERGED_ELISION:
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+
     return result
 
 
-def _apply_y_insertion(text: str) -> str:
+def apply_y_insertion(subject_prefix: str, tense_prefix: str, verb_stem: str) -> str:
     """
-    Apply y-insertion rule: after tense prefixes a-, ra-, raa-, daa-
-    insert y before verb stems beginning with a vowel.
-    Source: Grammar Ch.2 — Y-insertion prefixes.
-    e.g. a+ira -> ayira, ra+ira -> rayira
+    Insert 'y' between tense prefix and vowel-initial verb stem when required.
+    Rule: after a-, ra-, raa-, daa- tense prefixes, y is inserted before vowel-initial stems.
+    e.g. a + ira → ayira,  ra + ira → rayira
+    Source: Grammar Ch.2
     """
-    result = text
-    # Only apply y-insertion for unambiguous tense prefixes (ra-, raa-, daa-)
-    # Skip bare 'a-' — too many false positives inside noun prefixes like aba-, aka-
-    safe_prefixes = {p for p in Y_INSERTION_PREFIXES if len(p) > 1}
-    for prefix in safe_prefixes:
-        pattern = r'(?<=[bcdfghjklmnprstwyz])(' + _re.escape(prefix) + r')([aeiou])'
-        result = _re.sub(pattern, r'\1y\2', result, flags=_re.IGNORECASE)
-    return result
+    vowels = set('aeiou')
+    if tense_prefix in Y_INSERTION_PREFIXES and verb_stem and verb_stem[0].lower() in vowels:
+        return subject_prefix + tense_prefix + 'y' + verb_stem
+    return subject_prefix + tense_prefix + verb_stem
 
 
-def _apply_long_vowel_prefix_merge(text: str) -> str:
+def apply_consonant_suffix_change(stem: str, suffix: str) -> str:
     """
-    Apply orthography rule 7: when a class/tense/negative prefix ending in a vowel
-    is joined to a stem beginning with the same vowel, they merge into one long vowel.
-    e.g. aba+ana -> abaana, aka+ato -> akaato, ni+ija -> niija
-    Source: Orthography Guide Rule 7.
+    Apply consonant + suffix sound changes to a verb stem.
+    e.g. stem ending in 'r' + '-ire' → '-zire'
+    Source: Grammar Ch.2
     """
-    result = text
-    # Only fix cases where the merge is MISSING (single vowel where double is needed)
-    # Do NOT touch already-correct doubled vowels
-    merges = [
-        (r'\b(ab)(ana)\b',   'abaana'),
-        (r'\b(ak)(ato)\b',   'akaato'),
-        (r'\b(ni)(ija)\b',   'niija'),
-        (r'\b(ni)(ira)\b',   'niira'),
-    ]
-    for pattern, replacement in merges:
-        result = _re.sub(pattern, replacement, result, flags=_re.IGNORECASE)
-    return result
+    stem_lower = stem.lower()
+    # Try two-consonant endings first (nd, nt), then single
+    for length in (2, 1):
+        final = stem_lower[-length:] if len(stem_lower) >= length else ""
+        # Strip the final -a from the stem to get the true consonant ending
+        # e.g. 'okubara' → stem consonant is 'r' (before final -a)
+        stem_no_a = stem_lower.rstrip('a')
+        final_cons = stem_no_a[-length:] if len(stem_no_a) >= length else ""
+        key = (final_cons, suffix)
+        if key in CONSONANT_SUFFIX_CHANGES:
+            replacement = CONSONANT_SUFFIX_CHANGES[key]
+            # Strip the matched consonant(s) and final -a, append new suffix
+            return stem.rstrip('aA')[:-length] + replacement.lstrip('-')
+    # No match — just append suffix to stem (strip leading dash)
+    return stem + suffix.lstrip('-')
 
 
-def _fix_absent_letters(text: str) -> str:
+def apply_conversive_suffix(stem: str) -> str:
     """
-    Remove or replace letters absent from Runyoro-Rutooro alphabet (q, v, x).
-    Source: Orthography Guide Rule 1.
-    These sometimes appear in model output due to training data noise.
+    Build the conversive/reversive form of a verb stem.
+    Rule: replace final -a with -ura (most stems) or -ora (long-o stems).
+    Source: Grammar Ch.2
     """
-    # v -> b (closest bilabial), x -> ks, q -> k (rough approximations)
-    result = text
-    result = _re.sub(r'v', 'b', result)
-    result = _re.sub(r'V', 'B', result)
-    result = _re.sub(r'x', 'ks', result)
-    result = _re.sub(r'X', 'Ks', result)
-    result = _re.sub(r'q', 'k', result)
-    result = _re.sub(r'Q', 'K', result)
-    return result
+    if not stem:
+        return stem
+    # Detect long-o stem (ends in -oora or -oo before final a)
+    if stem.endswith('ooa') or stem.endswith('oorra'):
+        return stem.rstrip('a') + 'ora'
+    # Default: replace final -a with -ura
+    if stem.endswith('a'):
+        return stem[:-1] + 'ura'
+    return stem + 'ura'
 
 
-def _fix_double_consonant_bb(text: str) -> str:
+def apply_reflexive_imperative(verb_infinitive: str, number: str = "singular") -> str:
     """
-    Orthography Rule 5: bb indicates non-bilabial fricative b.
-    Fix cases where model outputs single b where bb is required
-    for known words (ibbango, ekibbali, ibbano).
+    Build the reflexive imperative from an okw-e... infinitive.
+    Singular: wee + stem-without-a + e
+    Plural:   mwe + stem-without-a + e
+    e.g. okw-esereka → weesereke (sg), mwesereke (pl)
+    Source: Grammar Ch.2
     """
-    known_bb = {
-        r'\bibango\b': 'ibbango',
-        r'\bekibali\b': 'ekibbali',
-        r'\bibano\b': 'ibbano',
+    v = verb_infinitive.lower().strip()
+    # Strip infinitive prefix okwe- or okw-e-
+    for pfx in ("okwe", "okw-e"):
+        if v.startswith(pfx):
+            stem = v[len(pfx):]
+            break
+    else:
+        stem = v
+    # Remove final -a, add -e
+    base = stem.rstrip('a') + 'e'
+    prefix = REFLEXIVE_IMPERATIVE_PREFIX if number == "singular" else REFLEXIVE_PLURAL_PREFIX
+    return prefix + base
+
+
+def apply_concordial_agreement(adjective_stem: str, noun_class: int | str) -> str:
+    """
+    Prefix an adjective stem with the correct adjectival concord for a noun class.
+    e.g. apply_concordial_agreement('-rungi', 1) → 'omurungi'
+    Source: Grammar Ch.7
+    """
+    entry = CONCORDIAL_AGREEMENT.get(noun_class)
+    if not entry:
+        return adjective_stem.lstrip('-')
+    adj_prefix = entry[2]  # adjectival concord
+    stem = adjective_stem.lstrip('-')
+    return adj_prefix.rstrip('-') + stem
+
+
+def build_plural(singular: str) -> str | None:
+    """
+    Return the plural of a Runyoro-Rutooro noun.
+    Checks the known irregular class-11 plurals first, then applies
+    prefix-substitution rules for regular nouns.
+    Source: Grammar Ch.7
+    """
+    # 1. Known irregular plurals (class 11 → 10)
+    known = PLURAL_SOUND_CHANGES.get(singular.lower().strip())
+    if known:
+        return known
+
+    # 2. Regular prefix substitution
+    w = singular.lower().strip()
+    noun_classes_list = get_noun_class(w)
+    if not noun_classes_list:
+        return None
+    nc = noun_classes_list[0]
+    info = NOUN_CLASSES.get(nc)
+    if not info:
+        return None
+
+    pl_class = info.get("pl_class")
+    pl_info  = NOUN_CLASSES.get(pl_class) if pl_class else None
+    if not pl_info:
+        return None
+
+    # Strip singular prefix, attach plural prefix
+    sg_pfx = info.get("sg_prefix", "").rstrip('-')
+    if sg_pfx and w.startswith(sg_pfx):
+        stem = w[len(sg_pfx):]
+    else:
+        stem = w
+
+    pl_pfx = pl_info.get("sg_prefix", "").rstrip('-')
+    # Choose vowel-initial variant if stem starts with a vowel
+    if stem and stem[0] in 'aeiou':
+        pl_pfx = pl_info.get("sg_prefix_v", pl_pfx).rstrip('-')
+
+    return pl_pfx + stem if pl_pfx else None
+
+
+def apply_class9_nasal_prefix(stem: str) -> str:
+    """
+    Apply class 9 nasal prefix rule: en- before consonants, em- before b/p.
+    e.g. 'boga' → 'emboga',  'taka' → 'entaka'
+    Source: Grammar Ch.7
+    """
+    if not stem:
+        return stem
+    first = stem[0].lower()
+    if first in ('b', 'p'):
+        return 'em' + stem
+    return 'en' + stem
+
+
+def build_verb_form(
+    verb_stem: str,
+    person: str = "3sg",
+    tense: str = "present_imperfect",
+    negative: bool = False,
+) -> str:
+    """
+    Assemble a full verb form from its components.
+    person: '1sg','2sg','3sg','1pl','2pl','3pl'
+    tense:  'present_imperfect','recent_past','remote_past','future','perfect',
+            'present_indefinite'
+    Source: Grammar Ch.4, Ch.13
+
+    Examples:
+        build_verb_form('genda', '1sg', 'present_imperfect') → 'nigenda'
+        build_verb_form('genda', '3sg', 'future')            → 'araagenda'
+        build_verb_form('genda', '1sg', 'present_imperfect', negative=True) → 'tinigenda'
+    """
+    # Subject prefix raw (e.g. "n-", "o-", "a-", "tu-", "mu-", "ba-")
+    subj_raw = SUBJECT_PREFIXES.get(person, "n-")
+    subj = subj_raw.rstrip('-')
+
+    tense_map = {
+        "present_imperfect":  "ni",
+        "recent_past":        "a",
+        "remote_past":        "ka",
+        "future":             "raa",
+        "perfect":            "",   # suffix -ire handles this
+        "present_indefinite": "",
     }
-    result = text
-    for pattern, correct in known_bb.items():
-        result = _re.sub(pattern, correct, result, flags=_re.IGNORECASE)
-    return result
+    t_marker = tense_map.get(tense, TENSE_MARKERS.get(tense, "").rstrip('-'))
+
+    # For present_imperfect: the tense marker 'ni' already encodes the subject
+    # prefix for 1sg (n + ni → ni, not nni).  Fuse subject + tense correctly.
+    if t_marker == "ni":
+        # 1sg: n + ni → ni  (not nni)
+        if subj == "n":
+            prefix = "ni"
+        # 2sg: o + ni → oni
+        elif subj == "o":
+            prefix = "oni"
+        # 3sg: a + ni → ni (a is absorbed)
+        elif subj == "a":
+            prefix = "ni"
+        # 1pl: tu + ni → tuni
+        elif subj == "tu":
+            prefix = "tuni"
+        # 2pl: mu + ni → muni
+        elif subj == "mu":
+            prefix = "muni"
+        # 3pl: ba + ni → bani
+        elif subj == "ba":
+            prefix = "bani"
+        else:
+            prefix = subj + t_marker
+    else:
+        prefix = subj + t_marker
+
+    # Y-insertion: after a-/ra-/raa-/daa- tense prefix + vowel-initial stem
+    if t_marker in Y_INSERTION_PREFIXES and verb_stem and verb_stem[0].lower() in 'aeiou':
+        core = prefix + 'y' + verb_stem
+    else:
+        core = prefix + verb_stem
+
+    # ni- prefix vowel harmony before u-class concords
+    core = apply_ni_prefix_change(core)
+
+    if negative:
+        core = 'ti' + core
+
+    return core
 
 
-def postprocess_lunyoro(text: str) -> str:
+def apply_causative(verb_stem: str) -> str:
     """
-    Post-process Runyoro-Rutooro model output by applying all grammar rules.
-    Called after every neural MT en->lun translation.
-
-    Rules applied (in order):
-      1.  Absent letter removal (q/v/x) — Orthography Rule 1
-      2.  R/L rule — l only before/after e/i, r elsewhere — Grammar Ch.2
-      3.  Nasal assimilation — nb->mb, np->mp, nr->nd, nm->mm — Grammar Ch.2
-      4.  ni- prefix vowel change — nimu->numu, nigu->nugu — Grammar Ch.2
-      5.  Consonant+suffix changes — r/t/nd/nt + -ire/-i/-ya — Grammar Ch.2
-      6.  Y-insertion — after a-/ra-/raa- before vowel stems — Grammar Ch.2
-      7.  Long vowel prefix merging — aba+ana->abaana — Orthography Rule 7
-      8.  bb double consonant fixes for known words — Orthography Rule 5
+    Build the causative form of a verb stem.
+    Rules (Grammar Ch.12):
+      - monosyllabic stems: add -isa
+      - stems ending in -ra: change -ra → -za
+      - stems ending in -ta: change -ta → -sa
+      - intransitive stems: replace final -a with -ya
     """
-    if not text:
-        return text
-    text = _fix_absent_letters(text)
-    text = apply_rl_rule_to_text(text)
-    text = _apply_nasal_assimilation(text)
-    text = _fix_ni_prefix(text)
-    text = _apply_consonant_suffix_changes(text)
-    text = _apply_y_insertion(text)
-    text = _apply_long_vowel_prefix_merge(text)
-    text = _fix_double_consonant_bb(text)
-    return text
+    s = verb_stem.lower().strip()
+    if len(s) <= 2:                          # monosyllabic
+        return s + 'isa'
+    if s.endswith('ra') and len(s) > 3:
+        return s[:-2] + 'za'
+    if s.endswith('ta') and len(s) > 3:
+        return s[:-2] + 'sa'
+    # Default intransitive: replace final -a with -ya
+    if s.endswith('a'):
+        return s[:-1] + 'ya'
+    return s + 'isa'
 
 
-def preprocess_english(text: str) -> str:
+def apply_passive(verb_stem: str) -> str:
     """
-    Pre-process English input before sending to the translation model.
-    Currently a passthrough — reserved for future normalisation rules.
+    Build the passive form of a verb stem.
+    Rules (Grammar Ch.12):
+      - monosyllabic (ha/ta/sa): vowel-lengthened + -bwa  (ha→heebwa, ta→teebwa, sa→siibwa)
+      - monosyllabic labialised (cwa/lya): replace final vowel with -ibwa
+      - other verbs: insert -w- before final -a
     """
-    return text.strip()
+    s = verb_stem.lower().strip()
+    # Monosyllabic simple stems (single consonant + a)
+    _mono_passive = {"ha": "heebwa", "ta": "teebwa", "sa": "siibwa",
+                     "ba": "beebwa", "fa": "fiibwa"}
+    if s in _mono_passive:
+        return _mono_passive[s]
+    # Monosyllabic labialised (cwa, lya, etc.)
+    if len(s) <= 3 and s.endswith(('wa', 'ya')):
+        return s.rstrip('awy') + 'ibwa'
+    # General: insert w before final a
+    if s.endswith('a'):
+        return s[:-1] + 'wa'
+    return s + 'ibwa'
 
 
-def get_noun_class_hint(word: str) -> str:
+def apply_neuter(verb_stem: str) -> str:
     """
-    Return a human-readable noun class hint for a Runyoro-Rutooro word.
-    Used to enrich dictionary lookup results.
+    Build the neuter/stative form of a verb stem.
+    Rules (Grammar Ch.12):
+      - stems ending in -ra: replace -ra with -ka
+      - other stems: replace final -a with -ika
     """
-    classes = get_noun_class(word)
-    if not classes:
-        return ""
-    descs = []
-    for c in classes:
-        entry = NOUN_CLASSES.get(c)
-        if entry:
-            descs.append(f"Class {c}: {entry['desc']}")
-    return "; ".join(descs)
+    s = verb_stem.lower().strip()
+    if s.endswith('ra') and len(s) > 3:
+        return s[:-2] + 'ka'
+    if s.endswith('a'):
+        return s[:-1] + 'ika'
+    return s + 'ika'
 
 
-def validate_runyoro_word(word: str) -> dict:
+def apply_reciprocal(verb_stem: str) -> str:
     """
-    Validate a Runyoro-Rutooro word against all known grammar rules.
-    Returns a dict with 'valid', 'warnings', 'noun_class', 'is_verb'.
+    Build the reciprocal/associative form of a verb stem.
+    Rule (Grammar Ch.12): add -ngana for reciprocal, -na for associative.
+    Default returns the reciprocal (-ngana) form.
     """
-    w = word.lower().strip()
-    warnings = []
+    s = verb_stem.lower().strip()
+    if s.endswith('a'):
+        return s[:-1] + 'angana'
+    return s + 'ngana'
 
-    # Rule 1: absent letters
-    for ch in w:
-        if ch in ABSENT_LETTERS:
-            warnings.append(f"Letter '{ch}' does not exist in Runyoro-Rutooro alphabet")
 
-    # Rule 3/4: R/L rule
-    corrected = apply_rl_rule(w)
-    if corrected != w:
-        warnings.append(f"R/L rule violation — should be '{corrected}'")
+def get_adjective_concord(noun_class: int | str) -> str:
+    """Return the adjectival concord prefix for a noun class."""
+    entry = CONCORDIAL_AGREEMENT.get(noun_class)
+    return entry[2].rstrip('-') if entry else ""
 
-    # Rule 2: nasal assimilation
-    for wrong, correct in NASAL_ASSIMILATION.items():
-        if wrong in w:
-            warnings.append(f"Nasal assimilation: '{wrong}' should be '{correct}'")
 
-    # Orthography Rule 1: prenasals should be written as units
-    for prenasal in ["mb", "mp", "nd", "nt", "ng", "nk", "nj", "nc"]:
-        if prenasal in w:
-            break  # valid — prenasals are correct
-    # Check for absent-letter substitutions
-    for absent in ABSENT_LETTERS:
-        if absent in w:
-            warnings.append(f"Absent letter '{absent}' — not in Runyoro-Rutooro alphabet")
+def get_demonstrative(noun_class: int | str) -> str:
+    """Return the demonstrative pronoun for a noun class."""
+    entry = CONCORDIAL_AGREEMENT.get(noun_class)
+    return entry[3] if entry else ""
 
+
+def get_numeral_concord(noun_class: int | str) -> str:
+    """Return the numeral concord prefix for a noun class (for numbers 1-5)."""
+    return NUMERAL_CONCORDS.get(noun_class, "")
+
+
+def build_ordinal(n: int, noun_class: int | str) -> str:
+    """
+    Build an ordinal numeral in concordial agreement with a noun class.
+    1st: genitive_particle + okubanza
+    2nd-5th: genitive_particle + ka- + numeral_stem
+    6th+: genitive_particle + cardinal
+    Source: Grammar Ch.4
+    """
+    # Genitive particle per noun class (from GENITIVE_PARTICLES)
+    _gen = {
+        1: "wa", "1a": "wa", 2: "ba", "2a": "ba",
+        3: "gwa", 4: "ya", 5: "lya", 6: "ga",
+        7: "kya", 8: "bya", 9: "ya", 10: "za",
+        "9a": "ya", "10a": "za",
+        11: "rwa", 12: "ka", 13: "twa", 14: "bwa", 15: "kwa",
+    }
+    gen = _gen.get(noun_class, "gwa")
+
+    if n == 1:
+        return f"{gen} okubanza"
+    ordinal_stems = {2: "kabiri", 3: "kasatu", 4: "kana", 5: "kataano"}
+    if n in ordinal_stems:
+        return f"{gen} {ordinal_stems[n]}"
+    # 6th+: use cardinal
+    cardinal = NUMBERS.get(n, str(n))
+    return f"{gen} {cardinal}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OCR GRAMMAR RULES — loaded from data/OCR/combined/all_ocr_combined.json
+# Sources: A Grammar of Runyoro-Rutooro, Chapters 15, 16, 17
+# ─────────────────────────────────────────────────────────────────────────────
+
+import json as _json
+import os as _os
+
+_OCR_PATH = _os.path.join(_os.path.dirname(__file__), "data", "OCR", "combined", "all_ocr_combined.json")
+
+def _load_ocr() -> dict:
+    try:
+        with open(_OCR_PATH, encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return {}
+
+_OCR_DATA = _load_ocr()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPARISON RULES (Chapter 16 — Adjectives and Adverbs)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Positive degree — equality
+COMPARISON_POSITIVE = {
+    "nka": {
+        "meaning": "as ... as (equality)",
+        "rule": "Place 'nka' between the adjective/adverb and the noun being compared to.",
+        "examples": [
+            ("Omwana onu aliba muraira nka ise.", "This child will be as tall as his father."),
+            ("Abaza kurungi nk'abahumakati.", "She speaks as sweetly as noble ladies do."),
+            ("Okwera nk'ebirika", "to be as white as snow"),
+            ("okwiragura nk'amakara", "to be as black as charcoal"),
+            ("okusaarra nka kaamurali", "to be as bitter as pepper"),
+        ],
+    },
+    "okwingana": {
+        "meaning": "to be equal to (mainly negative sentences)",
+        "rule": "Use 'okwingana' like 'nka' but mainly in negative constructions.",
+        "examples": [
+            ("Omwana onu taliba muraira okwingana ise.", "This child will not be so tall as his father."),
+            ("Ombuzi ingana engabi obukooto.", "A goat is as big as a bush-buck."),
+            ("Abaza kurungi okwingana Basaaliza.", "He does not speak so clearly as Basaaliza does."),
+        ],
+    },
+    "nikyo_kimu_na": {
+        "meaning": "it is the same as",
+        "rule": "Use 'nikyo kimu na' when no need to mention quality explicitly.",
+        "examples": [
+            ("Ekitabu ekyange nikyo kimu n'ekyawe.", "My book is the same as yours."),
+            ("Endubata ye nikyo kimu n'eya ise.", "His way of walking is the same as that of his father."),
+        ],
+    },
+}
+
+# Comparative degree — one exceeds another
+COMPARISON_COMPARATIVE = {
+    "okukira": {
+        "meaning": "to surpass / exceed (comparative)",
+        "rule": "Place 'okukira' between the adjective/adverb and the noun being surpassed.",
+        "examples": [
+            ("Muka Rwakaikara mukooto okukira muka Balinda.", "Rwakaikara's wife is bigger than Balinda's wife."),
+            ("Entale ntaito okukira embogo.", "A lion is smaller than a buffalo."),
+            ("Bagonza abaza kurungi okukira Balinda.", "Bagonza speaks more clearly than Balinda."),
+            ("Motoka iruka okukira egaali y'omwika.", "A car travels faster than a train."),
+            ("Abakazi barra muno okukira abasaija.", "Women weep more than men."),
+        ],
+        "causative_form": {
+            "rule": "Causative form of okukira: quality expressed as abstract noun.",
+            "examples": [
+                ("Muka Rwakaikara naakiza muka Balinda obukooto.", "Rwakaikara's wife is bigger than Balinda's wife."),
+                ("Bagonza akiza Balinda kubaza kurungi.", "Bagonza speaks more clearly than Balinda."),
+            ],
+        },
+        "passive_form": {
+            "rule": "Passive form rarely used; reverses subject/object.",
+            "examples": [
+                ("Muka Balinda naakirwa muka Rwakaikara kunyeeta.", "Rwakaikara's wife is bigger than Balinda's wife."),
+                ("Balinda akirwa Bagonza kubaza kurungi.", "Bagonza speaks more clearly than Balinda."),
+            ],
+        },
+    },
+}
+
+# Superlative degree — greatest of all
+COMPARISON_SUPERLATIVE = {
+    "okukira_bombi": {
+        "meaning": "surpasses both / greatest of all",
+        "rule": "Use okukira + bombi (both) or okubakira/okugikira bombi for superlative.",
+        "examples": [
+            ("Muka Baguma mukooto okubakira bombi.", "Baguma's wife is the biggest of all."),
+            ("Enjojo neekira byombi obukooto.", "An elephant is the biggest of the two."),
+            ("Kamuturaki abaza kurungi okubakira bombi.", "Kamuturaki speaks most clearly of all."),
+        ],
+    },
+    "okukiirra_kimu": {
+        "meaning": "surpasses beyond measure (absolute superlative)",
+        "rule": "Use prepositional verb okukiirra + kimu (utterly) + bombi for absolute superlative.",
+        "examples": [
+            ("Owa Bagambaki naakiirra kimu bombi obukuru.", "Bagambaki's child is the oldest of all."),
+            ("Enyonyi iruka okukiirra kimu byombi.", "An aeroplane runs fastest of all."),
+            ("Ekitindinda nikyo kikira ebyekuurra ebindi byona kugenda mpora.",
+             "It is the snail which travels most slowly of all creeping creatures."),
+        ],
+    },
+}
+
+# Similes (common comparison phrases)
+SIMILES = {
+    "okwera nk'ebirika":        "to be as white as snow",
+    "okwera nk'enyange":        "to be as white as an egret",
+    "okwiragura nk'amakara":    "to be as black as charcoal",
+    "okusaarra nka kaamurali":  "to be as bitter as pepper",
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GENITIVE PARTICLES (Chapter 17 — Joining Words)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GENITIVE_PARTICLES = {
+    "wa":  ("cl.1/3/11/14/15", "Omwana wa Byaruhanga — Byaruhanga's child"),
+    "ba":  ("cl.2",            "Abaana ba Byaruhanga — Byaruhanga's children"),
+    "gwa": ("cl.3",            "Omutwe gwa Kugonza — Kugonza's head"),
+    "ya":  ("cl.4/9/10",       "Emitaano ya Uganda — Uganda's boundaries"),
+    "lya": ("cl.5",            "Eryato ly'abasohi — The fishermen's boat"),
+    "kya": ("cl.7",            "Ekigambo kya Ruhanga — God's word"),
+    "ga":  ("cl.6",            "Amagezi g'abantu — People's wisdom"),
+    "bya": ("cl.8",            "Ebitabu by'abeegi — the pupils' books"),
+    "za":  ("cl.10",           "Embuzi za Byakutaaga — Byakutaaga's goats"),
+    "rwa": ("cl.11",           "Orugoye rwa mutabani we — his son's cloth"),
+    "ka":  ("cl.12",           "Akasozi ka nseeri hali — yonder hill"),
+    "twa": ("cl.13",           "Otwizi twa Rulendera — Rulendera's little water"),
+    "bwa": ("cl.14",           "Obwana bwa Ruyonga — Ruyonga's little children"),
+    "kwa": ("cl.15",           "Okweta kwa Ruhanga — God's call"),
+}
+
+GENITIVE_NOTE = (
+    "The -a of relationship is elided when followed by a word beginning with a vowel, "
+    "e.g. g'abantu (not ga abantu), by'abeegi (not bya abeegi)."
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADVERBIAL PARTICLES (Chapter 17B)
+# ─────────────────────────────────────────────────────────────────────────────
+
+ADVERBIAL_PARTICLES = {
+    "place_position_direction": {
+        "omu":          ("in/into", "Ebikere biri omumaizi. — Frogs are in the water."),
+        "ha":           ("at/on", "Omusaija aikaliire hantebe. — The man is sitting on the chair."),
+        "omwa":         ("to (home of)", "Genda omwa so. — Go to your father's home."),
+        "gwomba":       ("from the area of", "Abaire naaruga gwomba Bigirwenkya. — He was coming from the area where Bigirwenkya stays."),
+        "haiguru ya":   ("over/above", "Etaara eri haiguru y'emeeza. — The lamp is over the table."),
+        "omumaiso ga":  ("in front of", "Oruguudo ruli omumaiso g'enju yaitu. — The road is in front of our house."),
+        "harubaju rwa": ("by the side of", "Yemeerra harubaju rwa mugenzi waawe. — Stand by the side of your partner."),
+        "hagati ya":    ("between", "Mugisa ayemeriire hagati ya Birungi na Basemera. — Mugisa is standing between Birungi and Basemera."),
+        "enyuma ya":    ("behind", "Nkitaire enyuma y'entebe. — I have put it behind the chair."),
+        "omunda ya":    ("inside/into", "Abaana boona bakaba bamazire ira kuhika omunda y'isomero. — All the pupils had already got into the school compound."),
+        "aheeru ya":    ("outside", "Nkamusanga aheeru y'enju yange. — I found him outside my house."),
+    },
+    "reason_cause": {
+        "habwa":        ("because of", "Ayosire habwa nyina kurwara. — She is absent because her mother is ill."),
+        "habwokuba":    ("because", "Taizire habwokuba ali wenka omuka. — He has not come because he is alone at home."),
+        "habweki":      ("therefore", "Ombiihire nahabweki tindikwesiga. — You have lied to me therefore I shall not trust you."),
+        "nkooku":       ("since/because", "Nkooku nyineeka ataroho ebigambo ka tubireke. — Since the householder is away let us stop the matter."),
+    },
+    "time": {
+        "obu":          ("when", "Izooba obu lyagwire baagoonya. — When the sun set they got lodged."),
+        "obwa":         ("during", "Babyesiza akazaarwa obwa Kabaleega. — Babyesiza was born during Kabaleega's reign."),
+        "okuruga...okuhikya": ("from...till", "Bakasiiba nibakora okuruga nnyenkya okuhikya rwebagyo. — They worked from morning till evening."),
+        "hanyuma ya":   ("after", "Byakutaaga akaija hanyuma ya Rwatooro. — Byakutaaga came after Rwatooro."),
+    },
+    "manner": {
+        "nka":          ("like/as", "Abaza nka ise. — He speaks like his father."),
+        "oku":          ("as (manner)", "Baza oku abasaija babaza. — Speak as men do."),
+        "nkooku":       ("as/like (manner)", "Akozire nkooku agondeze. — He acted as he wished."),
+        "na":           ("by means of", "Akaija na bbaasi. — He came by bus."),
+        "hamu na":      ("together with", "Bakagenda hamu na nyina. — Both mother and child went."),
+    },
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CO-ORDINATING PARTICLES (Chapter 17C)
+# ─────────────────────────────────────────────────────────────────────────────
+
+COORDINATING_PARTICLES = {
+    # Joining words of same grammatical function
+    "na":               "and / with — Rwabudongo na Ireeta batamba kimu.",
+    "hamu na":          "together with — Embuzi hamu n'ente bisoro by'omumaka.",
+    "rundi":            "or / either...or — Mpa enyama rundi encu.",
+    "kandi":            "and / but / in addition — Kateesigwa mugara kandi murofu.",
+    "kandi n'ekindi":   "as well as — Muhoole kandi n'ekindi mudoma.",
+
+    # Subordinating conjunctions
+    "kakusangwa":       "if (conditional) — Kakusangwa obaireho taakukitwaire.",
+    "kakuba / kuba":    "if (conditional) — Kakuba abantu baagizire amapapa baakuhaarruukire.",
+    "obu":              "if / when — Obu araija turaamutangiirra.",
+    "noobwakubaire":    "even if / although — Noobwakubaire uwe wenka aizire taakukimuhaire.",
+
+    # Co-ordinate rank connectors
+    "baitu":            "but — Nyowe nkamurora baitu uwe atandole.",
+    "kyonka":           "but — Akandora kyonka ataammanyiirre.",
+    "nikyo kinu":       "all the same — Akamuteera baitu nikyo kimu atazire.",
+    "kandi kunu":       "though / even though — Amucumbira kandi kunu ebyokulya nuwe abigura.",
+    "kunu obu nu":      "whereas — Naamugaya kunu obu nu nuwe yamwegeseze.",
+    "ntamanya":         "without knowing — Akaba naaseerra kucwa ntamanya abaserukale bamuboine.",
+    "obwolyaho":        "in case — Mugende mumurole obwolyaho murwaire.",
+    "tomanya":          "for it is unlikely — Kangende tomanya onu obundi taije.",
+    "osanga obundi":    "as he may not — Otabaza bingi osanga obundi tali nuwe akitwaire.",
+    "ngu":              "that (reported speech) — Agizire ngu murwaire. (He said that he is ill.)",
+    "noobwakubaire ngu":"although...that — Noobwakubaire ngu nuwe yabandize kwija atasobole kulya mukuru we.",
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONDITIONAL MOOD (Chapter 15 — Compound Tenses)
+# ─────────────────────────────────────────────────────────────────────────────
+
+CONDITIONAL_MOOD = {
+    "particles": ["kakuba", "kuba", "kakusangwa", "kusangwa", "obu"],
+    "description": (
+        "The conditional mood expresses hypothetical situations. "
+        "Introduced by kakuba/kuba/kakusangwa/kusangwa (if) or obu (if/when). "
+        "The verb in the condition clause takes a special compound tense form."
+    ),
+    "positive_with_kakuba": {
+        "rule": "kakuba/kuba/kakusangwa/kusangwa + past tense verb → result clause",
+        "examples": [
+            ("Kuba okubaire ompaire omulimo naakugukozire.",
+             "If you had given me some work I should have done it."),
+            ("Obu akubaire aina omulimo akugukuhaire.",
+             "If he had had a job he would have given it to you."),
+            ("Obu nkubaire ndi mwomeezi nkukusendekeriize.",
+             "If I had been healthy I should have seen you off."),
+        ],
+    },
+    "negative_with_kakuba": {
+        "rule": "kakuba/kuba + negative past verb → negative result",
+        "examples": [
+            ("Kuba obaire(ge) otampaire omulimo tinkukozire kantu.",
+             "If you had not given me some work I should not have done anything."),
+            ("Obu akubaire ataina burwaire taakugiire mwirwarro.",
+             "If he had had no illness he would not have gone to hospital."),
+            ("Obu nkubaire ntali murwaire nkukusendekeriize.",
+             "If I had not been ill I should have seen you off."),
+        ],
+    },
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OCR UTILITY FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_ocr_grammar_text(section: str) -> str:
+    """Return raw OCR text for a grammar section (e.g. 'grammar2_adjectives_adverbs')."""
+    section_data = _OCR_DATA.get(section, {})
+    return "\n\n".join(section_data.values())
+
+
+def get_comparison_rule(degree: str) -> dict:
+    """Return comparison rules for 'positive', 'comparative', or 'superlative'."""
     return {
-        "valid": len(warnings) == 0,
-        "warnings": warnings,
-        "noun_class": get_noun_class_hint(word),
-        "is_verb": is_verb_infinitive(word),
-    }
+        "positive":     COMPARISON_POSITIVE,
+        "comparative":  COMPARISON_COMPARATIVE,
+        "superlative":  COMPARISON_SUPERLATIVE,
+    }.get(degree, {})
+
+
+def lookup_genitive_particle(particle: str) -> str | None:
+    """Return description for a genitive particle (e.g. 'wa', 'bya')."""
+    entry = GENITIVE_PARTICLES.get(particle.lower().strip())
+    return f"{entry[0]}: {entry[1]}" if entry else None
+
+
+def lookup_coordinating_particle(word: str) -> str | None:
+    """Return meaning/usage of a co-ordinating particle."""
+    return COORDINATING_PARTICLES.get(word.lower().strip())
+
+
+def get_extended_grammar_context() -> str:
+    """Extended grammar context including OCR-derived rules for chat/translation prompts."""
+    base = get_grammar_context()
+    ocr_rules = (
+        "\n--- OCR Grammar Rules (Chapters 15-17) ---\n"
+        "COMPARISON:\n"
+        "  Positive (equality): nka / okwingana — 'as...as'\n"
+        "    e.g. Omwana onu aliba muraira nka ise. (This child will be as tall as his father.)\n"
+        "  Comparative: okukira — 'more than / -er than'\n"
+        "    e.g. Muka Rwakaikara mukooto okukira muka Balinda. (Rwakaikara's wife is bigger.)\n"
+        "  Superlative: okukira bombi / okukiirra kimu bombi — 'most / -est of all'\n"
+        "    e.g. Muka Baguma mukooto okubakira bombi. (Baguma's wife is the biggest of all.)\n"
+        "\nGENITIVE PARTICLES (possession): wa/ba/gwa/ya/lya/kya/ga/bya/za/rwa/ka/twa/bwa/kwa\n"
+        "  Elide -a before vowels: g'abantu, by'abeegi, ly'abasohi\n"
+        "\nCONDITIONAL MOOD: kakuba / kuba / obu + past tense\n"
+        "  e.g. Kuba okubaire ompaire omulimo naakugukozire.\n"
+        "       (If you had given me work I should have done it.)\n"
+        "\nCO-ORDINATING PARTICLES:\n"
+        "  na (and), rundi (or), kandi (but/and), kyonka (but), ngu (that/reported speech),\n"
+        "  obu (if/when), noobwakubaire (even if), obwolyaho (in case)\n"
+        "\nADVERBIAL PARTICLES:\n"
+        "  Place: omu (in), ha (at), haiguru ya (above), hagati ya (between), aheeru ya (outside)\n"
+        "  Time: obu (when), obwa (during), hanyuma ya (after)\n"
+        "  Reason: habwa (because of), habwokuba (because), habweki (therefore)\n"
+        "  Manner: nka (like), oku (as), hamu na (together with)\n"
+    )
+    return base + ocr_rules
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IMPORT EXTENDED OCR RULES
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Import extended OCR rules from separate module
+try:
+    from language_rules_ocr_extension import (
+        # Ch.2 Sound Change
+        Y_INSERTION_EXAMPLES,
+        Y_INSERTION_COUNTEREXAMPLES,
+        Y_INSERTION_I_STEMS,
+        REFLEXIVE_IMPERATIVES,
+        REFLEXIVE_NON_REFLEXIVE,
+        CONVERSIVE_EXAMPLES,
+        # Ch.12 Derivative Verbs
+        APPLIED_VERB_MEANINGS,
+        APPLIED_VERB_EXAMPLES,
+        PREPOSITIONAL_NEW_MEANINGS,
+        DOUBLE_PREPOSITIONAL,
+        CAUSATIVE_FORMATION,
+        PASSIVE_FORMATION,
+        NEUTER_FORMATION,
+        RECIPROCAL_FORMATION,
+        # Ch.13 Moods & Tenses
+        IMPERATIVE_TENSES,
+        SUBJUNCTIVE_FUNCTIONS,
+        SUBJUNCTIVE_EXAMPLES,
+        INDICATIVE_TENSES,
+        VERB_INA_CONJUGATION,
+        VERB_LI_CONJUGATION,
+        # Ch.7 Noun Classes
+        CLASS_12_13_14_DETAILS,
+        AUGMENTATIVE_PEJORATIVE_EXTENDED,
+        CLASS6_PLURAL_RULES,
+        CLASS6_OTHER_PLURALS,
+        # Ch.9/10 Noun Formation
+        DEVERBATIVE_SUFFIXES,
+        NOUN_FUNCTIONS,
+        NOUN_KINDS,
+        VERBAL_NOUNS_CLASS5,
+        # Ch.4 Words, Affixes, Numbers
+        NEGATION_EXTENDED,
+        AFFIRMATION_WORDS,
+        POSSESSIVE_PRONOUNS,
+        GENITIVE_ELISION_RULES,
+        INTERROGATIVE_PARTICLES,
+        PARTS_OF_SPEECH,
+        IDEOPHONES,
+        ORDINAL_FORMATION,
+        ORDINALS_EXTENDED,
+        NUMERAL_ADVERBIAL_KA,
+        NUMBER_CONNECTION,
+        # Orthography
+        ORTHOGRAPHY_RULES,
+        # Utility functions
+        get_derivative_verb_type,
+        get_imperative_form,
+        is_reflexive_verb,
+        get_full_grammar_context,
+    )
+except ImportError:
+    # Fallback if extension module not available
+    pass
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VOWEL LENGTH MINIMAL PAIRS
+# Source: grammar rules 2 (1).docx — Vowel Rules
+# ─────────────────────────────────────────────────────────────────────────────
+
+VOWEL_LENGTH_MINIMAL_PAIRS = {
+    "okubaga":  ("to weave into wattle",  "okubaaga",  "to skin"),
+    "okuceba":  ("to pound, to crush",    "okuceeba",  "to wear many clothes"),
+    "okusika":  ("to pull",               "okusiika",  "to fry"),
+    "okugoba":  ("to steal milk from cow","okugooba",  "to interlace e.g. reeds"),
+    "okujura":  ("to be homesick",        "okujuura",  "to undress"),
+    "kora":     ("work",                  "koorra",    "cough"),
+    "hara":     ("scrape",                "haarra",    "scrape together"),
+    "omuro":    ("sleepiness",            "omuurro",   "fire"),
+    "okusara":  ("to cut",                "okusaarra", "to be bitter"),
+    "okusera":  ("to sing and dance at night", "okuseerra", "to look for"),
+}
+
+LONG_VOWEL_NOTE = (
+    "Short vowels: single vowel graph (a, e, i, o, u). "
+    "Long vowels: doubled vowel graph (aa, ee, ii, oo, uu). "
+    "Vowel length changes meaning — see VOWEL_LENGTH_MINIMAL_PAIRS."
+)
+
+SHORT_VOWEL_EXAMPLES = {
+    "a": ["amata (milk)", "okufa (to die)"],
+    "e": ["ekikere (frog)", "oruseke (tube)"],
+    "i": ["obutiti (cold)", "omutini (fig tree)"],
+    "o": ["omusoga (castor oil tree)", "ekisole (puppy)"],
+    "u": ["obuhuta (wound)", "ekijuma (fruit)"],
+}
+
+LONG_VOWEL_EXAMPLES = {
+    "aa": ["abaana (children)", "omugaati (bread)"],
+    "ee": ["abeegi (pupils)", "omukeeka (mat)"],
+    "ii": ["eriiba (dove)", "ekiina (hole)"],
+    "oo": ["aboojo (boys)", "ekicooli (maize)"],
+    "uu": ["okuhanuura (to discuss)", "okuhuuna (to rumble)"],
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GEMINATE R — words where double-r arose from dropped vowel
+# Source: grammar rules 2 (1).docx — Consonants Rules §5b
+# ─────────────────────────────────────────────────────────────────────────────
+
+GEMINATE_R_WORDS = {
+    "obuteerre":  ("obuterere",  "slipperiness"),
+    "omuurro":    ("omuliro",    "fire"),
+    "enkoorro":   ("enkororo",   "cough"),
+    "koorra":     ("kora",       "cough (verb)"),
+    "haarra":     ("hara",       "scrape together"),
+    "okusaarra":  ("okusara",    "to be bitter"),
+    "okuseerra":  ("okusera",    "to look for"),
+}
+
+GEMINATE_R_NOTE = (
+    "Double-r (rr) in Runyoro-Rutooro arose from words that dropped the vowel "
+    "originally between two r's. The rr is pronounced long (geminated). "
+    "e.g. omuliro → omuurro (fire), enkororo → enkoorro (cough)."
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LABIALISED CONSONANTS (w-Compounds)
+# Source: grammar rules 2 (1).docx — Consonants Rules §2
+# ─────────────────────────────────────────────────────────────────────────────
+
+LABIALISED_CONSONANTS = [
+    "bw", "cw", "dw", "gw", "hw", "jw", "kw", "mw", "nw", "nyw",
+    "pw", "rw", "sw", "tw", "yw", "zw",
+]
+
+LABIALISED_PRENASALS = [
+    "mbw", "ncw", "ndw", "ngw", "njw", "nkw", "mmw", "nnw", "nnyw",
+    "mpw", "nsw", "ntw", "nzw",
+]
+
+W_COMPOUND_RULES = {
+    "end_of_word":    "w-compounds at end of word are pronounced SHORT. e.g. akabwa, ihwa, akunywa",
+    "elsewhere":      "w-compounds elsewhere in word are pronounced LONG. e.g. okubwagura, okunywana",
+    "genitive":       "w-compounds in genitive particles without initial vowel are pronounced LONG. e.g. gwa, rwa, bwa, kwa",
+    "no_double_vowel":"Vowel length after w-compounds is NEVER indicated by doubling the vowel.",
+}
+
+W_COMPOUND_EXAMPLES = {
+    "short_end":  ["akabwa (small dog)", "ihwa (thorn)", "akunywa (to drink)", "okugwa (to fall)"],
+    "long_mid":   ["okubwagura (to bear puppies)", "okuhwahwana (to wander)", "okunywana (to make blood brotherhood)"],
+    "with_aa":    ["okubaagwa (to be skinned)", "okutaahwa (to be entered into)"],
+    "with_ee":    ["okuheebwa (to be given)", "okuheekwa (to be carried pick-a-back)"],
+    "with_ii":    ["okudiidwa (to be criticised)", "okuhiigwa (to be hunted)"],
+    "with_oo":    ["okugoorwa (to be damaged)", "okuhoorwa (to be revenged)"],
+    "with_uu":    ["okuduupwa (to be incited)", "okuhuuhwa (to be blown about)"],
+    "diphthong_ai": ["okugaitwa (to be joined)", "okuhaigwa (to be dug up potatoes)"],
+    "diphthong_ei": ["okujeijwa (of private affairs: to be talked about)"],
+    "diphthong_oi": ["okuhoitwa (to be rebuked)", "okutoijwa (to be tilled)"],
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PALATALISED CONSONANTS (y-Compounds)
+# Source: grammar rules 2 (1).docx — Consonants Rules §3
+# ─────────────────────────────────────────────────────────────────────────────
+
+PALATALISED_CONSONANTS = [
+    "by", "dy", "gy", "hy", "ky", "ly", "my", "ny", "py", "ry", "ty",
+]
+
+PALATALISED_PRENASALS = [
+    "mby", "ndy", "ngy", "nky", "mmy", "nni", "mpy", "nty",
+]
+
+Y_COMPOUND_RULES = {
+    "end_of_word":    "y-compounds at end of word are pronounced SHORT. e.g. engagya, omulyo, okukya",
+    "elsewhere":      "y-compounds elsewhere in word are pronounced LONG. e.g. emyekuniko, ekyakyo, okubyama",
+    "genitive":       "y-compounds in genitive particles without initial vowel are pronounced LONG. e.g. lya, kya, bya",
+    "no_double_vowel":"Vowel length after y-compounds is NEVER indicated by doubling the vowel.",
+}
+
+Y_COMPOUND_EXAMPLES = {
+    "short_end":  ["engagya (large spotted hyena)", "omulyo (right hand)", "okukya (of rain: to be over)"],
+    "long_mid":   ["emyekuniko (arrogance)", "ekyakyo (flower)", "okubyama (to lie down)"],
+    "with_aa":    ["okuhaagya (to finish milking)", "okusaagya (to exaggerate)"],
+    "with_ee":    ["okukeehya (to diminish)", "okuseegya (to nearly kill)"],
+    "with_ii":    ["okubiihya (to have an ugly thing about oneself)"],
+    "with_oo":    ["aboohya (tempters)", "okuhookya (to cause domestic animal illness)"],
+    "with_uu":    ["okufuuhya (to prevent evil)"],
+    "diphthong_ai": ["obutaikya (without breathing)", "okuraihya (of a king: to go to bed)"],
+    "diphthong_oi": ["okuhoigya (to cause to burn to ashes)", "okukogya (to make thin)"],
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SOUND CHANGE — VOWEL MERGING & ELISION
+# Source: grammar rules 2 (1).docx — Chapter Two: Sound Change
+# ─────────────────────────────────────────────────────────────────────────────
+
+VOWEL_MERGING_NOTE = (
+    "When two words come together, the final vowel of the first merges with the "
+    "initial vowel of the second to make a long vowel. This merging is NOT shown "
+    "in orthography for regular words, but IS shown with an apostrophe when the "
+    "first word is a particle. e.g. omwa omusaija → omw'omusaija."
+)
+
+VOWEL_MERGING_EXAMPLES = {
+    "particle_elision": {
+        "omwa omusaija":    "omw'omusaija (in the man's house)",
+        "owa omunyoro":     "ow'omunyoro (to the Chief's)",
+        "omba omunyoro":    "omb'omunyoro (at the Chief's)",
+        "habwa okugonza":   "habw'okugonza (through love)",
+        "muka omunyoro":    "muk'omunyoro (the chief's wife)",
+        "entale na omuhiigi": "entale n'omuhiigi (the lion and the hunter)",
+        "kubaza nka omwana":  "kubaza nk'omwana (to speak like a child)",
+        "obwa okufa ngada":   "obw'okufa ngada (it is better for me to suffer than die)",
+    },
+    "two_similar_vowels": {
+        "aba-ana":  "abaana (children)",
+        "ti-izire": "tiizire (it has not come)",
+        "nte-eyera":"nteeyera (white cow)",
+        "eki-ibo":  "ekiibo (basket)",
+    },
+    "similar_before_nasal": {
+        "bi-ingi":       "bingi (many, cl.8)",
+        "ni-inganaha":   "ninganaha (how big is it?, cl.9)",
+        "ba-angire":     "bangire (they have refused)",
+    },
+    "two_different_vowels_merger": {
+        "ama-ezi":   "ameezi (months, moons)",
+        "ti-alye":   "taalye (he/she will not eat)",
+        "ama-oga":   "amooga (baths)",
+        "ante-ire":  "antiire (he/she has beaten me)",
+        "ti-okole":  "tookole (you will not work)",
+        "ni-ekomba": "neekomba (it is eating, cl.9)",
+    },
+    "vowel_elision": {
+        "ti-oyosa":     "toyosa (you never absent yourself)",
+        "ti-ayosa":     "tayosa (he/she never absents himself)",
+        "abaana ba-e":  "abaana be (his/her children)",
+        "ente ya-e":    "ente ye (his/her cattle)",
+    },
+    "diphthongization": {
+        "amaizi":   "water",
+        "ataije":   "he/she did not come",
+        "oibire":   "you have stolen",
+        "okweita":  "to commit suicide",
+    },
+    "semi_vowel_substitution": {
+        "eki-ererezi":      "ekyererezi (light) — i→y before vowel",
+        "omu-ana":          "omwana (child) — u→w before vowel",
+        "Isenkuru-itwe":    "Isenkurwitwe (our grandfather) — u→w",
+        "Nyinenkuru-itwe":  "Nyinenkurwitwe (our grandmother) — u→w",
+    },
+}
+
+# Particle elision patterns (extends apostrophe rule)
+PARTICLE_ELISION_PATTERNS = {
+    "omwa":  "omw'",   # omwa + vowel → omw'
+    "owa":   "ow'",    # owa + vowel → ow'
+    "omba":  "omb'",   # omba + vowel → omb'
+    "habwa": "habw'",  # habwa + vowel → habw'
+    "muka":  "muk'",   # muka + vowel → muk'
+    "nka":   "nk'",    # nka + vowel → nk'
+    "obwa":  "obw'",   # obwa + vowel → obw'
+    "na":    "n'",     # na + vowel → n'
+    "za":    "z'",     # za + vowel → z'
+    "ka":    "k'",     # ka + vowel → k'
+    "ya":    "y'",     # ya + vowel → y'
+    "wa":    "w'",     # wa + vowel → w'
+    "ga":    "g'",     # ga + vowel → g'
+    "ba":    "b'",     # ba + vowel → b'
+    "lya":   "ly'",    # lya + vowel → ly'
+    "kya":   "ky'",    # kya + vowel → ky'
+    "bya":   "by'",    # bya + vowel → by'
+    "rwa":   "rw'",    # rwa + vowel → rw'
+    "twa":   "tw'",    # twa + vowel → tw'
+    "bwa":   "bw'",    # bwa + vowel → bw'
+    "kwa":   "kw'",    # kwa + vowel → kw'
+    "gwa":   "gw'",    # gwa + vowel → gw'
+}
+
+
+def apply_particle_elision(text: str) -> str:
+    """
+    Apply particle elision with apostrophe for ALL Runyoro-Rutooro particles
+    before vowel-initial words. Extends apply_apostrophe_elision with the
+    full set of particles from the grammar document.
+
+    e.g. omwa omusaija → omw'omusaija
+         habwa okugonza → habw'okugonza
+         nka omwana    → nk'omwana
+         na ente       → n'ente
+
+    Source: grammar rules 2 (1).docx — Chapter Two: Sound Change
+    """
+    if not text:
+        return text
+    import re as _re
+
+    result = text
+    # Sort by length descending so longer particles match first
+    for full, elided in sorted(PARTICLE_ELISION_PATTERNS.items(), key=lambda x: -len(x[0])):
+        # Match particle + space + vowel-initial word
+        pattern = _re.compile(
+            r'\b' + _re.escape(full) + r'\s+(?=[aeiouAEIOU])',
+            _re.IGNORECASE
+        )
+        result = pattern.sub(elided, result)
+    return result
+
+
+def apply_semi_vowel_substitution(text: str) -> str:
+    """
+    Apply semi-vowel substitution at morpheme boundaries:
+    - i → y before another vowel (eki-ererezi → ekyererezi)
+    - u → w before another vowel (omu-ana → omwana)
+
+    This applies at prefix-stem boundaries in Runyoro-Rutooro.
+    Source: grammar rules 2 (1).docx — Sound Change §Semi-vowels
+    """
+    if not text:
+        return text
+    import re as _re
+    # i → y before vowel at common prefix boundaries
+    result = _re.sub(r'\b(ek)i([aeiou])', r'\1y\2', text, flags=_re.IGNORECASE)
+    result = _re.sub(r'\b(ob)i([aeiou])', r'\1y\2', result, flags=_re.IGNORECASE)
+    # u → w before vowel at common prefix boundaries
+    result = _re.sub(r'\b(om)u([aeiou])', r'\1w\2', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'\b(ob)u([aeiou])', r'\1w\2', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'\b(ok)u([aeiou])', r'\1w\2', result, flags=_re.IGNORECASE)
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DOUBLE NASAL CONJUGATION TABLES
+# Source: grammar rules 2 (1).docx — Consonants Rules §2b
+# ─────────────────────────────────────────────────────────────────────────────
+
+DOUBLE_NASAL_NOTE = (
+    "When the first-person singular prefix n- is added to a verb stem beginning "
+    "with n or m, a double nasal (nn or mm) is formed. "
+    "e.g. n + naabe → nnaabe (that I may wash), n + manya → mmanya (know me)."
+)
+
+DOUBLE_NASAL_EXAMPLES = {
+    "subjunctive": {
+        "ka nnaabe":    "let me wash",
+        "nnaabe":       "that I may wash",
+        "ka nnyegeerre":"let me accuse that man",
+        "nnyegeerre":   "that I may accuse",
+        "ka mmanye":    "let me know",
+        "mmanye":       "that I may know",
+    },
+    "present_indefinite": {
+        "nnaaba":       "I wash",
+        "nnaabya omwana": "I wash the child",
+        "nnyegeerra":   "I accuse",
+        "mmanya":       "I know",
+    },
+    "present_imperfect": {
+        "niinnaaba":    "I am washing",
+        "niinnaabya omwana": "I am washing the child",
+        "niinnyegeerra":"I am accusing",
+        "niimmanya":    "I know (present imperfect)",
+    },
+    "present_perfect": {
+        "nnaabire":     "I have washed",
+        "nnyegeriirege":"I have accused Byenkya",
+        "mmanyire":     "I know (perfect)",
+    },
+    "near_past": {
+        "nnaabirege":   "I did wash",
+        "nnaabizeege Kiiza": "I did wash Kiiza",
+        "mmanyirege":   "I did know",
+    },
+}
+
+DOUBLE_NASAL_EXCEPTIONS = [
+    "emengo (lower millstones) — not *emmengo",
+    "emuli (reed torches) — not *emmuli",
+    "enwa (beaks) — not *ennwa",
+    "enaku (stinging centipedes) — not *ennaku",
+    "enumbu (edible tubers) — not *ennumbu",
+    "enyaanya (tomatoes) — not *ennyaanya",
+    "ente enungi (the good cow) — not *ente ennungi",
+]

@@ -1,0 +1,63 @@
+{
+  "last_updated": "2026-04-30T21:10:17.004191",
+  "models": {
+    "marian_en2lun": {
+      "trained": true,
+      "pushed_to_hf": true,
+      "hf_repo": "keithtwesigye/lunyoro-en2lun",
+      "notes": "10 epochs, lr=1e-5, batch=32, val_loss improved"
+    },
+    "marian_lun2en": {
+      "trained": true,
+      "pushed_to_hf": true,
+      "hf_repo": "keithtwesigye/lunyoro-lun2en",
+      "notes": "10 epochs, lr=1e-5, batch=32"
+    },
+    "nllb_en2lun": {
+      "trained": true,
+      "pushed_to_hf": false,
+      "hf_repo": "keithtwesigye/lunyoro-nllb_en2lun",
+      "notes": "5 epochs, lr=5e-6, batch=4, push in progress (process 5)"
+    },
+    "nllb_lun2en": {
+      "trained": false,
+      "pushed_to_hf": false,
+      "hf_repo": "keithtwesigye/lunyoro-nllb_lun2en",
+      "notes": "Training in progress (process 4) \u2014 5 epochs, lr=5e-6, batch=4"
+    }
+  },
+  "data_pipeline": {
+    "cleaned": true,
+    "augmented": true,
+    "back_translated": true,
+    "merged": true,
+    "total_pairs": 89243,
+    "train_pairs": 80319,
+    "val_pairs": 4462,
+    "test_pairs": 4462
+  },
+  "language_rules": {
+    "rl_rule": true,
+    "nasal_assimilation": true,
+    "ni_prefix_change": true,
+    "particle_elision_22_patterns": true,
+    "semi_vowel_substitution": true,
+    "vowel_length_data": true,
+    "geminate_r_data": true,
+    "labialised_palatalised_data": true,
+    "double_nasal_data": true,
+    "vowel_merging_data": true
+  },
+  "app": {
+    "backend_port": 8000,
+    "frontend_port": 3002,
+    "llm": "qwen2.5:3b via Ollama",
+    "resume_command": "start.bat or run backend + frontend manually"
+  },
+  "pending": [
+    "nllb_lun2en training (process 4)",
+    "nllb_en2lun push to HF (process 5)",
+    "nllb_lun2en push to HF (after training)",
+    "push code changes to git"
+  ]
+}

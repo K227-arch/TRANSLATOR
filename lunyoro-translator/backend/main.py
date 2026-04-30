@@ -26,28 +26,13 @@ import re as _re
 def _clean_translation(text: str) -> str:
     """
     Post-process a translated reply:
-    - Remove repeated comma-joined phrases
+    - Remove repeated comma-joined phrases (e.g. "n'ebyokurya, n'ebyokurya, ...")
     - Deduplicate repeated sentences
     - Strip incomplete trailing fragments
     - Collapse excess whitespace/punctuation
-    - Convert markdown bullet * to numbered lines
     """
     if not text:
         return text
-
-    # 0. Convert markdown bullets (* or -) to numbered lines
-    lines = text.split("\n")
-    cleaned_lines = []
-    counter = 0
-    for line in lines:
-        m = _re.match(r'^[\*\-•]\s+(.*)', line)
-        if m:
-            counter += 1
-            cleaned_lines.append(f"{counter}. {m.group(1)}")
-        else:
-            counter = 0
-            cleaned_lines.append(line)
-    text = "\n".join(cleaned_lines)
 
     # 1. Remove runs of repeated short comma/conjunction-separated fragments
     #    e.g. "n'ebyokurya, n'ebyokurya, n'ebyokurya" → "n'ebyokurya"
@@ -468,70 +453,32 @@ def chat(req: ChatRequest):
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": msg})
 
-    # ── Call Ollama (only if it's actually reachable) ────────────────────────
-    import socket as _socket
-    _ollama_up = False
+    # ── Call Ollama ───────────────────────────────────────────────────────────
+    _ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    _ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
     try:
-        s = _socket.create_connection(("localhost", 11434), timeout=1)
-        s.close()
-        _ollama_up = True
-    except OSError:
-        pass
-
-    if _ollama_up:
-        try:
-            resp = _requests.post(
-                "http://localhost:11434/api/chat",
-                json={
-                    "model": "llama3.2:3b",
-                    "messages": messages,
-                    "stream": False,
-                    "options": {
-                        "num_ctx": 2048,
-                        "num_predict": 512,
-                        "temperature": 0.7,
-                    }
-                },
-                timeout=60,
-            )
-            resp.raise_for_status()
-            reply_en = resp.json()["message"]["content"].strip()
-        except Exception as e:
-            import logging
-            logging.warning(f"Ollama call failed: {e}")
-            reply_en = None
-    else:
+        resp = _requests.post(
+            f"{_ollama_url}/api/chat",
+            json={
+                "model": _ollama_model,
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "num_ctx": 1024,
+                    "num_predict": 300,
+                    "temperature": 0.7,
+                }
+            },
+            timeout=300,
+        )
+        resp.raise_for_status()
+        reply_en = resp.json()["message"]["content"].strip()
+    except Exception as e:
+        import logging
+        logging.warning(f"Ollama call failed: {e}")
         reply_en = None
 
-    # ── Fallback: generate reply without Ollama ───────────────────────────────
-    if not reply_en:
-        # Build a simple but useful reply from corpus context + grammar rules
-        from language_rules import get_grammar_context, INTERJECTIONS, NUMBERS, PROVERBS
-        import random
-
-        msg_lower = msg.lower()
-
-        # Check for common question types and give a direct answer
-        if any(w in msg_lower for w in ["hello", "hi", "greet", "oraire", "osibye"]):
-            reply_en = "In Runyoro-Rutooro, you greet someone by saying 'Oraire otya?' (How did you sleep? / Good morning) or 'Osibye otya?' (How are you? / Good afternoon). The response is 'Oraire bulungi' or 'Osibye bulungi' (I am well)."
-        elif any(w in msg_lower for w in ["number", "count", "how many", "numeral"]):
-            nums = ", ".join(f"{k}={v}" for k, v in list(NUMBERS.items())[:10])
-            reply_en = f"Numbers in Runyoro-Rutooro: {nums}. Numbers 1-5 must agree with the noun class they qualify."
-        elif any(w in msg_lower for w in ["proverb", "saying", "enfumo"]):
-            reply_en = f"Here is a Runyoro-Rutooro proverb: '{random.choice(PROVERBS)}'"
-        elif any(w in msg_lower for w in ["grammar", "noun", "class", "verb", "tense"]):
-            reply_en = get_grammar_context()
-        elif any(w in msg_lower for w in ["translate", "how do you say", "what is"]):
-            # Try to translate the query itself
-            translated = _mt_translate(msg, "en2lun")
-            if translated:
-                reply_en = f"In Runyoro-Rutooro: \"{translated}\""
-            else:
-                reply_en = "I can help translate English to Runyoro-Rutooro. Please use the Translate tab for full translation, or ask me about grammar, vocabulary, or culture."
-        else:
-            reply_en = f"I can help with Runyoro-Rutooro language questions — grammar, vocabulary, translation, culture, and proverbs. {get_grammar_context()}"
-
-    # ── Translate reply with both models for comparison ──────────────────────
+    # ── Translate reply with both models in parallel ──────────────────────────
     from language_rules import apply_rl_rule_to_text
     import concurrent.futures as _cf
 
@@ -548,12 +495,8 @@ def chat(req: ChatRequest):
             nllb_out = apply_rl_rule_to_text(_clean_translation(nllb_out))
 
     if not marian_out and not nllb_out:
-        # reply_en is set but translation models failed — return English reply directly
-        return {
-            "reply":        reply_en,
-            "reply_marian": None,
-            "reply_nllb":   None,
-        }
+        return {"reply": "Sorry, the chat assistant is unavailable right now. Please try again.",
+                "reply_marian": None, "reply_nllb": None}
 
     return {
         "reply":         marian_out or nllb_out,  # MarianMT is primary
@@ -566,22 +509,98 @@ def get_language_rules():
     """Return language rules, interjections, idioms, numbers and proverbs."""
     from language_rules import (
         RL_RULE, EMPAAKO, INTERJECTIONS, IDIOMS, NUMBERS, PROVERBS,
-        get_grammar_context, NOUN_CLASSES, TENSES, CONJUNCTIONS,
-        PREPOSITIONS, ORTHOGRAPHY_RULES,
+        get_grammar_context, get_full_grammar_context,
+        NOUN_CLASSES, CONCORDIAL_AGREEMENT, TENSES, VERB_SUFFIXES,
+        DERIVATIVE_SUFFIXES, CONJUNCTIONS, PREPOSITIONS, NEGATION_WORDS,
+        ADJECTIVE_STEMS, ADVERBS_OF_MANNER, PERSONAL_PRONOUNS,
+        COMPARISON_POSITIVE, COMPARISON_COMPARATIVE, COMPARISON_SUPERLATIVE,
+        GENITIVE_PARTICLES, CONDITIONAL_MOOD, COORDINATING_PARTICLES,
+        ADVERBIAL_PARTICLES, SIMILES,
+        NASAL_ASSIMILATION, NI_PREFIX_CHANGE, CONSONANT_SUFFIX_CHANGES,
+        CONVERSIVE_SUFFIX, SUBJECT_PREFIXES, TENSE_MARKERS, NUMERAL_CONCORDS,
+        # OCR extension
+        IMPERATIVE_TENSES, INDICATIVE_TENSES, SUBJUNCTIVE_FUNCTIONS,
+        VERB_INA_CONJUGATION, VERB_LI_CONJUGATION,
+        CAUSATIVE_FORMATION, PASSIVE_FORMATION, NEUTER_FORMATION,
+        RECIPROCAL_FORMATION, CONVERSIVE_EXAMPLES,
+        DEVERBATIVE_SUFFIXES, NOUN_FUNCTIONS, NOUN_KINDS,
+        NEGATION_EXTENDED, AFFIRMATION_WORDS, INTERROGATIVE_PARTICLES,
+        PARTS_OF_SPEECH, IDEOPHONES,
+        ORDINAL_FORMATION, ORDINALS_EXTENDED, NUMERAL_ADVERBIAL_KA,
+        CLASS_12_13_14_DETAILS, ORTHOGRAPHY_RULES,
+        REFLEXIVE_IMPERATIVES, Y_INSERTION_EXAMPLES,
     )
     return {
-        "rl_rule": RL_RULE.strip(),
-        "grammar_summary": get_grammar_context().strip(),
-        "empaako": EMPAAKO,
-        "interjections": INTERJECTIONS,
-        "idioms": IDIOMS,
-        "numbers": {str(k): v for k, v in NUMBERS.items()},
-        "proverbs": PROVERBS,
-        "noun_classes": {str(k): v for k, v in NOUN_CLASSES.items()},
-        "tenses": TENSES,
-        "conjunctions": CONJUNCTIONS,
-        "prepositions": PREPOSITIONS,
-        "orthography_rules": {str(k): v for k, v in ORTHOGRAPHY_RULES.items()},
+        # Core
+        "rl_rule":              RL_RULE.strip(),
+        "grammar_summary":      get_grammar_context().strip(),
+        "full_grammar_context": get_full_grammar_context().strip(),
+        # Cultural
+        "empaako":              EMPAAKO,
+        "interjections":        INTERJECTIONS,
+        "idioms":               IDIOMS,
+        "numbers":              {str(k): v for k, v in NUMBERS.items()},
+        "proverbs":             PROVERBS,
+        # Noun system
+        "noun_classes":         {str(k): v for k, v in NOUN_CLASSES.items()},
+        "concordial_agreement": {str(k): v for k, v in CONCORDIAL_AGREEMENT.items()},
+        "class_12_13_14":       CLASS_12_13_14_DETAILS,
+        "noun_functions":       NOUN_FUNCTIONS,
+        "noun_kinds":           NOUN_KINDS,
+        "deverbative_suffixes": DEVERBATIVE_SUFFIXES,
+        # Verb system
+        "tenses":               TENSES,
+        "imperative_tenses":    IMPERATIVE_TENSES,
+        "indicative_tenses":    INDICATIVE_TENSES,
+        "subjunctive_functions":SUBJUNCTIVE_FUNCTIONS,
+        "verb_suffixes":        VERB_SUFFIXES,
+        "derivative_suffixes":  DERIVATIVE_SUFFIXES,
+        "causative_formation":  CAUSATIVE_FORMATION,
+        "passive_formation":    PASSIVE_FORMATION,
+        "neuter_formation":     NEUTER_FORMATION,
+        "reciprocal_formation": RECIPROCAL_FORMATION,
+        "conversive_examples":  CONVERSIVE_EXAMPLES,
+        "reflexive_imperatives":REFLEXIVE_IMPERATIVES,
+        "y_insertion_examples": Y_INSERTION_EXAMPLES,
+        "verb_ina":             VERB_INA_CONJUGATION,
+        "verb_li":              VERB_LI_CONJUGATION,
+        # Sound change rules (data)
+        "nasal_assimilation":   NASAL_ASSIMILATION,
+        "ni_prefix_change":     NI_PREFIX_CHANGE,
+        "consonant_suffix_changes": {str(k): v for k, v in CONSONANT_SUFFIX_CHANGES.items()},
+        "conversive_suffix_map":CONVERSIVE_SUFFIX,
+        "subject_prefixes":     SUBJECT_PREFIXES,
+        "tense_markers":        TENSE_MARKERS,
+        "numeral_concords":     {str(k): v for k, v in NUMERAL_CONCORDS.items()},
+        # Particles & grammar words
+        "conjunctions":         CONJUNCTIONS,
+        "prepositions":         PREPOSITIONS,
+        "negation_words":       NEGATION_WORDS,
+        "negation_extended":    NEGATION_EXTENDED,
+        "affirmation_words":    AFFIRMATION_WORDS,
+        "interrogatives":       INTERROGATIVE_PARTICLES,
+        "coordinating_particles": COORDINATING_PARTICLES,
+        "adverbial_particles":  ADVERBIAL_PARTICLES,
+        "genitive_particles":   GENITIVE_PARTICLES,
+        "conditional_mood":     CONDITIONAL_MOOD,
+        # Adjectives & comparison
+        "adjective_stems":      ADJECTIVE_STEMS,
+        "adverbs_of_manner":    ADVERBS_OF_MANNER,
+        "comparison_positive":  COMPARISON_POSITIVE,
+        "comparison_comparative": COMPARISON_COMPARATIVE,
+        "comparison_superlative": COMPARISON_SUPERLATIVE,
+        "similes":              SIMILES,
+        # Numbers & ordinals
+        "ordinal_formation":    ORDINAL_FORMATION,
+        "ordinals_extended":    ORDINALS_EXTENDED,
+        "numeral_adverbial_ka": NUMERAL_ADVERBIAL_KA,
+        # Pronouns
+        "personal_pronouns":    PERSONAL_PRONOUNS,
+        # Parts of speech & ideophones
+        "parts_of_speech":      PARTS_OF_SPEECH,
+        "ideophones":           IDEOPHONES,
+        # Orthography
+        "orthography_rules":    ORTHOGRAPHY_RULES,
     }
 
 
@@ -707,15 +726,3 @@ def get_proverbs():
     from language_rules import PROVERBS
     import random
     return {"proverbs": PROVERBS, "random": random.choice(PROVERBS)}
-
-
-class ValidateWordRequest(BaseModel):
-    word: str
-
-@app.post("/validate-word")
-def validate_word(req: ValidateWordRequest):
-    """Validate a Runyoro-Rutooro word against grammar rules."""
-    from language_rules import validate_runyoro_word
-    if not req.word.strip():
-        raise HTTPException(status_code=400, detail="Word cannot be empty")
-    return validate_runyoro_word(req.word.strip())

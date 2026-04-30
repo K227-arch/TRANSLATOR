@@ -11,8 +11,6 @@ import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from rapidfuzz import fuzz, process
 
-from language_rules import postprocess_lunyoro, preprocess_english, get_noun_class_hint
-
 INDEX_PATH = os.path.join(os.path.dirname(__file__), "model", "translation_index.pkl")
 MODEL_DIR  = os.path.join(os.path.dirname(__file__), "model")
 SEM_MODEL_DIR = os.path.join(MODEL_DIR, "sem_model")
@@ -38,13 +36,14 @@ def _normalise(text: str) -> str:
 # ── Language rule integration ─────────────────────────────────────────────────
 # Lazy-import so the module loads even if language_rules has a syntax error.
 _rules_loaded = False
-_apply_rl      = None
-_apply_nasal   = None
-_apply_ni      = None
+_apply_rl         = None
+_apply_nasal      = None
+_apply_ni         = None
 _apply_apostrophe = None
+_apply_semi_vowel = None
 
 def _load_rules():
-    global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni, _apply_apostrophe
+    global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni, _apply_apostrophe, _apply_semi_vowel
     if _rules_loaded:
         return
     try:
@@ -53,11 +52,14 @@ def _load_rules():
             apply_nasal_assimilation,
             apply_ni_prefix_change,
             apply_apostrophe_elision,
+            apply_particle_elision,
+            apply_semi_vowel_substitution,
         )
         _apply_rl         = apply_rl_rule_to_text
         _apply_nasal      = apply_nasal_assimilation
         _apply_ni         = apply_ni_prefix_change
-        _apply_apostrophe = apply_apostrophe_elision
+        _apply_apostrophe = apply_particle_elision   # use full particle elision
+        _apply_semi_vowel = apply_semi_vowel_substitution
     except Exception as e:
         print(f"[translate] language_rules not available: {e}")
     _rules_loaded = True
@@ -70,8 +72,9 @@ def _postprocess_lunyoro(text: str) -> str:
     Order matters:
       1. Nasal assimilation  (nb→mb, np→mp, nr→nd, nl→nd)
       2. ni→nu prefix change (nimugenda→numugenda before u-class concords)
-      3. Apostrophe elision  (na ente→n'ente, za ente→z'ente)
-      4. R/L rule            (L→R except adjacent to e/i)
+      3. Semi-vowel substitution (i→y, u→w at prefix boundaries)
+      4. Particle elision with apostrophe (na ente→n'ente, habwa okugonza→habw'okugonza)
+      5. R/L rule            (L→R except adjacent to e/i)
     """
     if not text:
         return text
@@ -80,6 +83,8 @@ def _postprocess_lunyoro(text: str) -> str:
         text = _apply_nasal(text)
     if _apply_ni:
         text = _apply_ni(text)
+    if _apply_semi_vowel:
+        text = _apply_semi_vowel(text)
     if _apply_apostrophe:
         text = _apply_apostrophe(text)
     if _apply_rl:
@@ -220,8 +225,6 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
         text = _preprocess_lunyoro_input(text)
 
     input_text = f"{context} ||| {text}" if context else text
-    if direction == "en2lun":
-        input_text = preprocess_english(input_text)
     inputs = tokenizer(input_text, return_tensors="pt", truncation=True, max_length=256).to(device)
     with torch.no_grad():
         output_ids = model.generate(
@@ -234,8 +237,11 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
             length_penalty=1.0,
         )
     result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-    if direction == "en2lun":
-        result = postprocess_lunyoro(result)
+
+    # Post-process en→lun output: apply orthographic rules
+    if direction == "en2lun" and result:
+        result = _postprocess_lunyoro(result)
+
     return result
 
 
@@ -333,10 +339,6 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         output_ids = model.generate(**inputs, **generate_kwargs)
     nllb_result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
-    if direction == "en2lun":
-        nllb_result = postprocess_lunyoro(nllb_result)
-
-    # Discard output that looks like raw dictionary notation rather than a real translation
     if _is_notation_garbage(nllb_result):
         return None
 
@@ -677,15 +679,6 @@ def lookup_word(word: str, direction: str = "en→lun") -> list:
         2 if x["source"] == "neural_mt" else 3,
         -x.get("confidence", 0)
     ))
-
-    # Enrich results with noun class hints from language_rules
-    for r in results:
-        w = r.get("word", "")
-        if w and not r.get("noun_class_hint"):
-            hint = get_noun_class_hint(w)
-            if hint:
-                r["noun_class_hint"] = hint
-
     return results[:8]
 
 

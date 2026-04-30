@@ -769,6 +769,12 @@ def step_retrain_nllb(direction: str, epochs: int = 5, batch_size: int = 16, lr:
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs * len(train_loader))
 
+    # Enable gradient checkpointing + memory allocator fix to avoid OOM
+    if hasattr(model, "gradient_checkpointing_enable"):
+        model.gradient_checkpointing_enable()
+        log.info("  Gradient checkpointing enabled (reduces VRAM usage)")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
     # Save to temp dir — never touch live model during training
     import shutil
     tmp_ckpt = os.path.join(MODEL_DIR, f"_nllb_{direction}_training_tmp")
@@ -836,7 +842,7 @@ def step_retrain_nllb(direction: str, epochs: int = 5, batch_size: int = 16, lr:
                 log.error(f"  [bg] Push failed for nllb_{dir_}: {e}")
         t = threading.Thread(target=_push, daemon=True)
         t.start()
-        log.info(f"  Push for nllb_{direction} started in background")
+        log.info(f"  Push for nllb_{direction} started in background — continuing to next model")
 
 
 # ── STEP 8: REBUILD SEMANTIC INDEX ───────────────────────────────────────────
@@ -867,7 +873,8 @@ def main():
     parser.add_argument("--skip-train",      action="store_true", help="Skip retraining (steps 1-4 only)")
     parser.add_argument("--skip-backtrans",  action="store_true", help="Skip back-translation")
     parser.add_argument("--skip-nllb",       action="store_true", help="Skip NLLB retraining")
-    parser.add_argument("--only-nllb",       action="store_true", help="Skip MarianMT, only train NLLB")
+    parser.add_argument("--only-nllb",          action="store_true", help="Skip MarianMT, only train NLLB")
+    parser.add_argument("--only-lun2en-nllb",   action="store_true", help="Only train NLLB lun2en (skip en2lun)")
     parser.add_argument("--epochs",          type=int, default=5,    help="Training epochs for MarianMT (default 5)")
     parser.add_argument("--nllb-epochs",     type=int, default=3,    help="Training epochs for NLLB (default 3)")
     parser.add_argument("--batch-size",      type=int, default=32,   help="Batch size for MarianMT (default 32)")
@@ -908,15 +915,18 @@ def main():
     if args.skip_nllb:
         log.info("=== Skipping NLLB retraining (--skip-nllb) ===")
     else:
-        step_retrain_nllb("en2lun", epochs=args.nllb_epochs, batch_size=args.nllb_batch_size, lr=args.nllb_lr)
+        if not args.only_lun2en_nllb:
+            step_retrain_nllb("en2lun", epochs=args.nllb_epochs, batch_size=args.nllb_batch_size, lr=args.nllb_lr)
         step_retrain_nllb("lun2en", epochs=args.nllb_epochs, batch_size=args.nllb_batch_size, lr=args.nllb_lr)
 
-    # Wait for any background push threads to finish
+    # Wait for background push threads (max 10 min each)
     import threading
     for t in threading.enumerate():
         if t != threading.main_thread() and t.is_alive():
             log.info(f"  Waiting for background thread: {t.name}")
-            t.join()
+            t.join(timeout=600)
+            if t.is_alive():
+                log.warning(f"  Thread {t.name} timed out — push may be incomplete")
 
     # Step 6: Push to HuggingFace Hub
     step_push_to_hub()
