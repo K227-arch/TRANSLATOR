@@ -11,19 +11,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# App code
+# App code (models are NOT baked in — mounted as volume or downloaded at startup)
 COPY . .
 
-# Models are mounted as a volume — not baked into the image
-# docker run -v /path/to/models:/app/model ...
-
-# Create history directory so the volume mount works even if not provided
-RUN mkdir -p /app/history
+# Create model and history directories
+RUN mkdir -p /app/model /app/history
 
 EXPOSE 8000
 
-ENV TRANSFORMERS_OFFLINE=1
-ENV HF_DATASETS_OFFLINE=1
-ENV HF_HUB_OFFLINE=1
+# Startup script — downloads models if not present, then starts server
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["/docker-entrypoint.sh"]
