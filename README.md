@@ -65,7 +65,7 @@ python download_models.py
 cd ../frontend && npm install
 
 # 4. Ollama — download from https://ollama.com/download
-ollama pull llama3.2:3b
+ollama pull qwen2.5:3b
 ```
 
 ## Running the App
@@ -166,5 +166,5 @@ frontend/
 
 ## Chat (LLM)
 
-The chat assistant uses **LLaMA 3.2 3B** running locally via Ollama. It generates responses in English, which are then translated to Runyoro-Rutooro by the fine-tuned MarianMT model. No internet connection required after setup.
+The chat assistant uses **Qwen 2.5 3B** running locally via Ollama. It generates responses in English, which are then translated to Runyoro-Rutooro by the fine-tuned MarianMT model. No internet connection required after setup.
 

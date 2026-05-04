@@ -21,7 +21,18 @@ echo ""
 echo "[3/5] Downloading translation models from HuggingFace..."
 python backend/download_models.py
 
-# ── 4. Done ───────────────────────────────────────────────────
+# ── 4. Ollama / Qwen setup ────────────────────────────────────
+echo ""
+echo "[4/5] Setting up Ollama (LLM for chat)..."
+if ! command -v ollama &> /dev/null; then
+    echo "  Ollama not found. Install it from https://ollama.com/download then run:"
+    echo "    ollama pull qwen2.5:3b"
+else
+    echo "  Pulling qwen2.5:3b model (~2GB)..."
+    ollama pull qwen2.5:3b || echo "  WARNING: Could not pull qwen2.5:3b. Run manually: ollama pull qwen2.5:3b"
+fi
+
+# ── 5. Done ───────────────────────────────────────────────────
 echo ""
 echo "[5/5] Setup complete!"
 echo ""
