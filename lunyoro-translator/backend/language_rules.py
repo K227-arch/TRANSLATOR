@@ -1847,3 +1847,183 @@ DOUBLE_NASAL_EXCEPTIONS = [
     "enyaanya (tomatoes) — not *ennyaanya",
     "ente enungi (the good cow) — not *ente ennungi",
 ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST-PROCESSING: CONSONANT + SUFFIX MUTATIONS (text-level)
+# Source: Grammar Rule 3 §B — Sound Change in Consonants
+# Applies r→z, t→s, j→z before -ire/-ere/-i/-ya in MT output.
+# ─────────────────────────────────────────────────────────────────────────────
+
+import re as _re2
+
+# Ordered list of (pattern, replacement) — longer/more-specific first
+_CONSONANT_SUFFIX_PATTERNS = [
+    # nd + -ire/-ere → -nzire
+    (_re2.compile(r'nd(ire|ere)\b', _re2.IGNORECASE), r'nz\1'),
+    # nt + -ire/-ere → -nsire
+    (_re2.compile(r'nt(ire|ere)\b', _re2.IGNORECASE), r'ns\1'),
+    # nd + -i (agent noun suffix) → -nzi
+    (_re2.compile(r'nd(i)\b', _re2.IGNORECASE), r'nz\1'),
+    # nt + -i → -nsi
+    (_re2.compile(r'nt(i)\b', _re2.IGNORECASE), r'ns\1'),
+    # r + -ire/-ere (short-vowel stem) → -zire/-zere
+    # Guard: only when preceded by a short vowel (not rr, not already z)
+    (_re2.compile(r'(?<![rz])r(ire|ere)\b', _re2.IGNORECASE), r'z\1'),
+    # t + -ire/-ere → -sire/-sere
+    (_re2.compile(r'(?<!s)t(ire|ere)\b', _re2.IGNORECASE), r's\1'),
+    # j + -ire/-ere → -zire/-zere
+    (_re2.compile(r'j(ire|ere)\b', _re2.IGNORECASE), r'z\1'),
+    # r + -i (agent noun) → -zi
+    (_re2.compile(r'(?<![rz])r(i)\b', _re2.IGNORECASE), r'z\1'),
+    # t + -i → -si
+    (_re2.compile(r'(?<!s)t(i)\b', _re2.IGNORECASE), r's\1'),
+    # j + -i → -zi
+    (_re2.compile(r'j(i)\b', _re2.IGNORECASE), r'z\1'),
+    # r + -ya → -za
+    (_re2.compile(r'(?<![rz])r(ya)\b', _re2.IGNORECASE), r'z\1'),
+    # t + -ya → -sa
+    (_re2.compile(r'(?<!s)t(ya)\b', _re2.IGNORECASE), r's\1'),
+]
+
+def apply_consonant_suffix_mutations(text: str) -> str:
+    """
+    Apply consonant + suffix sound changes across all words in MT output.
+
+    Rules (Grammar Rule 3 §B.6):
+      r  + -ire/-ere/-i/-ya  →  z + suffix   (e.g. rora → rozire, omurozi, roza)
+      t  + -ire/-ere/-i/-ya  →  s + suffix   (e.g. leeta → leesire, omuleesi, leesa)
+      j  + -ire/-ere/-i      →  z + suffix   (e.g. hiija → hiizire, omuhiizi)
+      nd + -ire/-ere/-i/-ya  →  nz + suffix  (e.g. genda → genzire, omugenzi, genza)
+      nt + -ire/-ere/-i/-ya  →  ns + suffix  (e.g. tenta → tensire, omutensi, tensa)
+
+    Source: Grammar Rule 3 §B.5–6
+    """
+    if not text:
+        return text
+    result = text
+    for pattern, replacement in _CONSONANT_SUFFIX_PATTERNS:
+        result = pattern.sub(replacement, result)
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST-PROCESSING: REFLEXIVE IMPERATIVE CORRECTION (text-level)
+# Source: Grammar Rule 3 §4 — Reflexive Verbs
+# Corrects okwesereka → weesereke (sg) / mwesereke (pl) in MT output.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Match infinitive forms the model may output: okwesereka, okw-esereka, okwebara, etc.
+_REFLEXIVE_INF_RE = _re2.compile(
+    r'\bokw[e\-]([a-z]+a)\b',
+    _re2.IGNORECASE
+)
+
+def apply_reflexive_imperative_correction(text: str) -> str:
+    """
+    Convert reflexive infinitives that appear in imperative contexts to their
+    correct imperative form.
+
+    Singular imperative: okw-esereka → weesereke
+    Plural imperative:   okw-esereka → mwesereke
+
+    The model sometimes outputs the infinitive where an imperative is expected.
+    This function detects standalone reflexive infinitives (not preceded by a
+    tense/subject prefix) and converts them.
+
+    Source: Grammar Rule 3 §4
+    """
+    if not text:
+        return text
+
+    def _replace(m: _re2.Match) -> str:
+        stem = m.group(1)          # e.g. "sereka"
+        base = stem.rstrip('aA')   # e.g. "serek"
+        return 'wee' + base + 'e'  # e.g. "weesereke"
+
+    # Only replace when the infinitive is not preceded by a subject/tense prefix
+    # (i.e. it appears at the start of a clause or after punctuation/space)
+    result = _re2.sub(
+        r'(?<![a-z])' + _REFLEXIVE_INF_RE.pattern,
+        _replace,
+        text,
+        flags=_re2.IGNORECASE
+    )
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST-PROCESSING: INITIAL VOWEL RULE (text-level)
+# Source: Grammar Rule 3 §8 — The Initial Vowel
+# Ensures nouns/adjectives carry the correct initial vowel for their class.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Prefix → expected initial vowel
+# Rule: initial vowel is 'a' if prefix contains 'a', 'o' if prefix contains 'u',
+#       'e' if prefix contains 'i'. Classes 9/10 always use 'e'.
+_PREFIX_INITIAL_VOWEL: list[tuple[_re2.Pattern, str]] = [
+    # Class 1/2 (omu-/aba-) → initial vowel 'a'
+    (_re2.compile(r'\b(omu|aba|omw|ab)([aeiou])', _re2.IGNORECASE), 'a'),
+    # Class 3/4 (omu-/emi-) → initial vowel 'a'/'e' already correct by prefix
+    # Class 5 (eri-/ery-) → initial vowel 'e'
+    (_re2.compile(r'\b(eri|ery)([aeiou])', _re2.IGNORECASE), 'e'),
+    # Class 6 (ama-/ame-/amo-) → initial vowel 'a'
+    (_re2.compile(r'\b(ama|ame|amo)([aeiou])', _re2.IGNORECASE), 'a'),
+    # Class 7/8 (eki-/ebi-) → initial vowel 'e'
+    (_re2.compile(r'\b(eki|ebi|eky|eby)([aeiou])', _re2.IGNORECASE), 'e'),
+    # Class 9/10 (en-/em-) → initial vowel always 'e'
+    (_re2.compile(r'\b(en|em)([aeiou])', _re2.IGNORECASE), 'e'),
+    # Class 11 (oru-/orw-) → initial vowel 'o'
+    (_re2.compile(r'\b(oru|orw)([aeiou])', _re2.IGNORECASE), 'o'),
+    # Class 12/13 (aka-/utu-) → initial vowel 'a'/'o'
+    (_re2.compile(r'\b(aka|akw)([aeiou])', _re2.IGNORECASE), 'a'),
+    (_re2.compile(r'\b(utu|utw)([aeiou])', _re2.IGNORECASE), 'o'),
+    # Class 14 (obu-/obw-) → initial vowel 'o'
+    (_re2.compile(r'\b(obu|obw)([aeiou])', _re2.IGNORECASE), 'o'),
+    # Class 15 (oku-/okw-) → initial vowel 'o'
+    (_re2.compile(r'\b(oku|okw)([aeiou])', _re2.IGNORECASE), 'o'),
+]
+
+# Known exceptions where initial vowel rule does NOT apply
+_INITIAL_VOWEL_EXCEPTIONS = frozenset({
+    "icumu",   # spear — not *eicumu
+})
+
+def apply_initial_vowel_rule(text: str) -> str:
+    """
+    Ensure each noun/adjective carries the correct initial vowel for its class.
+
+    Rules (Grammar Rule 3 §8):
+      - Prefix contains 'a' (omu-, aba-, ama-)  → initial vowel 'a'
+      - Prefix contains 'u' (oru-, obu-, oku-)  → initial vowel 'o'
+      - Prefix contains 'i' (emi-, eki-, ebi-)  → initial vowel 'e'
+      - Classes 9/10 (en-/em-)                  → initial vowel always 'e'
+
+    Only corrects words not in the known exceptions list.
+
+    Source: Grammar Rule 3 §8
+    """
+    if not text:
+        return text
+
+    words = text.split()
+    corrected = []
+    for word in words:
+        if word.lower() in _INITIAL_VOWEL_EXCEPTIONS:
+            corrected.append(word)
+            continue
+        new_word = word
+        for pattern, iv in _PREFIX_INITIAL_VOWEL:
+            # If the word matches a prefix + vowel, ensure the leading vowel is correct
+            m = pattern.match(word)
+            if m:
+                prefix = m.group(1)
+                rest = word[len(prefix):]
+                # Only fix if the word starts with a wrong initial vowel
+                # (i.e. the word has an initial vowel before the prefix)
+                # Check if there's a leading vowel that doesn't match
+                if rest and rest[0].lower() in 'aeiou' and rest[0].lower() != iv:
+                    new_word = prefix + iv + rest[1:]
+                break
+        corrected.append(new_word)
+    return ' '.join(corrected)

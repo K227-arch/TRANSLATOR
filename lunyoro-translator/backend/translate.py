@@ -35,15 +35,19 @@ def _normalise(text: str) -> str:
 
 # ── Language rule integration ─────────────────────────────────────────────────
 # Lazy-import so the module loads even if language_rules has a syntax error.
-_rules_loaded = False
+_rules_loaded     = False
 _apply_rl         = None
 _apply_nasal      = None
 _apply_ni         = None
 _apply_apostrophe = None
 _apply_semi_vowel = None
+_apply_cons_suffix = None
+_apply_reflexive  = None
+_apply_init_vowel = None
 
 def _load_rules():
-    global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni, _apply_apostrophe, _apply_semi_vowel
+    global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni, _apply_apostrophe, \
+           _apply_semi_vowel, _apply_cons_suffix, _apply_reflexive, _apply_init_vowel
     if _rules_loaded:
         return
     try:
@@ -54,12 +58,18 @@ def _load_rules():
             apply_apostrophe_elision,
             apply_particle_elision,
             apply_semi_vowel_substitution,
+            apply_consonant_suffix_mutations,
+            apply_reflexive_imperative_correction,
+            apply_initial_vowel_rule,
         )
-        _apply_rl         = apply_rl_rule_to_text
-        _apply_nasal      = apply_nasal_assimilation
-        _apply_ni         = apply_ni_prefix_change
-        _apply_apostrophe = apply_particle_elision   # use full particle elision
-        _apply_semi_vowel = apply_semi_vowel_substitution
+        _apply_rl          = apply_rl_rule_to_text
+        _apply_nasal       = apply_nasal_assimilation
+        _apply_ni          = apply_ni_prefix_change
+        _apply_apostrophe  = apply_particle_elision
+        _apply_semi_vowel  = apply_semi_vowel_substitution
+        _apply_cons_suffix = apply_consonant_suffix_mutations
+        _apply_reflexive   = apply_reflexive_imperative_correction
+        _apply_init_vowel  = apply_initial_vowel_rule
     except Exception as e:
         print(f"[translate] language_rules not available: {e}")
     _rules_loaded = True
@@ -70,11 +80,14 @@ def _postprocess_lunyoro(text: str) -> str:
     Apply Runyoro-Rutooro orthographic rules to en→lun MT output.
 
     Order matters:
-      1. Nasal assimilation  (nb→mb, np→mp, nr→nd, nl→nd)
-      2. ni→nu prefix change (nimugenda→numugenda before u-class concords)
-      3. Semi-vowel substitution (i→y, u→w at prefix boundaries)
-      4. Particle elision with apostrophe (na ente→n'ente, habwa okugonza→habw'okugonza)
-      5. R/L rule            (L→R except adjacent to e/i)
+      1. Nasal assimilation       (nb→mb, np→mp, nr→nd, nl→nd)
+      2. ni→nu prefix change      (nimugenda→numugenda before u-class concords)
+      3. Consonant+suffix changes (r/t/j/nd/nt + -ire/-i/-ya mutations)
+      4. Reflexive imperative fix (okwesereka → weesereke)
+      5. Initial vowel rule       (prefix-based initial vowel correction)
+      6. Semi-vowel substitution  (i→y, u→w at prefix boundaries)
+      7. Particle elision         (na ente→n'ente, habwa okugonza→habw'okugonza)
+      8. R/L rule                 (L→R except adjacent to e/i)
     """
     if not text:
         return text
@@ -83,6 +96,12 @@ def _postprocess_lunyoro(text: str) -> str:
         text = _apply_nasal(text)
     if _apply_ni:
         text = _apply_ni(text)
+    if _apply_cons_suffix:
+        text = _apply_cons_suffix(text)
+    if _apply_reflexive:
+        text = _apply_reflexive(text)
+    if _apply_init_vowel:
+        text = _apply_init_vowel(text)
     if _apply_semi_vowel:
         text = _apply_semi_vowel(text)
     if _apply_apostrophe:
