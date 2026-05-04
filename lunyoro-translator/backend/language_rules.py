@@ -2027,3 +2027,316 @@ def apply_initial_vowel_rule(text: str) -> str:
                 break
         corrected.append(new_word)
     return ' '.join(corrected)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RULES FROM grammar rule 3.docx
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── VOWEL HARMONY IN VERB EXTENSIONS ─────────────────────────────────────────
+# Source: grammar rule 3.docx — THE VOWEL IN SIMPLE VERB STEMS
+# If stem vowel is a/i/u → extension vowel is i (babira, sibira, juukira)
+# If stem vowel is e/o   → extension vowel is e (tegera, bohera, nogera)
+
+VOWEL_HARMONY_RULE = (
+    "The vowel in the simple verb stem determines the vowel at the beginning "
+    "of the extension (applied, causative, etc.):\n"
+    "  Stem vowel a/i/u → extension uses i: babira, sibira, juukira\n"
+    "  Stem vowel e/o   → extension uses e: tegera, bohera, nogera\n"
+    "Exception: verb stems ending in -ra, -sa, -ta always use -ire in perfect tense."
+)
+
+VOWEL_HARMONY_EXAMPLES = {
+    "a_i_u_stems": {
+        "baba":  ("babira", "babisa", "babisiza"),
+        "siba":  ("sibira", "sibisa", "sibisiza"),
+        "juuka": ("juukira", "juukisa", "juukisiza"),
+    },
+    "e_o_stems": {
+        "tega":  ("tegera", "tegesa", "tegeseza"),
+        "boha":  ("bohera", "bohesa", "boheseza"),
+        "noga":  ("nogera", "nogesa", "nogeseza"),
+    },
+    "perfect_tense": {
+        "baba":  "babire",  "babisa": "babisize",
+        "siba":  "sibire",  "sibisa": "sibisize",
+        "juuka": "juukire", "juukisa": "juukisize",
+        "tega":  "tegere",  "tegesa": "tegeseze",
+        "boha":  "bohere",  "bohesa": "boheseze",
+        "noga":  "nogere",  "nogesa": "nogeseze",
+    },
+    "exceptions_always_ire": {
+        "seesa": "seesire (not seesere)",
+        "rora":  "rozire (not rorire)",
+        "roota": "roosire (not rootere)",
+    },
+}
+
+def get_extension_vowel(stem: str) -> str:
+    """
+    Return the extension vowel (i or e) for a verb stem based on vowel harmony.
+    Stems with a/i/u → 'i'; stems with e/o → 'e'.
+    Source: grammar rule 3.docx
+    """
+    if not stem:
+        return "i"
+    # Find the main vowel of the stem (last vowel before final -a)
+    stem_lower = stem.lower().rstrip("a")
+    for ch in reversed(stem_lower):
+        if ch in "aiu":
+            return "i"
+        if ch in "eo":
+            return "e"
+    return "i"  # default
+
+
+# ── VERB li SOUND CHANGES ─────────────────────────────────────────────────────
+# Source: grammar rule 3.docx — THE VERB li BEFORE A SUFFIX
+
+VERB_LI_SOUND_CHANGES = {
+    "aliho":  ("aroho",  "he/she is living"),
+    "aliha":  ("araha",  "where is he/she?"),
+    "halimu": ("harumu", "there (in) is something"),
+}
+
+VERB_LI_EXCEPTION = "No sound change if suffix is -yo: ndiyo (I am alright), tuliyo (we are alright)"
+
+VERB_LI_CHANGE_RULE = (
+    "When the verb 'li' is followed by -ho or -mu or interrogative -ha, "
+    "the 'l' changes: aliho→aroho, aliha→araha, halimu→harumu. "
+    "No change before -yo: ndiyo, tuliyo."
+)
+
+def apply_verb_li_changes(text: str) -> str:
+    """
+    Apply sound changes to verb 'li' before suffixes -ho, -mu, -ha.
+    aliho→aroho, aliha→araha, halimu→harumu
+    Source: grammar rule 3.docx
+    """
+    import re as _re
+    result = text
+    for src, (tgt, _) in VERB_LI_SOUND_CHANGES.items():
+        result = _re.sub(r'\b' + _re.escape(src) + r'\b', tgt, result, flags=_re.IGNORECASE)
+    return result
+
+
+# ── CONSONANT j + SUFFIX CHANGES ─────────────────────────────────────────────
+# Source: grammar rule 3.docx — THE CONSONANT j
+
+J_SUFFIX_CHANGES = {
+    # (stem_ending, suffix) → result
+    ("j", "-ire"):  "-zire",   # hiija → hiizire
+    ("j", "-i"):    "-zi",     # hiija → omuhiizi
+    # Note: suffix -ya is NOT added to j-stems; use -isa instead
+    # Note: nj + -i = -nji (not -nzi): omubanji
+}
+
+J_SUFFIX_EXAMPLES = {
+    "hiija":    ("hiizire",  "omuhiizi",  "panting"),
+    "baija":    ("baizire",  "omubaizi",  "carpenter"),
+    "boija":    ("boizire",  "omuboizi",  "one who picks termites"),
+    "sengiija": ("sengiizire","omusengiizi","one who filters"),
+    "siija":    ("siijire",  "ensiiji",   "bull that serves cows"),
+}
+
+J_SUFFIX_NOTE = (
+    "Suffix -ya is NOT added to verb roots ending in j. "
+    "Use -isa instead: okuhiija → okuhiijisa (not okuhiijya). "
+    "Applied suffix -ira/-era does NOT affect j: okuhiijira (not okuhiizira)."
+)
+
+
+# ── CONSONANT d/t + SUFFIX CHANGES ───────────────────────────────────────────
+# Source: grammar rule 3.docx — THE CONSONANTS d AND t
+
+DT_SUFFIX_CHANGES = {
+    ("nd", "-ire"):  "-nzire",  # genda → genzire
+    ("nd", "-i"):    "-nzi",
+    ("nd", "-ya"):   "-nza",
+    ("nt", "-ire"):  "-nsire",  # leeta → leesire (t after n)
+    ("nt", "-i"):    "-nsi",
+    ("nt", "-ya"):   "-nsa",
+    ("t",  "-ire"):  "-sire",   # leeta → leesire (standalone t)
+    ("t",  "-i"):    "-si",
+    ("t",  "-ya"):   "-sa",
+}
+
+DT_SUFFIX_EXAMPLES = {
+    "genda":  ("genzire",  "perfect of genda (go)"),
+    "leeta":  ("leesire",  "perfect of leeta (bring)"),
+    "roota":  ("roosire",  "perfect of roota (dream)"),
+    "leesa":  ("leesire",  "perfect of leesa (help to bring)"),
+}
+
+DT_SUFFIX_NOTE = (
+    "Applied suffix -ira/-era does NOT affect nd, nt, t at end of stem: "
+    "okugenda→okugendera, okutenta→okutentera, okuleeta→okuleetera."
+)
+
+
+# ── INITIAL VOWEL RULES ───────────────────────────────────────────────────────
+# Source: grammar rule 3.docx — THE INITIAL VOWEL
+
+INITIAL_VOWEL_RULES = {
+    "a": {
+        "rule": "Initial vowel is 'a' if the following prefix contains 'a'",
+        "examples": ["abantu (people)", "abeegi (learners)", "aboojo (boys)"],
+    },
+    "o": {
+        "rule": "Initial vowel is 'o' if the following prefix contains 'u'",
+        "examples": ["omuntu (person)", "orubabi (plantain leaf)", "otuntu (small things)"],
+    },
+    "e": {
+        "rule": "Initial vowel is 'e' if the following prefix contains 'i'",
+        "examples": ["emibazi (medicines)", "eriiba (dove)", "ekicooli (Indian corn)"],
+        "exception": "icumu (spear) — not eicumu",
+    },
+    "class_9_10": {
+        "rule": "All class 9 and 10 nouns have 'e' as initial vowel regardless of prefix",
+        "examples": ["ente (cow)", "embuzi (goat)", "embabi (plantation leaves)",
+                     "esagama (blood)", "ekooti (coat)"],
+    },
+}
+
+def get_initial_vowel(prefix: str) -> str:
+    """
+    Return the correct initial vowel for a noun given its class prefix.
+    Source: grammar rule 3.docx — THE INITIAL VOWEL
+    """
+    if not prefix:
+        return "e"
+    p = prefix.lower().strip("-")
+    if any(v in p for v in ["a"]):
+        return "a"
+    if any(v in p for v in ["u"]):
+        return "o"
+    if any(v in p for v in ["i"]):
+        return "e"
+    return "e"
+
+
+# ── EXTENDED NEGATION WORDS ───────────────────────────────────────────────────
+# Source: grammar rule 3.docx — WORDS OF NEGATION AND AFFIRMATION
+
+NEGATION_WORDS_EXTENDED = {
+    # Declinable (built on root -aha + genitive particle)
+    "waaha":    "No, he is not there (cl.1)",
+    "zaaha":    "No, they (cl.10) have not come",
+    "kwaha":    "No (blunt, with cl.15 kwa particle)",
+    "byahayo":  "There is none (cl.8)",
+    # Undeclinable
+    "a'a":      "No, I do not want it (refusal)",
+    "nangwa":   "No, I am not (emphatic refusal)",
+    "nga":      "No (mild refusal)",
+    "naakataito": "Does not know how to (inability)",
+    "naakake":  "Same as naakataito",
+    "busa":     "Not at all, nothing",
+    "nangwa busa": "He has done nothing wrong",
+    "busaho":   "No, he will not (emphatic)",
+    "ntai":     "God forbid (strong exclamation of refusal/shock)",
+}
+
+AFFIRMATION_WORDS_EXTENDED = {
+    "ee":    "Yes (simple affirmation)",
+    "m":     "Yes, you may (permissive)",
+    "ego":   "Yes (formal affirmation)",
+    "nukwo": "Yes indeed, truly yes",
+    "ego kwo weewe": "Yes indeed, that's it",
+}
+
+
+# ── EXTENDED INTERJECTIONS BY CATEGORY ───────────────────────────────────────
+# Source: grammar rule 3.docx — INTERJECTIONS
+
+INTERJECTIONS_BY_CATEGORY = {
+    "pity": [
+        "Ai bambi!", "Ai caali!", "Ka mahano!", "mpora!",
+    ],
+    "ironical_assent": [
+        "Ee!", "M!", "Ego!", "Nukwo!",
+    ],
+    "surprise": [
+        "Mawe!", "Mahano!", "Gaagwa amahano!",
+    ],
+    "joy": [
+        "Koowe Akiiki!", "Kaije Atwoki!", "Ka niiwe Abbooki!",
+    ],
+    "entreaty": [
+        "Taata!", "Boojo si taata tomuganyira", "Boojo taata njuna!",
+        "Boojo maau mpaho otwizi",
+    ],
+    "anger": [
+        "twara kuli!", "dara iwe da!",
+    ],
+    "fear": [
+        "kafe!", "waaraaraaraaraara!", "coo!", "ekyolikyo!", "cucu!",
+    ],
+    "hatred": [
+        "haakiri!", "k'okibone!", "olifa kubi!", "kaseke dimu!", "kaseke makara!",
+    ],
+}
+
+
+# ── SYLLABIFICATION RULES ─────────────────────────────────────────────────────
+# Source: grammar rule 3.docx — SYLLABIFICATION IN WORDS
+
+SYLLABIFICATION_RULES = {
+    "single_vowel":           "e-mu, i-ta-ka, a",
+    "double_vowel":           "ee!, aa-'a!",
+    "diphthong":              "ai-zi-re, oi-rii-rwe",
+    "single_consonant":       "n-te, m-bwa, n-do-ho",
+    "consonant_vowel":        "e-ki-bi-ra, a-ma-ta, o-ku-tu",
+    "consonant_two_vowels":   "e-kii-na, a-baa-na, o-ku-lee-ta",
+    "consonant_diphthong":    "a-mai-zi, o-boi-ne, a-bai-ngi",
+    "labialised_vowel_short": "o-mu-nwa, o-mu-twe",
+    "labialised_vowel_long":  "o-mwa-na, o-mu-gwe-nyo",
+    "labialised_diphthong":   "n-twai-re, n-dwai-re",
+    "palatalised_vowel_short":"o-ku-lya",
+    "palatalised_vowel_long": "e-bye-gi-ra",
+    "palatalised_diphthong":  "m-byai-re, o-tyai-ze",
+    "nasal_vowel":            "e-nte, o-ku-bu-mba, e-nko-ko",
+    "nasal_two_vowels":       "e-ntee-ko, e-ntii-ka-lya",
+    "nasal_diphthong":        "e-mpai-ri-mi, e-ntoi-jo",
+    "double_consonant_vowel": "i-bba-no, e-bbi-ni-ka",
+    "double_consonant_two_vowels": "e-bbee-se-ni, o-ru-bbaa-ho",
+    "apostrophe":             "k'-o-boi-ne, n'-e-mbu-zi",
+    "note_nasal_vowels":      "All vowels before nasal compounds are pronounced long.",
+}
+
+
+# ── REFLEXIVE VERB CONJUGATION ────────────────────────────────────────────────
+# Source: grammar rule 3.docx — REFLEXIVE VERBS
+
+REFLEXIVE_CONJUGATION = {
+    "singular_imperative": {
+        "rule": "Begins with 'wee-', final vowel is -e (not -a)",
+        "examples": {
+            "weesereke":   "hide yourself (okw-esereka)",
+            "weebundaaze": "humble yourself (okw-ebundaaza)",
+            "weerekere":   "set yourself free (okw-erekera)",
+            "weebale":     "thank you / count yourself (okw-ebara)",
+            "weesigege":   "trust in me (okw-esiga)",
+            "weetegereze": "understand (okw-etegereza)",
+            "weebuge":     "proclaim your bravery (okw-ebuga)",
+            "weesize":     "stop crying (okw-esiza)",
+        },
+    },
+    "plural_imperative": {
+        "rule": "Begins with 'mwe-'",
+        "examples": {
+            "mwesereke":   "hide yourselves",
+            "mwebundaaze": "humble yourselves",
+            "mwerekere":   "set yourselves free",
+            "mwebale":     "thank yourselves",
+        },
+    },
+    "subjunctive_after_prefixes": {
+        "rule": "After n-, o-, a-, e- prefixes, reflexive stem takes y-",
+        "examples": {
+            "nyesereke":  "that I may hide myself",
+            "oyesereke":  "that you may hide yourself",
+            "ayesereke":  "that he/she may hide himself/herself",
+            "eyesereke":  "that it (cl.9) may hide itself",
+        },
+    },
+}
