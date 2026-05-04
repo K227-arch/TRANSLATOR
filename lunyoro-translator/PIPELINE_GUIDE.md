@@ -18,6 +18,7 @@ This guide documents the complete implementation of the Runyoro-Rutooro translat
 - Particles, conjunctions, prepositions
 - Cultural elements (EMPAAKO, interjections, idioms, proverbs)
 - OCR-derived rules (Chapters 15-17): comparison, genitive particles, adverbial particles
+- Grammar Rule 3 docx rules: vowel harmony in verb extensions (`get_extension_vowel()`), verb *li* sound changes (`apply_verb_li_changes()`), consonant j/d/t + suffix change tables, initial vowel rules (`get_initial_vowel()`), extended negation/affirmation words, interjections grouped by category, syllabification patterns, reflexive verb conjugation (singular `wee-`/plural `mwe-` imperatives + subjunctive `y-` forms)
 
 **Extension Module**: `backend/language_rules_ocr_extension.py`
 - Sound change rules (Y-insertion, reflexive verbs, conversive suffixes)
@@ -406,7 +407,7 @@ curl -X POST http://localhost:8000/chat \
 
 ```
 backend/
-├── language_rules.py              # Core + OCR grammar rules
+├── language_rules.py              # Core + OCR grammar rules + Grammar Rule 3 docx rules (vowel harmony, verb li sound changes, j/d/t suffix changes, initial vowel, extended negation/affirmation, interjections by category, syllabification, reflexive conjugation)
 ├── language_rules_ocr_extension.py # Extended OCR rules (Ch 2,4,7,9,10,12,13)
 ├── extract_dictionary_pdf.py      # PDF dictionary extraction (Runyoro↔English CSVs + training pairs)
 ├── dictionary_pipeline.py         # Dictionary data pipeline: clean → augment → back-translate → merge → retrain → rebuild index; clean_pairs_df() applies post-step quality filtering (length, noise, language-side validation, dedup, orthographic normalisation)
