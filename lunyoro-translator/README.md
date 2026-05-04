@@ -6,12 +6,13 @@ An AI-powered translation system for the Runyoro-Rutooro language of the Bunyoro
 
 - English ↔ Lunyoro/Rutooro translation (MarianMT + NLLB-200)
 - Dictionary lookup with example sentences
-- AI chat assistant powered by LLaMA 3.2 (via Ollama)
+- AI chat assistant powered by Qwen 2.5 3B (via Ollama)
 - PDF/DOCX document summarization and translation
 - Voice translation
 - Spellcheck
 - Domain-aware translation (Medical, Education, Agriculture, etc.)
 - Model comparison view (MarianMT vs NLLB-200)
+- Grammar Rule 3 post-processing (consonant+suffix mutations, reflexive imperatives, initial vowel correction)
 
 ## Dataset
 
@@ -27,7 +28,7 @@ An AI-powered translation system for the Runyoro-Rutooro language of the Bunyoro
 
 ## Models
 
-All models are hosted on HuggingFace under [keithtwesigye](https://huggingface.co/keithtwesigye):
+All 4 models are hosted on HuggingFace under [keithtwesigye](https://huggingface.co/keithtwesigye) and **download automatically** — either when you run the setup script, or on the first translation request if you start the backend directly.
 
 | Model | Repo | Description |
 |-------|------|-------------|
@@ -35,6 +36,8 @@ All models are hosted on HuggingFace under [keithtwesigye](https://huggingface.c
 | MarianMT lun→en | `keithtwesigye/lunyoro-lun2en` | Lunyoro to English |
 | NLLB-200 en→lun | `keithtwesigye/lunyoro-nllb_en2lun` | English to Lunyoro (NLLB) |
 | NLLB-200 lun→en | `keithtwesigye/lunyoro-nllb_lun2en` | Lunyoro to English (NLLB) |
+
+> Model weights (~6 GB total) are not stored in the git repo. They are downloaded from HuggingFace on first use and cached locally under `backend/model/`. After the initial download the app runs fully offline (`TRANSFORMERS_OFFLINE=1` in `.env`).
 
 ## Requirements
 
@@ -44,6 +47,8 @@ All models are hosted on HuggingFace under [keithtwesigye](https://huggingface.c
 - `python-dotenv` (optional — auto-loads `backend/.env` at startup if present)
 
 ## Quick Setup
+
+> **Models download automatically** — no manual model setup needed. Just run the setup script after cloning.
 
 ### Linux / macOS
 ```bash
@@ -57,18 +62,23 @@ cd lunyoro-translator
 setup.bat
 ```
 
+The setup script will:
+1. Install Python dependencies
+2. Install frontend (Node) dependencies
+3. Download all 4 translation models from HuggingFace (~6 GB)
+4. Install Ollama and pull the Qwen 2.5 3B chat model (~2 GB)
+
 Or manually:
 
 ```bash
 # 1. Python backend
 pip install -r backend/requirements.txt
 
-# 2. Download models from HuggingFace
-cd backend
-python download_models.py
+# 2. Download all 4 models from HuggingFace
+python backend/download_models.py
 
 # 3. Frontend
-cd ../frontend && npm install
+cd frontend && npm install
 
 # 4. Ollama — download from https://ollama.com/download
 ollama pull qwen2.5:3b
