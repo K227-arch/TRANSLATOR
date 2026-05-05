@@ -1,12 +1,29 @@
 import type { NextConfig } from "next";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const withPWA = require("next-pwa")({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === "development",
+  runtimeCaching: [
+    {
+      urlPattern: /^https?.*/,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "runyoro-api-cache",
+        expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
+        networkTimeoutSeconds: 10,
+      },
+    },
+  ],
+});
 
 const isDocker = process.env.DOCKER_BUILD === "1";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  // standalone output is only needed for Docker/self-hosted deployments
-  // Vercel manages its own output format
+  turbopack: {},
   ...(isDocker && { output: "standalone" }),
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
