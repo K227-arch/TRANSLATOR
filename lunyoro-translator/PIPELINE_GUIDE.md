@@ -102,9 +102,10 @@ This guide documents the complete implementation of the Runyoro-Rutooro translat
 **Dictionary pipeline retraining** (`dictionary_pipeline.py` Step 5):
 - Checkpoints are saved to a temp directory (`_<direction>_training_tmp/`) during training; the live model directory is never modified mid-run
 - Once training finishes, the best checkpoint is atomically copied to the live model path and the temp dir is removed
-- Each model direction (en2lun, lun2en) is then pushed to HuggingFace in a background thread, freeing the GPU for the next model without waiting for the upload to finish
+- Push is skipped inside `step_retrain()` and handled centrally after all training (MarianMT Steps 5 + NLLB Step 7) is complete — a single sequential push block uploads all retrained models to HuggingFace on CPU, keeping the GPU fully free during training
+- Uploads use file-by-file transfers with up to 3 retries per file; models pushed are determined by `--only-nllb`, `--only-lun2en-nllb`, and `--skip-nllb` flags
 - Requires `HF_TOKEN` env var; logs a warning and skips push if not set
-- Step 6 (`step_push_to_hub`) still runs as a fallback/explicit push for all 4 models (en2lun, lun2en, nllb_en2lun, nllb_lun2en)
+- Step 6 (`step_push_to_hub`) still runs afterward as a fallback/explicit push for all 4 models (en2lun, lun2en, nllb_en2lun, nllb_lun2en)
 
 **NLLB-200** (`fine_tune_nllb.py`):
 - Fine-tunes from existing checkpoint
@@ -221,6 +222,12 @@ python dictionary_pipeline.py --skip-nllb
 
 # Skip MarianMT, only retrain NLLB
 python dictionary_pipeline.py --only-nllb
+
+# Skip MarianMT and NLLB en2lun, only retrain NLLB lun2en
+python dictionary_pipeline.py --only-lun2en-nllb
+
+# Skip pushing models to HuggingFace after training
+python dictionary_pipeline.py --skip-push
 
 # Control training hyperparameters
 python dictionary_pipeline.py --epochs 10 --batch-size 16 --lr 5e-6

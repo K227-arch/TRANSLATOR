@@ -1,0 +1,241 @@
+english,lunyoro,domain
+Monday,Orwokubanza,GENERAL
+Tuesday,Orwakabiri,GENERAL
+Wednesday,Orwakasatu,GENERAL
+Thursday,Orwakana,GENERAL
+Friday,Orwakataano,GENERAL
+Saturday,Orwamukaaga,GENERAL
+Sunday,Sande,GENERAL
+today is Monday,leero ni Orwokubanza,GENERAL
+today is Tuesday,leero ni Orwakabiri,GENERAL
+today is Wednesday,leero ni Orwakasatu,GENERAL
+today is Thursday,leero ni Orwakana,GENERAL
+today is Friday,leero ni Orwakataano,GENERAL
+today is Saturday,leero ni Orwamukaaga,GENERAL
+today is Sunday,leero ni Sande,GENERAL
+January,Januari,GENERAL
+February,Februari,GENERAL
+March,Machi,GENERAL
+April,Apriiri,GENERAL
+May,Meyi,GENERAL
+June,Juni,GENERAL
+July,Julai,GENERAL
+August,Agusito,GENERAL
+September,Sebutembba,GENERAL
+October,Okitobba,GENERAL
+November,Novembba,GENERAL
+December,Desembba,GENERAL
+we were born in January,twazaarwa omu Januari,GENERAL
+school starts in February,isomero ritandika omu Februari,GENERAL
+it rains in March,emvura egwa omu Machi,GENERAL
+Easter is in April,Isita iri omu Apriiri,GENERAL
+harvest is in June,okuzingura kuri omu Juni,GENERAL
+independence day is in October,Siku y'obwigenge iri omu Okitobba,GENERAL
+Christmas is in December,Krisimasi iri omu Desembba,GENERAL
+giraffe,entwiiga,GENERAL
+the giraffe has a long neck,entwiiga ina ensingo ndaaire,GENERAL
+giraffes eat leaves from tall trees,entwiiga zirya amababi g'emiti emiraiira,GENERAL
+parrot,ekinyonyi ekigamba,GENERAL
+the parrot can talk,ekinyonyi ekigamba kiyinza okugamba,GENERAL
+crocodile,engonzi,GENERAL
+the crocodile lives in the river,engonzi ikara omu mugera,GENERAL
+crocodiles are dangerous,engonzi zitiisa,GENERAL
+mouse,empuku nto,GENERAL
+the mouse ate the food,empuku nto yarya ekyokurya,GENERAL
+zebra,endogoyi,GENERAL
+the zebra has black and white stripes,endogoyi ina emirongo emirukutu n'emieru,GENERAL
+hippo,engabi,GENERAL
+the hippo lives in the water,engabi ikara omu maizi,GENERAL
+eagle,empungu,GENERAL
+the eagle flies high,empungu iruka haiguru,GENERAL
+owl,ekinyonyi ky'ekiro,GENERAL
+the owl comes out at night,ekinyonyi ky'ekiro kija omu kiro,GENERAL
+monkey,enkima,GENERAL
+monkeys live in trees,enkima zikara omu miti,GENERAL
+snake,enyoka,GENERAL
+the snake is dangerous,enyoka itiisa,GENERAL
+frog,ekikere,GENERAL
+frogs live near water,ebikere bikara haihi n'amaizi,GENERAL
+donkey,endogoyi y'omulimu,GENERAL
+the donkey carries heavy loads,endogoyi y'omulimu itwarira ebitwaro ebizibu,GENERAL
+horse,embalaasi,GENERAL
+the horse runs fast,embalaasi iruka bwangu,GENERAL
+elephant,enjojo,GENERAL
+the elephant is the biggest animal,enjojo niyo kisoro ekikuru,GENERAL
+nostril,ekitundu ky'enyindo,GENERAL
+the nostrils help us breathe,ebitundu by'enyindo bituyamba okuhumura,GENERAL
+chin,ekirevu,GENERAL
+he has a beard on his chin,aina obwevu omu kirevu,GENERAL
+eyelid,ekikomo ky'eriiso,GENERAL
+close your eyelids when sleeping,ziba ebikomo by'amaiso obu uryama,GENERAL
+wrist,ekibatu,GENERAL
+she wears a bracelet on her wrist,atwara omukuuzi omu kibatu,GENERAL
+nail,ekicha,GENERAL
+cut your nails,tema ebicha byawe,GENERAL
+elbow,ekigere ky'omukono,GENERAL
+he hurt his elbow,akumira ekigere ky'omukono,GENERAL
+knee,ekigere,GENERAL
+she fell on her knee,agwa omu kigere,GENERAL
+ankle,ekigere ky'okuguru,GENERAL
+he twisted his ankle,akubiira ekigere ky'okuguru,GENERAL
+thumb,ekicha ekikuru,GENERAL
+the thumb is the biggest finger,ekicha ekikuru nikyo kicha ekikuru,GENERAL
+forehead,ekyenyi,GENERAL
+she has a scar on her forehead,aina ekisaago omu kyenyi,GENERAL
+eyebrow,obwevu bw'eriiso,GENERAL
+cheek,itama,GENERAL
+the baby has chubby cheeks,omwana aina amatama amanene,GENERAL
+shoulder,ekitwe ky'omukono,GENERAL
+he carried the bag on his shoulder,atwarira ensawo omu kitwe ky'omukono,GENERAL
+chest,ekifuba,GENERAL
+he has pain in his chest,aina obulumi omu kifuba,GENERAL
+stomach,enda,GENERAL
+my stomach hurts,enda yange iruma,GENERAL
+hip,ekibina,GENERAL
+thigh,ekisambi,GENERAL
+calf,ekigere ky'omuguru,GENERAL
+heel,ekigere ky'okuguru eky'enyuma,GENERAL
+tongue,olulimi,GENERAL
+the tongue helps us taste food,olulimi lutuyamba okwogera ebyokurya,GENERAL
+tooth,erino,GENERAL
+brush your teeth every morning,kuba amaino gawe buli mugamba,GENERAL
+red,eritukura,GENERAL
+the blood is red,omusaayi niwo eritukura,GENERAL
+blue,buluu,GENERAL
+the sky is blue,eggulu niyo buluu,GENERAL
+green,olutiiti,GENERAL
+the grass is green,obusenke niwo olutiiti,GENERAL
+yellow,omuhondo,GENERAL
+the banana is yellow,egitooke niyo omuhondo,GENERAL
+white,erieru,GENERAL
+the milk is white,amata niyo erieru,GENERAL
+black,eritukura ery'amakara,GENERAL
+the charcoal is black,amakara niyo eritukura ery'amakara,GENERAL
+orange,oranjo,GENERAL
+purple,purpuro,GENERAL
+pink,pinki,GENERAL
+brown,omukara,GENERAL
+the soil is brown,enyika niyo omukara,GENERAL
+spoon,ekijiko,GENERAL
+use a spoon to eat porridge,kozesa ekijiko okulya obukima,GENERAL
+fork,orusumo,GENERAL
+knife,ekimwa,GENERAL
+use a knife to cut the meat,kozesa ekimwa okusara enyama,GENERAL
+plate,sefuriya,GENERAL
+put food on the plate,teeka ebyokurya omu sefuriya,GENERAL
+cup,kikopo,GENERAL
+drink water from a cup,nywa amaizi omu kikopo,GENERAL
+pot,entamu,GENERAL
+cook food in a pot,teeka ebyokurya omu ntamu,GENERAL
+pan,sefuriya y'okukaanga,GENERAL
+fry eggs in a pan,kaanga amagi omu sefuriya y'okukaanga,GENERAL
+broom,ekifagio,GENERAL
+sweep the floor with a broom,faga hasi n'ekifagio,GENERAL
+bucket,ndoogo,GENERAL
+fetch water with a bucket,ruga amaizi n'endoogo,GENERAL
+soap,sabuni,GENERAL
+wash your hands with soap,naaba emikono n'esabuni,GENERAL
+mirror,kioo,GENERAL
+look at yourself in the mirror,rora omu kioo,GENERAL
+bed,orugyegye,GENERAL
+sleep on the bed,ryama omu rugyegye,GENERAL
+pillow,omutwe gw'orugyegye,GENERAL
+blanket,ekigoye ky'orugyegye,GENERAL
+door,orwigi,GENERAL
+close the door,ziba orwigi,GENERAL
+window,edirisha,GENERAL
+open the window,gura edirisha,GENERAL
+roof,okuteeka enju,GENERAL
+wall,ekisige,GENERAL
+floor,hasi,GENERAL
+sweep the floor,faga hasi,GENERAL
+stairs,entaraaza,GENERAL
+climb the stairs,zimba entaraaza,GENERAL
+hospital,eddwaliro,GENERAL
+go to the hospital,genda omu ddwaliro,GENERAL
+school,isomero,GENERAL
+the children go to school,abaana bagenda omu isomero,GENERAL
+church,kanisa,GENERAL
+we go to church on Sunday,tugenda omu kanisa omu Sande,GENERAL
+mosque,msikiti,GENERAL
+market,isoko,GENERAL
+buy food at the market,gura ebyokurya omu isoko,GENERAL
+police,abapolisi,GENERAL
+the police protect us,abapolisi batulinda,GENERAL
+soldier,omuserukale,GENERAL
+army,ebyombi,GENERAL
+president,perezidenti,GENERAL
+minister,omuministeri,GENERAL
+parliament,palamende,GENERAL
+election,amatora,GENERAL
+vote,okutora,GENERAL
+we vote for our leaders,tutora abakuru baitu,GENERAL
+democracy,demokarasi,GENERAL
+freedom,obwigenge,GENERAL
+Uganda got independence in 1962,Uganda yaabona obwigenge omu 1962,GENERAL
+flag,bendera,GENERAL
+the Uganda flag has black red and yellow,bendera ya Uganda rina eritukura eritukura n'omuhondo,GENERAL
+national anthem,ennyimba y'eggwanga,GENERAL
+citizen,omwenegwanga,GENERAL
+passport,pasipoti,GENERAL
+visa,viza,GENERAL
+border,omupaka,GENERAL
+district,disiturikiti,GENERAL
+village,kyaro,GENERAL
+we live in a village,tukara omu kyaro,GENERAL
+town,tauni,GENERAL
+city,kibuga,GENERAL
+Kampala is the capital city,Kampala nikyo kibuga ekikuru,GENERAL
+road,omuguudo,GENERAL
+the road is long,omuguudo muraaire,GENERAL
+bridge,olutindo,GENERAL
+cross the bridge,simbuka olutindo,GENERAL
+airport,ekifo ky'endege,GENERAL
+plane,endege,GENERAL
+the plane flies in the sky,endege iruka omu ggulu,GENERAL
+train,egaali y'omwika,GENERAL
+bus,bbaasi,GENERAL
+take the bus to town,twara bbaasi okugenda tauni,GENERAL
+taxi,takisi,GENERAL
+bicycle,egaali,GENERAL
+ride a bicycle,siima egaali,GENERAL
+motorcycle,pikipiki,GENERAL
+car,motoka,GENERAL
+drive a car,siima motoka,GENERAL
+boat,eryato,GENERAL
+cross the lake by boat,simbuka ennyanja n'eryato,GENERAL
+lake,ennyanja,GENERAL
+Lake Victoria is the biggest lake in Uganda,Ennyanja Victoria niyo nnyanja enkuru omu Uganda,GENERAL
+river,omugera,GENERAL
+mountain,olusozi,GENERAL
+forest,ekibira,GENERAL
+desert,enyika etairiimwa,GENERAL
+island,ekizinga,GENERAL
+valley,ekiwonvu,GENERAL
+waterfall,omugga,GENERAL
+sunrise,okukwera kw'izooba,GENERAL
+the sun rises in the east,izooba rikwera omu buseruka,GENERAL
+sunset,okugwa kw'izooba,GENERAL
+the sun sets in the west,izooba rigwa omu butaguruka,GENERAL
+north,omukiika,GENERAL
+south,omukiika gw'omugabi,GENERAL
+east,buseruka,GENERAL
+west,butaguruka,GENERAL
+spring,ekiseera ky'emvura,GENERAL
+summer,ekiseera ky'enjuba,GENERAL
+autumn,ekiseera ky'okuzingura,GENERAL
+winter,ekiseera ky'obutiti,GENERAL
+temperature,obupya,GENERAL
+the temperature is high today,obupya bwali bungi leero,GENERAL
+cold,obutiti,GENERAL
+it is cold today,obutiti bwali bungi leero,GENERAL
+hot,obupya,GENERAL
+it is hot today,obupya bwali bungi leero,GENERAL
+wind,omuyaga,GENERAL
+the wind is blowing,omuyaga nguteera,GENERAL
+cloud,ekire,GENERAL
+the sky is cloudy,eggulu ririna ebire,GENERAL
+thunder,enkuba,GENERAL
+lightning,okumyansa,GENERAL
+flood,omwigga,GENERAL
+earthquake,okuzaanuka kw'enyika,GENERAL

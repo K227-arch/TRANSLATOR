@@ -48,7 +48,7 @@ export default function Dictionary() {
 
   const placeholder = direction === "en→lun"
     ? "Search an English word..."
-    : "Search a Lunyoro / Rutooro word...";
+    : "Search a Runyoro / Rutooro word...";
 
   async function handleSearch() {
     if (!query.trim()) return;
@@ -109,13 +109,13 @@ export default function Dictionary() {
           onClick={() => handleDirectionChange("en→lun")}
           className={`flex-1 py-2 transition-colors ${direction === "en→lun" ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
         >
-          English → Lunyoro / Rutooro
+          English → Runyoro / Rutooro
         </button>
         <button
           onClick={() => handleDirectionChange("lun→en")}
           className={`flex-1 py-2 transition-colors ${direction === "lun→en" ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
         >
-          Lunyoro / Rutooro → English
+          Runyoro / Rutooro → English
         </button>
       </div>
 
@@ -188,7 +188,7 @@ export default function Dictionary() {
               <div className="flex justify-between items-start mb-1">
                 {direction === "en→lun" ? (
                   <div>
-                    <span className="text-xs text-gray-400 uppercase tracking-wide">Lunyoro / Rutooro</span>
+                    <span className="text-xs text-gray-400 uppercase tracking-wide">Runyoro / Rutooro</span>
                     <p className="text-lg font-semibold text-gray-800">{entry.word}</p>
                   </div>
                 ) : (
@@ -235,7 +235,7 @@ export default function Dictionary() {
                 <>
                   {entry.word && (
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium text-gray-700">Lunyoro: </span>{entry.word}
+                      <span className="font-medium text-gray-700">Runyoro: </span>{entry.word}
                     </p>
                   )}
                   {entry.definitionNative && (

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Lunyoro / Rutooro Translator",
-  description: "Translate English to Lunyoro and Rutooro",
+  title: "Runyoro / Rutooro Translator",
+  description: "Translate English to Runyoro and Rutooro",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,0 +1,67 @@
+english,lunyoro,domain
+doctor,omufumu,MEDICAL
+nurse,omulabirizi,MEDICAL
+hospital,eddwaliro,MEDICAL
+clinic,ekibiina ky'abasimu,MEDICAL
+medicine,eddagala,MEDICAL
+tablet,ekidagala,MEDICAL
+injection,sindano,MEDICAL
+fever,omusujja,MEDICAL
+malaria,omusujja gw'omukaka,MEDICAL
+cough,enkuba,MEDICAL
+headache,obulumi bw'omutwe,MEDICAL
+stomachache,obulumi bw'enda,MEDICAL
+toothache,obulumi bw'erino,MEDICAL
+backache,obulumi bw'omugongo,MEDICAL
+wound,ekisaago,MEDICAL
+blood,omusaayi,MEDICAL
+bone,ekigwa,MEDICAL
+heart,omutima,MEDICAL
+lung,ekibumba,MEDICAL
+kidney,ekibumba ky'omusaayi,MEDICAL
+liver,enyama y'omubiri,MEDICAL
+brain,obwongo,MEDICAL
+skin,olugo,MEDICAL
+pregnant,omuzaala,MEDICAL
+she is pregnant,ali omuzaala,MEDICAL
+birth,okuzaara,MEDICAL
+the baby was born today,omwana yazaarwa leero,MEDICAL
+death,okufa,MEDICAL
+he died yesterday,yafira jjo,MEDICAL
+surgery,okutemwa,MEDICAL
+the doctor performed surgery,omufumu yakoora okutemwa,MEDICAL
+bandage,ekigoye ky'ekisaago,MEDICAL
+ambulance,motoka y'eddwaliro,MEDICAL
+emergency,obuzibu obwanguwa,MEDICAL
+take him to hospital immediately,mwtwara omu ddwaliro bwanguwa,MEDICAL
+HIV,akamwandu,MEDICAL
+AIDS,endwadde ya akamwandu,MEDICAL
+tuberculosis,endwadde y'amafuba,MEDICAL
+diabetes,endwadde y'omuzigo,MEDICAL
+hypertension,endwadde y'omusaayi,MEDICAL
+cancer,kansa,MEDICAL
+cholera,kolera,MEDICAL
+typhoid,tayifoodi,MEDICAL
+diarrhea,okwagala,MEDICAL
+vomiting,okusesema,MEDICAL
+dizziness,okuzunguluka,MEDICAL
+rash,ebisaago by'olugo,MEDICAL
+allergy,endwadde y'olugo,MEDICAL
+vaccination,okufumbirwa,MEDICAL
+the child was vaccinated,omwana yafumbirwa,MEDICAL
+prescription,ebigambo by'omufumu,MEDICAL
+the doctor gave a prescription,omufumu yaaha ebigambo,MEDICAL
+pharmacy,ekibiina ky'eddagala,MEDICAL
+buy medicine at the pharmacy,gura eddagala omu kibiina ky'eddagala,MEDICAL
+healthy,omubiri murungi,MEDICAL
+he is healthy,ali n'omubiri murungi,MEDICAL
+sick,omurwaire,MEDICAL
+she is sick,ali omurwaire,MEDICAL
+recover,okukira,MEDICAL
+he recovered from malaria,yakira omusujja gw'omukaka,MEDICAL
+pain,obulumi,MEDICAL
+I have pain in my leg,nina obulumi omu kigere,MEDICAL
+blind,omuzibe,MEDICAL
+deaf,omukiru,MEDICAL
+disabled,omugumba,MEDICAL
+mental illness,endwadde y'obwongo,MEDICAL

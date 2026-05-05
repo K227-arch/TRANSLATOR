@@ -500,7 +500,7 @@ def step_merge(pairs_df, aug_df, bt_df):
 
 # ── STEP 5: RETRAIN (from checkpoint, not from scratch) ──────────────────────
 
-def step_retrain(direction: str, epochs: int = 5, batch_size: int = 32, lr: float = 1e-5):
+def step_retrain(direction: str, epochs: int = 5, batch_size: int = 32, lr: float = 1e-5, skip_push: bool = False):
     """Fine-tune a MarianMT model from its existing checkpoint."""
     log.info(f"=== STEP 5: Retraining MarianMT {direction} (from checkpoint) ===")
 
@@ -621,30 +621,8 @@ def step_retrain(direction: str, epochs: int = 5, batch_size: int = 32, lr: floa
     shutil.rmtree(tmp_ckpt, ignore_errors=True)
     log.info(f"  Retraining complete for {direction}. Best val_loss={best_val_loss:.4f}")
 
-    # Push to HuggingFace in a background thread so GPU is free for next model
-    repo_id = HF_REPOS.get(direction)
-    if repo_id:
-        hf_token = os.environ.get("HF_TOKEN", "").strip()
-        if not hf_token:
-            log.warning(f"  HF_TOKEN not set — skipping push for {direction}")
-        else:
-            import threading
-            def _push(dir_=direction, repo_=repo_id, path_=model_path, loss_=best_val_loss, tok_=hf_token):
-                try:
-                    from huggingface_hub import HfApi
-                    log.info(f"  [bg] Pushing {dir_} → {repo_} (CPU, background) ...")
-                    HfApi(token=tok_).upload_folder(
-                        folder_path=path_,
-                        repo_id=repo_,
-                        repo_type="model",
-                        commit_message=f"Retrained {dir_} on cleaned + augmented + back-translated data (val_loss={loss_:.4f})",
-                    )
-                    log.info(f"  [bg] ✓ {dir_} pushed to {repo_}")
-                except Exception as e:
-                    log.error(f"  [bg] Push failed for {dir_}: {e}")
-            t = threading.Thread(target=_push, daemon=True)
-            t.start()
-            log.info(f"  Push for {direction} started in background — continuing to next model")
+    # Push handled centrally after all training — skip here
+    _ = skip_push  # push is handled centrally after all training completes
 
 
 # ── STEP 6: PUSH TO HUGGING FACE ─────────────────────────────────────────────
@@ -830,13 +808,25 @@ def step_retrain_nllb(direction: str, epochs: int = 5, batch_size: int = 16, lr:
         def _push(dir_=direction, repo_=repo_id, path_=model_path, loss_=best_val_loss, tok_=hf_token):
             try:
                 from huggingface_hub import HfApi
-                log.info(f"  [bg] Pushing nllb_{dir_} → {repo_} ...")
-                HfApi(token=tok_).upload_folder(
-                    folder_path=path_,
-                    repo_id=repo_,
-                    repo_type="model",
-                    commit_message=f"Retrained NLLB {dir_} on cleaned + augmented + back-translated data (val_loss={loss_:.4f})",
-                )
+                import glob
+                api = HfApi(token=tok_)
+                log.info(f"  [bg] Pushing nllb_{dir_} → {repo_} file by file ...")
+                files = [f for f in glob.glob(os.path.join(path_, "**", "*"), recursive=True)
+                         if os.path.isfile(f)]
+                for fpath in files:
+                    rel = os.path.relpath(fpath, path_)
+                    for attempt in range(3):
+                        try:
+                            api.upload_file(
+                                path_or_fileobj=fpath,
+                                path_in_repo=rel,
+                                repo_id=repo_,
+                                repo_type="model",
+                            )
+                            break
+                        except Exception as e:
+                            if attempt == 2:
+                                log.warning(f"  [bg] Failed to upload {rel}: {e}")
                 log.info(f"  [bg] ✓ nllb_{dir_} pushed to {repo_}")
             except Exception as e:
                 log.error(f"  [bg] Push failed for nllb_{dir_}: {e}")
@@ -875,6 +865,7 @@ def main():
     parser.add_argument("--skip-nllb",       action="store_true", help="Skip NLLB retraining")
     parser.add_argument("--only-nllb",          action="store_true", help="Skip MarianMT, only train NLLB")
     parser.add_argument("--only-lun2en-nllb",   action="store_true", help="Only train NLLB lun2en (skip en2lun)")
+    parser.add_argument("--skip-push",          action="store_true", help="Skip pushing to HuggingFace after training")
     parser.add_argument("--epochs",          type=int, default=5,    help="Training epochs for MarianMT (default 5)")
     parser.add_argument("--nllb-epochs",     type=int, default=3,    help="Training epochs for NLLB (default 3)")
     parser.add_argument("--batch-size",      type=int, default=32,   help="Batch size for MarianMT (default 32)")
@@ -904,14 +895,14 @@ def main():
         log.info(f"Pipeline complete. {total} total training pairs ready.")
         return
 
-    # Step 5: Retrain both MarianMT models from checkpoint
+    # Step 5: Retrain both MarianMT models from checkpoint (no push yet)
     if args.only_nllb:
         log.info("=== Skipping MarianMT retraining (--only-nllb) ===")
     else:
-        step_retrain("en2lun", epochs=args.epochs, batch_size=args.batch_size, lr=args.lr)
-        step_retrain("lun2en", epochs=args.epochs, batch_size=args.batch_size, lr=args.lr)
+        step_retrain("en2lun", epochs=args.epochs, batch_size=args.batch_size, lr=args.lr, skip_push=True)
+        step_retrain("lun2en", epochs=args.epochs, batch_size=args.batch_size, lr=args.lr, skip_push=True)
 
-    # Step 7: Retrain NLLB models
+    # Step 7: Retrain NLLB models (no push yet)
     if args.skip_nllb:
         log.info("=== Skipping NLLB retraining (--skip-nllb) ===")
     else:
@@ -919,14 +910,46 @@ def main():
             step_retrain_nllb("en2lun", epochs=args.nllb_epochs, batch_size=args.nllb_batch_size, lr=args.nllb_lr)
         step_retrain_nllb("lun2en", epochs=args.nllb_epochs, batch_size=args.nllb_batch_size, lr=args.nllb_lr)
 
-    # Wait for background push threads (max 10 min each)
-    import threading
-    for t in threading.enumerate():
-        if t != threading.main_thread() and t.is_alive():
-            log.info(f"  Waiting for background thread: {t.name}")
-            t.join(timeout=600)
-            if t.is_alive():
-                log.warning(f"  Thread {t.name} timed out — push may be incomplete")
+    # All training done — now push all models sequentially on CPU
+    if not args.skip_push:
+        log.info("=== Pushing all models to HuggingFace (sequential, CPU) ===")
+        from huggingface_hub import HfApi
+        import glob
+        hf_token = os.environ.get("HF_TOKEN", "").strip()
+        if not hf_token:
+            log.warning("  HF_TOKEN not set — skipping push")
+        else:
+            api = HfApi(token=hf_token)
+            models_to_push = []
+            if not args.only_nllb:
+                models_to_push += [("en2lun", HF_REPOS["en2lun"]),
+                                   ("lun2en", HF_REPOS["lun2en"])]
+            if not args.skip_nllb:
+                models_to_push += [("nllb_en2lun", HF_REPOS["nllb_en2lun"]),
+                                   ("nllb_lun2en", HF_REPOS["nllb_lun2en"])]
+            for model_name, repo_id in models_to_push:
+                model_path = os.path.join(MODEL_DIR, model_name)
+                if not os.path.isdir(model_path):
+                    log.warning(f"  {model_name} folder not found, skipping")
+                    continue
+                log.info(f"  Pushing {model_name} → {repo_id} ...")
+                files = [f for f in glob.glob(os.path.join(model_path, "**", "*"), recursive=True)
+                         if os.path.isfile(f)]
+                for fpath in files:
+                    rel = os.path.relpath(fpath, model_path)
+                    for attempt in range(3):
+                        try:
+                            api.upload_file(
+                                path_or_fileobj=fpath,
+                                path_in_repo=rel,
+                                repo_id=repo_id,
+                                repo_type="model",
+                            )
+                            break
+                        except Exception as e:
+                            if attempt == 2:
+                                log.warning(f"    Failed to upload {rel}: {e}")
+                log.info(f"  ✓ {model_name} pushed to {repo_id}")
 
     # Step 6: Push to HuggingFace Hub
     step_push_to_hub()

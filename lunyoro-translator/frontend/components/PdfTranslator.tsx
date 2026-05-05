@@ -113,7 +113,7 @@ export default function PdfTranslator() {
           </details>
           {summary.summary_lunyoro && (
             <div className="bg-white border border-green-200 rounded-lg p-5 space-y-3">
-              <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Lunyoro / Rutooro Summary</p>
+              <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Runyoro / Rutooro Summary</p>
               <p className="text-sm text-gray-800 leading-relaxed">{summary.summary_lunyoro}</p>
               {summary.summary_lunyoro_marian && summary.summary_lunyoro_nllb && (
                 <div className="pt-3 border-t border-gray-100 space-y-2">
@@ -128,7 +128,7 @@ export default function PdfTranslator() {
           )}
           <button
             onClick={() => {
-              const content = `English Summary:\n${summary.summary}\n\nLunyoro / Rutooro Summary:\n${summary.summary_lunyoro}`;
+              const content = `English Summary:\n${summary.summary}\n\nRunyoro / Rutooro Summary:\n${summary.summary_lunyoro}`;
               const blob = new Blob([content], { type: "text/plain" });
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");

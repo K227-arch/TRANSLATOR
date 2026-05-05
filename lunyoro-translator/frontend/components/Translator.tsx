@@ -44,8 +44,8 @@ export default function Translator() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
 
-  const fromLabel = direction === "en→lun" ? "English" : "Lunyoro / Rutooro";
-  const toLabel   = direction === "en→lun" ? "Lunyoro / Rutooro" : "English";
+  const fromLabel = direction === "en→lun" ? "English" : "Runyoro / Rutooro";
+  const toLabel   = direction === "en→lun" ? "Runyoro / Rutooro" : "English";
   const endpoint  = direction === "en→lun" ? "/translate" : "/translate-reverse";
 
   function swapDirection() {
