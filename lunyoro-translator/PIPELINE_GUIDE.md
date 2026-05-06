@@ -351,6 +351,8 @@ context = get_full_grammar_context()
 # Apply R/L rule (single word or full sentence)
 corrected = apply_rl_rule("olulimi")          # → "orulimi"
 corrected = apply_rl_rule_to_text("olulimi olunene")  # → "orulimi orunene"
+# English words in mixed text are skipped automatically
+corrected = apply_rl_rule_to_text("olulimi lwa English")  # → "orulimi rwa English"
 
 # Detect noun class
 classes = get_noun_class("omuntu")  # → [1]

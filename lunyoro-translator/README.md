@@ -6,7 +6,7 @@ An AI-powered translation system for the Runyoro-Rutooro language of the Bunyoro
 
 - English ↔ Lunyoro/Rutooro translation (MarianMT + NLLB-200)
 - Dictionary lookup with example sentences
-- AI chat assistant powered by Qwen 2.5 3B (via Ollama)
+- AI chat assistant powered by Qwen 2.5 7B (via HuggingFace Router)
 - PDF/DOCX document summarization and translation
 - Voice translation
 - Spellcheck
@@ -45,8 +45,8 @@ All 4 models are hosted on HuggingFace under [keithtwesigye](https://huggingface
 
 - Python 3.10+
 - Node.js 18+
-- [Ollama](https://ollama.com) (for AI chat)
 - `python-dotenv` (optional — auto-loads `backend/.env` at startup if present)
+- `HF_TOKEN` environment variable with HuggingFace inference access (required for chat)
 
 ## Quick Setup
 
@@ -68,7 +68,6 @@ The setup script will:
 1. Install Python dependencies
 2. Install frontend (Node) dependencies
 3. Download all 5 models from HuggingFace (~6 GB): 4 translation models + 1 semantic search model
-4. Install Ollama and pull the Qwen 2.5 3B chat model (~2 GB)
 
 Or manually:
 
@@ -81,14 +80,11 @@ python backend/download_models.py
 
 # 3. Frontend
 cd frontend && npm install
-
-# 4. Ollama — download from https://ollama.com/download
-ollama pull qwen2.5:3b
 ```
 
 ## Running the App
 
-Open 3 terminals:
+Open 2 terminals:
 
 ```bash
 # Terminal 1 — Backend API (port 8000)
@@ -98,9 +94,6 @@ uvicorn main:app --reload --port 8000
 # Terminal 2 — Frontend (port 3002)
 cd frontend
 npm run dev
-
-# Terminal 3 — Ollama (if not running as a service)
-ollama serve
 ```
 
 Then open **http://localhost:3002**
@@ -201,6 +194,8 @@ You can generate a token at https://huggingface.co/settings/tokens (needs write 
 
 `push_to_hf_space.py` deploys the FastAPI backend as a Docker-based HuggingFace Space (`keithtwesigye/runyoro-translator-api`). It creates the space if it doesn't exist, uploads all backend source files, and uploads the Space config files from `hf-space/` (README + Dockerfile override). Model weights, training data, OCR data, and `.env` are excluded automatically.
 
+**Requirements**: You must set the `HF_TOKEN` environment variable with write access to the target space before running the script.
+
 ```bash
 # Linux / macOS
 export HF_TOKEN=your_token_here
@@ -222,7 +217,7 @@ After deployment the API is available at:
 backend/
   main.py                    — FastAPI server
   translate.py               — Translation logic (MarianMT + NLLB + retrieval); strips any domain tags the model may reproduce from training data (e.g. `[GENERAL]`, `[MEDICAL]`) from the raw MT output before further processing; post-processes en→lun MT output with Runyoro-Rutooro orthographic rules (nasal assimilation nb→mb/np→mp/nr→nd, ni→nu prefix vowel harmony, R/L rule); pre-processes lun→en input by normalising nasal clusters to canonical forms; rules are lazy-loaded from language_rules so the module loads safely even if language_rules has an import error; the semantic search model is always loaded by name from the retrieval index (not from the local `model/sem_model/` path) so Sentence Transformers can download a compatible version automatically if the local copy is absent or mismatched
-  language_rules.py          — Single-module Runyoro-Rutooro grammar reference (language_rules_ocr_extension.py merged in). Covers: orthography (alphabet, R/L rule, long vowels, apostrophe), noun class system (classes 1–15, concordial agreement, plural formation), verb structure (infinitive/subject/tense prefixes, derivative suffixes), tense system, adjectives/adverbs, numbers/ordinals, particles/conjunctions/prepositions, pronouns, cultural elements (EMPAAKO, interjections, idioms, proverbs); OCR-derived rules (Chapters 2, 4, 7, 9, 10, 12, 13, 15–17): comparison, genitive/adverbial/coordinating particles, conditional mood, derivative verbs (applied, causative, passive, neuter, reciprocal), moods and tenses (imperative, subjunctive, indicative), extended noun class details, noun formation, ordinals, negation/affirmation, possessive pronouns, ideophones, orthography rules; Grammar Rule 3 post-processing: apply_consonant_suffix_mutations() (r→z/t→s/j→z/nd→nz/nt→ns before -ire/-ere/-i/-ya), apply_reflexive_imperative_correction() (okw-e... → wee.../mwe...), apply_initial_vowel_rule() (prefix-based initial vowel correction); utility functions: get_full_grammar_context(), get_derivative_verb_type(), get_imperative_form(), is_reflexive_verb()
+  language_rules.py          — Single-module Runyoro-Rutooro grammar reference (language_rules_ocr_extension.py merged in). Covers: orthography (alphabet, R/L rule, long vowels, apostrophe), noun class system (classes 1–15, concordial agreement, plural formation), verb structure (infinitive/subject/tense prefixes, derivative suffixes), tense system, adjectives/adverbs, numbers/ordinals, particles/conjunctions/prepositions, pronouns, cultural elements (EMPAAKO, interjections, idioms, proverbs); OCR-derived rules (Chapters 2, 4, 7, 9, 10, 12, 13, 15–17): comparison, genitive/adverbial/coordinating particles, conditional mood, derivative verbs (applied, causative, passive, neuter, reciprocal), moods and tenses (imperative, subjunctive, indicative), extended noun class details, noun formation, ordinals, negation/affirmation, possessive pronouns, ideophones, orthography rules; Grammar Rule 3 post-processing: apply_consonant_suffix_mutations() (r→z/t→s/j→z/nd→nz/nt→ns before -ire/-ere/-i/-ya), apply_reflexive_imperative_correction() (okw-e... → wee.../mwe...), apply_initial_vowel_rule() (prefix-based initial vowel correction); apply_rl_rule_to_text() skips English words (detected via common digraphs, common English suffixes -ing/-ed/-ly/-ous/-ive/-ble/-ity/-ate/-ize/-ise/-ify/-ent/-ant/-ance/-ence, consonant-cluster endings -ld/-nd/-nt/-st/-ft/-lt/-lk/-rk/-rn/-nk/-ng/-mp/-mb/-sk/-sp/-sm/-sn/-sw/-sl/-sc, common word list, and all-caps acronyms) so loanwords and mixed-language text are not incorrectly transformed; utility functions: get_full_grammar_context(), get_derivative_verb_type(), get_imperative_form(), is_reflexive_verb()
   prepare_training_data.py   — Corpus builder with domain tagging; merges all cleaned data sources including synthetic grammar rule pairs generated from all OCR grammar chapters (Ch.2 sound change, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional, Ch.16 comparison, Ch.17 genitive/adverbial particles) via generate_rule_training_pairs.py; strips any pre-existing domain tag(s) from english_nyoro_clean.csv before re-tagging — handles multiple stacked tags and mixed case (e.g. `[GENERAL] [GENerAL] text`) via a case-insensitive repeating regex, preventing double-tagging on repeated runs; applies four normalization steps to all Lunyoro training targets: (1) apostrophe standardisation (curly/Unicode apostrophes → straight ASCII apostrophe), (2) nasal assimilation (nb→mb, np→mp, nr→nd, nl→nd), (3) ni→nu prefix vowel harmony (nimugenda→numugenda before u-class concords), and (4) the R/L rule (L→R except adjacent to e/i), so models learn consistent orthographic forms
   clean_and_merge_seeds.py   — Cleans and merges domain-specific seed vocabulary CSVs (medical, education, daily life, low-frequency, agriculture) into english_nyoro_clean.csv; applies OCR fixes and orthographic normalisation (nasal assimilation, ni→nu prefix, R/L rule), filters pairs shorter than 2 chars, deduplicates, and prepends domain tags (e.g. [MEDICAL], [AGRICULTURE]); run directly with `python clean_and_merge_seeds.py`
   clean_new_submissions.py   — Merges new crowd-sourced submissions
@@ -236,7 +231,7 @@ backend/
   csv_to_xlsx.py             — Converts the three dictionary CSVs produced by extract_dictionary_pdf.py (runyoro_english_dict.csv, english_runyoro_dict.csv, dictionary_pairs.csv) to Excel format (.xlsx) and removes the original CSV files; run after extract_dictionary_pdf.py when Excel output is needed: `python csv_to_xlsx.py`
   extract_ocr_pairs.py       — Extracts English ↔ Runyoro-Rutooro sentence pairs AND word glosses from OCR grammar data (data/OCR/combined/all_ocr_combined.json); uses language_rules.py prefix/vocabulary data for detection (threshold 0.10 for Runyoro, 0.15 for English); merges sentence pairs into english_nyoro_clean.csv and word glosses into word_entries_clean.csv; outputs data/cleaned/ocr_pairs_extracted.csv (sentence pairs) and data/cleaned/ocr_glosses_extracted.csv (word glosses) for review; run directly with `python extract_ocr_pairs.py`
   push_models_hf.py            — Uploads all 4 fine-tuned model folders (en2lun, lun2en, nllb_en2lun, nllb_lun2en) to their respective HuggingFace repos; requires HF_TOKEN env var with write access
-  push_to_hf_space.py          — Deploys the backend to HuggingFace Spaces (space ID: keithtwesigye/runyoro-translator-api, SDK: docker); creates the space if it doesn't exist, then uploads all backend source files (skipping model weights, training data, OCR data, and .env); also uploads Space config files from hf-space/ (README.md + Dockerfile override); requires HF_TOKEN env var with write access to the target space
+  push_to_hf_space.py          — Deploys the backend to HuggingFace Spaces (space ID: keithtwesigye/runyoro-translator-api, SDK: docker); creates the space if it doesn't exist, then uploads all backend source files (skipping model weights, training data, OCR data, and .env); also uploads Space config files from hf-space/ (README.md + Dockerfile override); requires HF_TOKEN env var with write access to the target space (script will exit with error if not set)
   clean_sentence_submission.py — Cleans the April sentence submission Excel file (Runyoro-English_Translation.xlsx); standardises columns, strips whitespace, drops empty rows and duplicates, writes data/cleaned/runyoro_english_sentences_clean.csv
   clean_remaining_raw.py     — Extracts translation pairs from remaining raw CSVs (word_submissions_rows*.csv, corpus_sentences_rows (1).csv); merges new pairs into english_nyoro_clean.csv after deduplication
   clean_extra.py             — Merges Excel dictionary datasets
@@ -289,8 +284,10 @@ frontend/
 
 ## Chat (LLM)
 
-The chat assistant uses **Qwen 2.5 3B** running locally via Ollama. It generates responses in English, which are then translated to Runyoro-Rutooro by both MarianMT and NLLB-200 in parallel (via `ThreadPoolExecutor`), returning results from both models. No internet connection required after setup.
+The chat assistant uses **Qwen 2.5 7B Instruct** via the HuggingFace Router (OpenAI-compatible API). It generates responses in English, which are then translated to Runyoro-Rutooro by both MarianMT and NLLB-200 in parallel (via `ThreadPoolExecutor`), returning results from both models. Requires a valid `HF_TOKEN` with inference access.
 
-The full grammar context from `get_full_grammar_context()` (core rules + all OCR-derived rules) is built once at startup and cached in `_GRAMMAR_CONTEXT_CACHE`, truncated to 6000 characters to stay within Ollama's context window. Each chat request injects this cached context into the system prompt rather than rebuilding it per request.
+The model is configurable via the `HF_CHAT_MODEL` environment variable (default: `Qwen/Qwen2.5-7B-Instruct`). The backend uses the `openai` Python package pointed at `https://router.huggingface.co/v1` — no local Ollama installation is needed.
 
-The `/chat` endpoint has a simple in-memory rate limiter: **5 requests per 60 seconds per IP**. Requests exceeding this return HTTP 429. This prevents Ollama from being overloaded under concurrent traffic.
+The full grammar context from `get_full_grammar_context()` (core rules + all OCR-derived rules) is built once at startup and cached in `_GRAMMAR_CONTEXT_CACHE`, truncated to 6000 characters to stay within the model's context window. Each chat request injects this cached context into the system prompt rather than rebuilding it per request.
+
+The `/chat` endpoint has a simple in-memory rate limiter: **5 requests per 60 seconds per IP**. Requests exceeding this return HTTP 429.
