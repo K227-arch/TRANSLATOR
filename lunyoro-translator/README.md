@@ -13,6 +13,7 @@ An AI-powered translation system for the Runyoro-Rutooro language of the Bunyoro
 - Domain-aware translation (Medical, Education, Agriculture, etc.)
 - Model comparison view (MarianMT vs NLLB-200)
 - Grammar Rule 3 post-processing (consonant+suffix mutations, reflexive imperatives, initial vowel correction)
+- PWA support — installable on desktop and mobile, with offline-capable network-first caching (via `next-pwa`)
 
 ## Dataset
 
@@ -36,8 +37,9 @@ All 4 models are hosted on HuggingFace under [keithtwesigye](https://huggingface
 | MarianMT lun→en | `keithtwesigye/lunyoro-lun2en` | Lunyoro to English |
 | NLLB-200 en→lun | `keithtwesigye/lunyoro-nllb_en2lun` | English to Lunyoro (NLLB) |
 | NLLB-200 lun→en | `keithtwesigye/lunyoro-nllb_lun2en` | Lunyoro to English (NLLB) |
+| Semantic search | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Retrieval index for context-aware translation |
 
-> Model weights (~6 GB total) are not stored in the git repo. They are downloaded from HuggingFace on first use and cached locally under `backend/model/`. After the initial download the app runs fully offline (`TRANSFORMERS_OFFLINE=1` in `.env`).
+> Model weights (~6 GB total) are not stored in the git repo. They are downloaded from HuggingFace on first use and cached locally under `backend/model/`. After the initial download the 4 translation models run fully offline (`TRANSFORMERS_OFFLINE=1` in `.env`). The semantic search model is always loaded by name from the retrieval index so Sentence Transformers can resolve and download a compatible version automatically — it uses the ST cache (`~/.cache/torch/sentence_transformers`) rather than `backend/model/sem_model/`.
 
 ## Requirements
 
@@ -65,7 +67,7 @@ setup.bat
 The setup script will:
 1. Install Python dependencies
 2. Install frontend (Node) dependencies
-3. Download all 4 translation models from HuggingFace (~6 GB)
+3. Download all 5 models from HuggingFace (~6 GB): 4 translation models + 1 semantic search model
 4. Install Ollama and pull the Qwen 2.5 3B chat model (~2 GB)
 
 Or manually:
@@ -195,12 +197,31 @@ python backend\_push_hf_readmes.py
 
 You can generate a token at https://huggingface.co/settings/tokens (needs write access to the target repos).
 
+## Deploying the Backend to HuggingFace Spaces
+
+`push_to_hf_space.py` deploys the FastAPI backend as a Docker-based HuggingFace Space (`keithtwesigye/runyoro-translator-api`). It creates the space if it doesn't exist, uploads all backend source files, and uploads the Space config files from `hf-space/` (README + Dockerfile override). Model weights, training data, OCR data, and `.env` are excluded automatically.
+
+```bash
+# Linux / macOS
+export HF_TOKEN=your_token_here
+python backend/push_to_hf_space.py
+
+# Windows
+set HF_TOKEN=your_token_here
+python backend\push_to_hf_space.py
+```
+
+After deployment the API is available at:
+`https://keithtwesigye-runyoro-translator-api.hf.space`
+
+> Note: HuggingFace Spaces free tier has no persistent disk, so models are re-downloaded on each cold start. Set `DOWNLOAD_MODELS_ON_START=1` in the Space's environment variables.
+
 ## Architecture
 
 ```
 backend/
   main.py                    — FastAPI server
-  translate.py               — Translation logic (MarianMT + NLLB + retrieval); post-processes en→lun MT output with Runyoro-Rutooro orthographic rules (nasal assimilation nb→mb/np→mp/nr→nd, ni→nu prefix vowel harmony, R/L rule); pre-processes lun→en input by normalising nasal clusters to canonical forms; rules are lazy-loaded from language_rules so the module loads safely even if language_rules has an import error
+  translate.py               — Translation logic (MarianMT + NLLB + retrieval); strips any domain tags the model may reproduce from training data (e.g. `[GENERAL]`, `[MEDICAL]`) from the raw MT output before further processing; post-processes en→lun MT output with Runyoro-Rutooro orthographic rules (nasal assimilation nb→mb/np→mp/nr→nd, ni→nu prefix vowel harmony, R/L rule); pre-processes lun→en input by normalising nasal clusters to canonical forms; rules are lazy-loaded from language_rules so the module loads safely even if language_rules has an import error; the semantic search model is always loaded by name from the retrieval index (not from the local `model/sem_model/` path) so Sentence Transformers can download a compatible version automatically if the local copy is absent or mismatched
   language_rules.py          — Single-module Runyoro-Rutooro grammar reference (language_rules_ocr_extension.py merged in). Covers: orthography (alphabet, R/L rule, long vowels, apostrophe), noun class system (classes 1–15, concordial agreement, plural formation), verb structure (infinitive/subject/tense prefixes, derivative suffixes), tense system, adjectives/adverbs, numbers/ordinals, particles/conjunctions/prepositions, pronouns, cultural elements (EMPAAKO, interjections, idioms, proverbs); OCR-derived rules (Chapters 2, 4, 7, 9, 10, 12, 13, 15–17): comparison, genitive/adverbial/coordinating particles, conditional mood, derivative verbs (applied, causative, passive, neuter, reciprocal), moods and tenses (imperative, subjunctive, indicative), extended noun class details, noun formation, ordinals, negation/affirmation, possessive pronouns, ideophones, orthography rules; Grammar Rule 3 post-processing: apply_consonant_suffix_mutations() (r→z/t→s/j→z/nd→nz/nt→ns before -ire/-ere/-i/-ya), apply_reflexive_imperative_correction() (okw-e... → wee.../mwe...), apply_initial_vowel_rule() (prefix-based initial vowel correction); utility functions: get_full_grammar_context(), get_derivative_verb_type(), get_imperative_form(), is_reflexive_verb()
   prepare_training_data.py   — Corpus builder with domain tagging; merges all cleaned data sources including synthetic grammar rule pairs generated from all OCR grammar chapters (Ch.2 sound change, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional, Ch.16 comparison, Ch.17 genitive/adverbial particles) via generate_rule_training_pairs.py; strips any pre-existing domain tag(s) from english_nyoro_clean.csv before re-tagging — handles multiple stacked tags and mixed case (e.g. `[GENERAL] [GENerAL] text`) via a case-insensitive repeating regex, preventing double-tagging on repeated runs; applies four normalization steps to all Lunyoro training targets: (1) apostrophe standardisation (curly/Unicode apostrophes → straight ASCII apostrophe), (2) nasal assimilation (nb→mb, np→mp, nr→nd, nl→nd), (3) ni→nu prefix vowel harmony (nimugenda→numugenda before u-class concords), and (4) the R/L rule (L→R except adjacent to e/i), so models learn consistent orthographic forms
   clean_and_merge_seeds.py   — Cleans and merges domain-specific seed vocabulary CSVs (medical, education, daily life, low-frequency, agriculture) into english_nyoro_clean.csv; applies OCR fixes and orthographic normalisation (nasal assimilation, ni→nu prefix, R/L rule), filters pairs shorter than 2 chars, deduplicates, and prepends domain tags (e.g. [MEDICAL], [AGRICULTURE]); run directly with `python clean_and_merge_seeds.py`
@@ -215,6 +236,7 @@ backend/
   csv_to_xlsx.py             — Converts the three dictionary CSVs produced by extract_dictionary_pdf.py (runyoro_english_dict.csv, english_runyoro_dict.csv, dictionary_pairs.csv) to Excel format (.xlsx) and removes the original CSV files; run after extract_dictionary_pdf.py when Excel output is needed: `python csv_to_xlsx.py`
   extract_ocr_pairs.py       — Extracts English ↔ Runyoro-Rutooro sentence pairs AND word glosses from OCR grammar data (data/OCR/combined/all_ocr_combined.json); uses language_rules.py prefix/vocabulary data for detection (threshold 0.10 for Runyoro, 0.15 for English); merges sentence pairs into english_nyoro_clean.csv and word glosses into word_entries_clean.csv; outputs data/cleaned/ocr_pairs_extracted.csv (sentence pairs) and data/cleaned/ocr_glosses_extracted.csv (word glosses) for review; run directly with `python extract_ocr_pairs.py`
   push_models_hf.py            — Uploads all 4 fine-tuned model folders (en2lun, lun2en, nllb_en2lun, nllb_lun2en) to their respective HuggingFace repos; requires HF_TOKEN env var with write access
+  push_to_hf_space.py          — Deploys the backend to HuggingFace Spaces (space ID: keithtwesigye/runyoro-translator-api, SDK: docker); creates the space if it doesn't exist, then uploads all backend source files (skipping model weights, training data, OCR data, and .env); also uploads Space config files from hf-space/ (README.md + Dockerfile override); requires HF_TOKEN env var with write access to the target space
   clean_sentence_submission.py — Cleans the April sentence submission Excel file (Runyoro-English_Translation.xlsx); standardises columns, strips whitespace, drops empty rows and duplicates, writes data/cleaned/runyoro_english_sentences_clean.csv
   clean_remaining_raw.py     — Extracts translation pairs from remaining raw CSVs (word_submissions_rows*.csv, corpus_sentences_rows (1).csv); merges new pairs into english_nyoro_clean.csv after deduplication
   clean_extra.py             — Merges Excel dictionary datasets
@@ -236,7 +258,7 @@ backend/
   eval_marian.py             — MarianMT-only evaluation: runs on CPU, leaving both GPUs free for concurrent NLLB training; outputs eval_marian_results.json (BLEU, token F1, exact match)
   run_eval.py                — Sequential single-GPU evaluation: auto-selects the GPU with the most free memory (avoids conflicts with Ollama); outputs eval_results_all.json
   eval_all_parallel.py       — Evaluates all 4 models in parallel across 2 GPUs (GPU 0: MarianMT, GPU 1: NLLB); outputs eval_results_all.json
-  download_models.py         — Downloads all models from HuggingFace
+  download_models.py         — Downloads all 5 models from HuggingFace: 4 fine-tuned translation models (en2lun, lun2en, nllb_en2lun, nllb_lun2en) and the sentence-transformers semantic search model (paraphrase-multilingual-MiniLM-L12-v2 → model/sem_model/)
   model/
     en2lun/                  — MarianMT English→Lunyoro
     lun2en/                  — MarianMT Lunyoro→English
@@ -248,6 +270,14 @@ frontend/
   next.config.ts             — Next.js config; standalone output is enabled only for Docker
                                builds (DOCKER_BUILD=1 env var, set automatically by the
                                Dockerfile). Vercel and local dev use Next.js default output.
+                               turbopack: {} is set to suppress the webpack/turbopack conflict
+                               warning emitted by next-pwa. PWA is configured via next-pwa:
+                               service worker registered at public/sw.js, network-first caching
+                               for all requests (cache name: runyoro-api-cache, 200 entries max,
+                               7-day TTL, 10s network timeout). PWA is disabled in development
+                               mode.
+  app/
+    layout.tsx               — Root layout; sets page metadata (title, manifest, Apple web app tags) and viewport config (themeColor, width, initialScale); injects PWA meta tags (<link rel="manifest">, apple-mobile-web-app-* meta) into <head> for installability on desktop and mobile
   components/
     Translator.tsx           — Main translation UI
     Dictionary.tsx           — Dictionary lookup
@@ -261,4 +291,6 @@ frontend/
 
 The chat assistant uses **Qwen 2.5 3B** running locally via Ollama. It generates responses in English, which are then translated to Runyoro-Rutooro by both MarianMT and NLLB-200 in parallel (via `ThreadPoolExecutor`), returning results from both models. No internet connection required after setup.
 
-Every chat request injects the full grammar context via `get_full_grammar_context()` (from `language_rules`) into the system prompt. This includes core grammar rules and all OCR-derived rules (derivative verbs, moods/tenses, noun classes, ordinals, Chapters 2, 4, 7, 9, 10, 12, and 13 of the grammar books).
+The full grammar context from `get_full_grammar_context()` (core rules + all OCR-derived rules) is built once at startup and cached in `_GRAMMAR_CONTEXT_CACHE`, truncated to 6000 characters to stay within Ollama's context window. Each chat request injects this cached context into the system prompt rather than rebuilding it per request.
+
+The `/chat` endpoint has a simple in-memory rate limiter: **5 requests per 60 seconds per IP**. Requests exceeding this return HTTP 429. This prevents Ollama from being overloaded under concurrent traffic.

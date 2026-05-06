@@ -1,10 +1,12 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 import json
 import os
 import io
+import time
+from collections import defaultdict
 
 # Load .env file if present (development convenience)
 try:
@@ -75,15 +77,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Simple in-memory rate limiter for /chat ───────────────────────────────────
+# Max 5 requests per 60 seconds per IP to prevent Ollama overload
+_chat_rate: dict = defaultdict(list)
+_CHAT_RATE_LIMIT = 5
+_CHAT_RATE_WINDOW = 60  # seconds
+
+def _check_chat_rate(ip: str) -> bool:
+    """Returns True if request is allowed, False if rate limited."""
+    now = time.time()
+    window_start = now - _CHAT_RATE_WINDOW
+    _chat_rate[ip] = [t for t in _chat_rate[ip] if t > window_start]
+    if len(_chat_rate[ip]) >= _CHAT_RATE_LIMIT:
+        return False
+    _chat_rate[ip].append(now)
+    return True
+
+_GRAMMAR_CONTEXT_CACHE: str | None = None
+
 @app.on_event("startup")
 def preload_model():
     """Load retrieval index and all neural MT models at startup."""
+    global _GRAMMAR_CONTEXT_CACHE
     get_index_and_model()
     from translate import _load_mt, _load_nllb
     _load_mt("en2lun")
     _load_mt("lun2en")
     _load_nllb("en2lun")
     _load_nllb("lun2en")
+    # Pre-build grammar context once — it's static and large, no need to rebuild per request
+    try:
+        from language_rules import get_full_grammar_context
+        full = get_full_grammar_context()
+        # Keep only the first 6000 chars to stay within Ollama's context window
+        _GRAMMAR_CONTEXT_CACHE = full[:6000]
+    except Exception:
+        _GRAMMAR_CONTEXT_CACHE = ""
 
 # History file — configurable via HISTORY_FILE env var
 HISTORY_FILE = os.getenv("HISTORY_FILE") or os.path.join(os.path.dirname(__file__), "history.json")
@@ -336,13 +365,18 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, request: Request):
     """AI Language Assistant — LLM-powered generative replies about Runyoro-Rutooro."""
     import re, requests as _requests
     from translate import _mt_translate, _load_retrieval, _normalise, _index, _sem_model
-    from language_rules import get_full_grammar_context, EMPAAKO, PROVERBS, NUMBERS
+    from language_rules import EMPAAKO, PROVERBS, NUMBERS
     import numpy as np
     from sentence_transformers import util as st_util
+
+    # Rate limit: 5 requests per 60s per IP
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_chat_rate(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please wait a moment before sending another message.")
 
     _load_retrieval()
     from translate import _dictionary
@@ -426,7 +460,7 @@ def chat(req: ChatRequest):
     corpus_ctx   = corpus_context(msg)
     sector_label = SECTOR_LABELS.get(sector, "")
     dict_ctx     = dict_context(sector) if sector else ""
-    grammar_ctx  = get_full_grammar_context()
+    grammar_ctx  = _GRAMMAR_CONTEXT_CACHE or ""
 
     system_prompt = (
         "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda. /no_think\n"

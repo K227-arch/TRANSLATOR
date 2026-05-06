@@ -169,7 +169,7 @@ def _load_retrieval():
         raise FileNotFoundError("Translation index not found. Run train.py first.")
     with open(INDEX_PATH, "rb") as f:
         _index = pickle.load(f)
-    sem_path = SEM_MODEL_DIR if os.path.isdir(SEM_MODEL_DIR) else _index["model_name"]
+    sem_path = _index["model_name"]  # always load by name so ST downloads a compatible version
     _sem_model  = SentenceTransformer(sem_path)
     _dictionary = _index["dictionary"]
     # build O(1) lookup map
@@ -256,6 +256,11 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
             length_penalty=1.0,
         )
     result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+
+    # Strip any domain tags the model may have reproduced from training data
+    # e.g. "[GENERAL]", "[GENerAL]", "[MEDICAL]" etc.
+    import re as _re2
+    result = _re2.sub(r'^\s*\[[A-Za-z _]+\]\s*', '', result).strip()
 
     # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and result:
@@ -360,6 +365,10 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
 
     if _is_notation_garbage(nllb_result):
         return None
+
+    # Strip any domain tags the model may have reproduced from training data
+    import re as _re2
+    nllb_result = _re2.sub(r'^\s*\[[A-Za-z _]+\]\s*', '', nllb_result).strip()
 
     # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and nllb_result:

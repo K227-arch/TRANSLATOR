@@ -9,6 +9,7 @@ Models pulled:
     keithtwesigye/lunyoro-lun2en      → model/lun2en/
     keithtwesigye/lunyoro-nllb_en2lun → model/nllb_en2lun/
     keithtwesigye/lunyoro-nllb_lun2en → model/nllb_lun2en/
+    sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 → model/sem_model/
 """
 import os
 from pathlib import Path
@@ -22,6 +23,9 @@ HF_MODELS = {
     "nllb_lun2en": "keithtwesigye/lunyoro-nllb_lun2en",
 }
 
+# Sentence-transformers semantic search model — downloaded to HF cache
+SEM_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
 
 def download_all(force: bool = False):
     from huggingface_hub import snapshot_download
@@ -29,7 +33,6 @@ def download_all(force: bool = False):
     for local_name, repo_id in HF_MODELS.items():
         dest = MODEL_DIR / local_name
         if dest.exists() and not force:
-            # Check if model weights are present
             has_weights = any(dest.glob("*.safetensors")) or any(dest.glob("*.bin"))
             if has_weights:
                 print(f"  ✓ {local_name} already exists — skipping (use --force to re-download)")
@@ -43,6 +46,14 @@ def download_all(force: bool = False):
             ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"],
         )
         print(f"  ✓ {local_name} downloaded")
+
+    # Download sem model into HF cache so it's available in offline mode
+    print(f"  ↓ Downloading {SEM_MODEL_NAME} (semantic search)...")
+    try:
+        snapshot_download(repo_id=SEM_MODEL_NAME)
+        print(f"  ✓ sem model cached")
+    except Exception as e:
+        print(f"  ✗ sem model download failed: {e}")
 
 
 if __name__ == "__main__":

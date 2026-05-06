@@ -142,6 +142,14 @@ export default function ChatPage() {
         }),
       });
 
+      if (res.status === 429) {
+        setHistory([
+          ...newHistory,
+          { role: "assistant", content: "You're sending messages too fast. Please wait a moment and try again." },
+        ]);
+        return;
+      }
+
       const data = await res.json();
       const botMessage: ChatItem = {
         role: "assistant",
