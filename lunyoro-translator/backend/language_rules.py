@@ -721,11 +721,63 @@ def number_to_runyoro(n: int) -> str | None:
 # All rules below are executable transformations, not just data constants.
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _is_english_word(word: str) -> bool:
+    """
+    Heuristic: return True if the word looks like English and should NOT
+    have Runyoro grammar rules applied to it.
+    """
+    import re
+    # Strip punctuation for the check
+    clean = re.sub(r"[^a-zA-Z]", "", word)
+    if not clean:
+        return False
+    # All-caps acronyms (e.g. UNESCO, AI, API)
+    if clean.isupper() and len(clean) >= 2:
+        return True
+    lower = clean.lower()
+    # Common English-only digraphs/trigraphs absent in Runyoro
+    english_patterns = re.compile(
+        r'th|sh|wh|ck|ph|qu|gh|tch|dge|tion|sion|ness|ment|ful|less'
+        r'|ing$|ed$|ly$|ous$|ive$|ble$|ity$|ate$|ize$|ise$|ify$|ent$|ant$|ance$|ence$'
+        # English words ending in consonant clusters not found in Runyoro
+        r'|ld$|nd$|nt$|st$|ft$|lt$|lk$|lp$|lm$|rk$|rn$|rp$|rm$|rt$|rd$'
+        r'|nk$|ng$|mp$|mb$|sk$|sp$|sm$|sn$|sw$|sl$|sc$'
+        # English vowel combos
+        r'|oo|ee|ea|oa|ai|au|aw|ew|ow|ue|ui|ie|ei|ou'
+        # English-only letter combos
+        r'|[^aeiou]{3,}'  # 3+ consecutive consonants (rare in Runyoro)
+    )
+    if english_patterns.search(lower):
+        return True
+    # Very common short English words
+    common_english = {
+        'a','an','the','is','are','was','were','be','been','being',
+        'have','has','had','do','does','did','will','would','could',
+        'should','may','might','shall','can','need','dare','ought',
+        'i','you','he','she','it','we','they','me','him','her','us',
+        'them','my','your','his','its','our','their','this','that',
+        'these','those','and','or','but','if','in','on','at','to',
+        'for','of','with','by','from','up','about','into','through',
+        'not','no','yes','so','as','than','then','when','where','who',
+        'what','how','all','each','every','both','few','more','most',
+        'other','some','such','only','own','same','too','very','just',
+        'hello','hi','global','local','language','languages','translate',
+        'translation','grammar','culture','word','words','sentence',
+        'english','runyoro','rutooro','uganda','africa',
+    }
+    if lower in common_english:
+        return True
+    return False
+
+
 def apply_rl_rule_to_text(text: str) -> str:
-    """Apply the R/L rule to every word in a sentence."""
+    """Apply the R/L rule to every word in a sentence, skipping English words."""
     if not text:
         return text
-    return ' '.join(apply_rl_rule(w) for w in text.split(' '))
+    return ' '.join(
+        w if _is_english_word(w) else apply_rl_rule(w)
+        for w in text.split(' ')
+    )
 
 
 def apply_nasal_assimilation(text: str) -> str:
