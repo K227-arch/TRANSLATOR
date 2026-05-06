@@ -487,29 +487,25 @@ def chat(req: ChatRequest, request: Request):
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": msg})
 
-    # ── Call Ollama ───────────────────────────────────────────────────────────
-    _ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
-    _ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+    # ── Call HuggingFace Router (Qwen2.5) ────────────────────────────────────
+    _hf_token = os.getenv("HF_TOKEN", "")
+    _hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
     try:
-        resp = _requests.post(
-            f"{_ollama_url}/api/chat",
-            json={
-                "model": _ollama_model,
-                "messages": messages,
-                "stream": False,
-                "options": {
-                    "num_ctx": 1024,
-                    "num_predict": 300,
-                    "temperature": 0.7,
-                }
-            },
-            timeout=300,
+        from openai import OpenAI
+        _hf_client = OpenAI(
+            base_url="https://router.huggingface.co/v1",
+            api_key=_hf_token,
         )
-        resp.raise_for_status()
-        reply_en = resp.json()["message"]["content"].strip()
+        completion = _hf_client.chat.completions.create(
+            model=_hf_model,
+            messages=messages,
+            max_tokens=300,
+            temperature=0.7,
+        )
+        reply_en = completion.choices[0].message.content.strip()
     except Exception as e:
         import logging
-        logging.warning(f"Ollama call failed: {e}")
+        logging.warning(f"HF Router call failed: {e}")
         reply_en = None
 
     # ── Translate reply with both models in parallel ──────────────────────────
