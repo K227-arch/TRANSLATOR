@@ -463,20 +463,22 @@ def chat(req: ChatRequest, request: Request):
     grammar_ctx  = _GRAMMAR_CONTEXT_CACHE or ""
 
     system_prompt = (
-        "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda. /no_think\n"
-        "Answer questions about the language, grammar, culture, vocabulary, and translation.\n"
-        "Give detailed, helpful answers with examples where relevant.\n"
-        "Use numbered lists or bullet points when listing items.\n"
-        "Write in clear English sentences. Do not use overly complex grammar.\n"
+        "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda.\n"
+        "STRICT RULES — follow every one of these without exception:\n"
+        "1. Write your ENTIRE reply in English only. Do NOT include any Runyoro, Rutooro, or any other non-English words.\n"
+        "2. Do NOT include example phrases, greetings, or quotes in Runyoro/Rutooro — describe them in English instead.\n"
+        "3. Write in flowing prose paragraphs. Do NOT use numbered lists, bullet points, or headers.\n"
+        "4. Be detailed and informative. Aim for 3-5 solid paragraphs.\n"
+        "5. Do not mix languages. Every single word must be English.\n"
     )
     system_prompt += f"\n{grammar_ctx}\n"
     if corpus_ctx:
-        system_prompt += f"\nRelevant examples (English → Runyoro-Rutooro):\n{corpus_ctx}\n"
+        system_prompt += f"\nRelevant context:\n{corpus_ctx}\n"
     if sector_label:
         system_prompt += f"\nSector focus: {sector_label}\n"
     if dict_ctx:
-        system_prompt += f"Vocabulary:\n{dict_ctx}\n"
-    system_prompt += "\nAlways reply in English. Be clear and concise."
+        system_prompt += f"Vocabulary reference:\n{dict_ctx}\n"
+    system_prompt += "\nRemember: reply in plain English prose only. No Runyoro words. No lists. No headers."
 
     # ── Build message history for Ollama ─────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
@@ -499,7 +501,7 @@ def chat(req: ChatRequest, request: Request):
         completion = _hf_client.chat.completions.create(
             model=_hf_model,
             messages=messages,
-            max_tokens=300,
+            max_tokens=600,
             temperature=0.7,
         )
         reply_en = completion.choices[0].message.content.strip()
