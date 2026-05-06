@@ -48,6 +48,12 @@ export default function Translator() {
   const toLabel   = direction === "en→lun" ? "Runyoro / Rutooro" : "English";
   const endpoint  = direction === "en→lun" ? "/translate" : "/translate-reverse";
 
+  // Clear stale result when input changes
+  function handleInputChange(val: string) {
+    setInput(val);
+    if (result) setResult(null);
+  }
+
   function swapDirection() {
     setDirection((d) => (d === "en→lun" ? "lun→en" : "en→lun"));
     setInput("");
@@ -155,6 +161,7 @@ export default function Translator() {
   function handleEditorInput() {
     if (isComposing.current || !editorRef.current) return;
     setInput(editorRef.current.innerText);
+    setResult(null);
   }
 
   // ── hover tooltip ────────────────────────────────────────────────────────────
@@ -186,7 +193,7 @@ export default function Translator() {
     if (!editorRef.current) return;
     const newText = input.replace(new RegExp(`\\b${original}\\b`, "i"), suggestion);
     setInput(newText);
-    editorRef.current.innerHTML = buildHtml(newText);
+    setResult(null);
     setTooltip(null);
   }
 
@@ -199,7 +206,7 @@ export default function Translator() {
     setResult(null);
 
     // Build context from the last translation result for context-aware translation
-    const context = result?.translation || "";
+    const context = "";
 
     try {
       const res = await fetch(`${API}${endpoint}`, {
@@ -269,7 +276,7 @@ export default function Translator() {
             rows={4}
             placeholder={`Enter ${fromLabel} text to translate...`}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && e.ctrlKey && handleTranslate()}
           />
         )}
