@@ -17,6 +17,7 @@ export default function Home() {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Runyoro / Rutooro Translator</h1>
         <p className="text-gray-500 mt-1">Translate English to Runyoro and Rutooro</p>
+        <p className="text-xs text-gray-400 mt-1">v2.0 - Enhanced Feedback & Model Comparison</p>
       </div>
 
       {/* Tabs */}
