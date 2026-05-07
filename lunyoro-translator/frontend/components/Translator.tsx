@@ -44,8 +44,9 @@ export default function Translator() {
   const [correction, setCorrection] = useState("");
   const [errorTypes, setErrorTypes] = useState<string[]>([]);
   const [feedbackSent, setFeedbackSent] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<"marian" | "nllb" | "none" | null>(null);
+  const [selectedModel, setSelectedModel] = useState<"marian" | "nllb" | "none" | "both" | null>(null);
   const [modelFeedbackSent, setModelFeedbackSent] = useState(false);
+  const [preferredModel, setPreferredModel] = useState<"marian" | "nllb" | null>(null);
 
   const spellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -89,7 +90,7 @@ export default function Translator() {
     setSelectedModel(null);
   }
 
-  async function submitFeedback(rating: 1 | -1, modelChoice?: "marian" | "nllb" | "none") {
+  async function submitFeedback(rating: 1 | -1, modelChoice?: "marian" | "nllb" | "none" | "both") {
     if (!result?.translation || !input.trim()) return;
     
     // For primary feedback (not model choice)
@@ -102,6 +103,17 @@ export default function Translator() {
     
     if (modelChoice) {
       setModelFeedbackSent(true);
+      // Set preferred model only for marian or nllb, not for "both" or "none"
+      if (modelChoice === "marian" || modelChoice === "nllb") {
+        setPreferredModel(modelChoice);
+        
+        // Immediately update the primary translation to reflect the selected model
+        if (modelChoice === "marian" && result.translation_marian) {
+          setResult({ ...result, translation: result.translation_marian });
+        } else if (modelChoice === "nllb" && result.translation_nllb) {
+          setResult({ ...result, translation: result.translation_nllb });
+        }
+      }
     } else {
       setFeedbackRating(rating);
       setFeedbackSent(true);
@@ -113,6 +125,8 @@ export default function Translator() {
       translationToSend = result.translation_marian;
     } else if (modelChoice === "nllb" && result.translation_nllb) {
       translationToSend = result.translation_nllb;
+    } else if (modelChoice === "both") {
+      translationToSend = result.translation; // Use the primary translation
     }
     
     try {
@@ -125,7 +139,7 @@ export default function Translator() {
           direction,
           rating,
           correction: correction.trim(),
-          error_type: modelChoice === "none" ? "both_models_wrong" : errorTypes.join(", "),
+          error_type: modelChoice === "none" ? "both_models_wrong" : modelChoice === "both" ? "both_models_correct" : errorTypes.join(", "),
         }),
       });
       if (!modelChoice) {
@@ -286,7 +300,18 @@ export default function Translator() {
         body: JSON.stringify({ text, context }),
       });
       if (!res.ok) throw new Error();
-      setResult(await res.json());
+      const data = await res.json();
+      
+      // If user has a preferred model, use that model's translation as primary
+      if (preferredModel && data.translation_marian && data.translation_nllb) {
+        if (preferredModel === "marian") {
+          data.translation = data.translation_marian;
+        } else if (preferredModel === "nllb") {
+          data.translation = data.translation_nllb;
+        }
+      }
+      
+      setResult(data);
       setFeedbackRating(null);
       setFeedbackSent(false);
       setModelFeedbackSent(false);
@@ -308,6 +333,21 @@ export default function Translator() {
 
   const matchedValue = result?.matched_english || result?.matched_lunyoro;
   const matchedLabel = direction === "en→lun" ? "Closest match found" : "Closest Lunyoro match found";
+  
+  // Determine confidence display text
+  const getConfidenceText = () => {
+    if (!result) return "";
+    if (result.method === "exact_match") return "Exact match";
+    
+    const confidence = Math.round((result.confidence || 0) * 100);
+    const modelName = preferredModel === "marian" ? "MarianMT" : preferredModel === "nllb" ? "NLLB-200" : "";
+    
+    if (confidence === 100 && modelName) {
+      return modelName;
+    }
+    
+    return `${confidence}% confidence`;
+  };
 
   return (
     <div className="space-y-4">
@@ -419,9 +459,17 @@ export default function Translator() {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium text-gray-700">{toLabel}</span>
-              <span className={`text-xs font-medium ${confidenceColor}`}>
-                {result.method === "exact_match" ? "Exact match" : `${Math.round((result.confidence || 0) * 100)}% confidence`}
-              </span>
+              <div className="flex items-center gap-2">
+                {preferredModel ? (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
+                    Using {preferredModel === "marian" ? "MarianMT" : "NLLB-200"}
+                  </span>
+                ) : (
+                  <span className={`text-xs font-medium ${confidenceColor}`}>
+                    {getConfidenceText()}
+                  </span>
+                )}
+              </div>
             </div>
             {result.translation
               ? <p className="text-gray-800 text-base leading-relaxed">{result.translation}</p>
@@ -439,7 +487,7 @@ export default function Translator() {
                   {!feedbackSent && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-gray-600 font-medium">Is this the right translation?</span>
+                        <span className="text-xs text-gray-600 font-medium">Is this the right translation?(Considering Everything)</span>
                         <button
                           onClick={() => submitFeedback(1)}
                           className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${
@@ -467,7 +515,7 @@ export default function Translator() {
                         <div className="mt-2 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                           <p className="text-xs text-gray-600 font-medium">What's wrong with this translation? (Select all that apply)</p>
                           <div className="space-y-1">
-                            {["grammar", "spelling", "context", "vocabulary", "other"].map((type) => (
+                            {["grammar", "spelling", "context", "vocabulary", "different meaning", "other"].map((type) => (
                               <label key={type} className="flex items-center gap-2 text-xs cursor-pointer">
                                 <input
                                   type="checkbox"
@@ -482,7 +530,7 @@ export default function Translator() {
                                   }}
                                   className="cursor-pointer"
                                 />
-                                <span className="text-gray-700 capitalize">{type === "context" ? "Context awareness" : type === "vocabulary" ? "Word doesn't exist in vocabulary" : type}</span>
+                                <span className="text-gray-700 capitalize">{type === "context" ? "Lack of context awareness" : type === "vocabulary" ? "Word doesn't exist in vocabulary" : type === "different meaning" ? "Different meaning" : type}</span>
                               </label>
                             ))}
                           </div>
@@ -530,74 +578,101 @@ export default function Translator() {
                     <div className="pt-3 border-t border-gray-100 space-y-2">
                       <p className="text-xs text-gray-600 font-medium">Or choose which model translation is better or close to better:</p>
                       
-                      {/* MarianMT Option */}
-                      <div 
-                        onClick={() => setSelectedModel("marian")}
-                        className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                          selectedModel === "marian" 
-                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
-                            : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <input
-                            type="radio"
-                            name="model_choice"
-                            checked={selectedModel === "marian"}
-                            onChange={() => setSelectedModel("marian")}
-                            className="mt-0.5 cursor-pointer"
-                          />
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-gray-700 mb-1">MarianMT</p>
-                            <p className="text-sm text-gray-800">{result.translation_marian}</p>
+                      {/* 2x2 Grid Layout */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* MarianMT Option */}
+                        <div 
+                          onClick={() => setSelectedModel("marian")}
+                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                            selectedModel === "marian" 
+                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
+                              : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              name="model_choice"
+                              checked={selectedModel === "marian"}
+                              onChange={() => setSelectedModel("marian")}
+                              className="mt-0.5 cursor-pointer flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-700 mb-1">MarianMT</p>
+                              <p className="text-xs text-gray-800 line-clamp-3">{result.translation_marian}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* NLLB Option */}
-                      <div 
-                        onClick={() => setSelectedModel("nllb")}
-                        className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                          selectedModel === "nllb" 
-                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
-                            : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <input
-                            type="radio"
-                            name="model_choice"
-                            checked={selectedModel === "nllb"}
-                            onChange={() => setSelectedModel("nllb")}
-                            className="mt-0.5 cursor-pointer"
-                          />
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-gray-700 mb-1">NLLB-200</p>
-                            <p className="text-sm text-gray-800">{result.translation_nllb}</p>
+                        {/* NLLB Option */}
+                        <div 
+                          onClick={() => setSelectedModel("nllb")}
+                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                            selectedModel === "nllb" 
+                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
+                              : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              name="model_choice"
+                              checked={selectedModel === "nllb"}
+                              onChange={() => setSelectedModel("nllb")}
+                              className="mt-0.5 cursor-pointer flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-700 mb-1">NLLB-200</p>
+                              <p className="text-xs text-gray-800 line-clamp-3">{result.translation_nllb}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* None Option */}
-                      <div 
-                        onClick={() => setSelectedModel("none")}
-                        className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                          selectedModel === "none" 
-                            ? "border-red-500 bg-red-50 ring-2 ring-red-200" 
-                            : "border-gray-200 hover:border-red-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <input
-                            type="radio"
-                            name="model_choice"
-                            checked={selectedModel === "none"}
-                            onChange={() => setSelectedModel("none")}
-                            className="mt-0.5 cursor-pointer"
-                          />
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-red-700">None - Both are wrong</p>
-                            <p className="text-xs text-gray-600">Neither translation is correct</p>
+                        {/* Both Correct Option */}
+                        <div 
+                          onClick={() => setSelectedModel("both")}
+                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                            selectedModel === "both" 
+                              ? "border-green-500 bg-green-50 ring-2 ring-green-200" 
+                              : "border-gray-200 hover:border-green-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              name="model_choice"
+                              checked={selectedModel === "both"}
+                              onChange={() => setSelectedModel("both")}
+                              className="mt-0.5 cursor-pointer flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-green-700">Both are correct</p>
+                              <p className="text-xs text-gray-600">Both translations are accurate</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* None Option */}
+                        <div 
+                          onClick={() => setSelectedModel("none")}
+                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                            selectedModel === "none" 
+                              ? "border-red-500 bg-red-50 ring-2 ring-red-200" 
+                              : "border-gray-200 hover:border-red-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              name="model_choice"
+                              checked={selectedModel === "none"}
+                              onChange={() => setSelectedModel("none")}
+                              className="mt-0.5 cursor-pointer flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-red-700">Both are wrong</p>
+                              <p className="text-xs text-gray-600">Neither translation is correct</p>
+                            </div>
                           </div>
                         </div>
                       </div>

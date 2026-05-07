@@ -30,7 +30,8 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 ### Human Feedback
 - **Primary feedback:** Simple Yes/No rating for translation quality
 - **Multi-select error categorization:** Select multiple issue types (grammar, spelling, context, vocabulary, other)
-- **Model comparison:** Choose between MarianMT and NLLB-200 outputs, or mark both as incorrect
+- **Model comparison:** 2x2 grid interface to choose between MarianMT, NLLB-200, both correct, or both wrong
+- **Model preference learning:** When a user selects a preferred model, the translation immediately updates to show that model's output, and future translations automatically use that model as primary
 - **Corrections:** Submit better translations with optional error details
 - **Separate feedback flows:** Primary quality feedback and model comparison feedback tracked independently
 - **Continuous learning:** Approved pairs feed back into training
