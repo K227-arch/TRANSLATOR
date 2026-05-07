@@ -10,9 +10,18 @@ venv/
 dist/
 build/
 
-# Model files (tracked via Git LFS or excluded)
+# Model files - now hosted on HuggingFace Hub
+backend/model/en2lun/
+backend/model/lun2en/
+backend/model/nllb_en2lun/
+backend/model/nllb_lun2en/
+backend/model/sem_model/
 backend/model/chat_model/
 backend/history.json
+
+# Keep only the index and whitelist
+!backend/model/translation_index.pkl
+!backend/model/lunyoro_token_whitelist.json
 
 # Node
 frontend/node_modules/

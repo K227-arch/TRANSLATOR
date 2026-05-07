@@ -134,40 +134,6 @@ def collate_fn(batch, tokenizer, max_length: int = 256,
         "attention_mask": src_enc["attention_mask"],
         "labels": tgt_enc["input_ids"],
     }
-        # Enable sampling mode on the underlying SPM model
-        src_ids = []
-        for text in src_texts:
-            ids = tokenizer.sp_model.sample_encode_as_ids(text, -1, alpha)
-            src_ids.append(ids[:max_length])
-        # Pad manually
-        max_src_len = max(len(x) for x in src_ids)
-        src_input_ids = torch.zeros(len(src_ids), max_src_len, dtype=torch.long)
-        src_attention = torch.zeros(len(src_ids), max_src_len, dtype=torch.long)
-        for i, ids in enumerate(src_ids):
-            src_input_ids[i, :len(ids)] = torch.tensor(ids)
-            src_attention[i, :len(ids)] = 1
-        model_inputs = {
-            "input_ids":      src_input_ids,
-            "attention_mask": src_attention,
-        }
-    else:
-        model_inputs = tokenizer(
-            src_texts, return_tensors="pt", padding=True,
-            truncation=True, max_length=max_length
-        )
-
-    with tokenizer.as_target_tokenizer():
-        labels = tokenizer(
-            tgt_texts, return_tensors="pt", padding=True,
-            truncation=True, max_length=max_length
-        )
-
-    label_ids = labels["input_ids"].clone()
-    # Replace padding token id with -100 so it's ignored in loss
-    label_ids[label_ids == tokenizer.pad_token_id] = -100
-    model_inputs["labels"] = label_ids
-
-    return model_inputs
 
 
 # ── Training loop ─────────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 
 ### Translation
 - **Dual neural models:** MarianMT (primary) + NLLB-200 (comparison)
+- **HuggingFace Hub integration:** Models loaded automatically from HF Hub on first use and cached locally
 - **Context-aware:** Uses previous sentence for better coherence
 - **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation
 - **Fallback chain:** Neural MT → Semantic search → Dictionary lookup
@@ -52,7 +53,8 @@ npm run dev
 ```bash
 cd lunyoro-translator/backend
 pip install -r requirements.txt
-python download_models.py  # Downloads models from HuggingFace (~2GB)
+# Models are automatically downloaded from HuggingFace Hub on first use (~2GB)
+# Or pre-download with: python download_models.py
 python main.py
 # → http://localhost:8000
 ```
@@ -93,13 +95,33 @@ python backend/train_marian.py --direction both --epochs 5 --resize-embeddings
 #   - BLEU-based checkpoint selection
 ```
 
-### 5. Retrain from Human Feedback
+### 5. Upload Models to HuggingFace Hub
+```bash
+# Upload all models
+python backend/upload_models_to_hf.py --token YOUR_HF_TOKEN
+
+# Upload specific models
+python backend/upload_models_to_hf.py --token YOUR_HF_TOKEN --models en2lun lun2en
+
+# Use custom username/organization
+python backend/upload_models_to_hf.py --token YOUR_HF_TOKEN --username your-username
+
+# Available models: en2lun, lun2en, nllb_en2lun, nllb_lun2en, sem_model
+```
+
+**Features:**
+- Uploads models directly to HuggingFace Hub (no Git LFS needed)
+- Creates repositories automatically if they don't exist
+- Supports selective model upload
+- Configurable username/organization
+
+### 6. Retrain from Human Feedback
 ```bash
 python backend/retrain_from_feedback.py --epochs 5 --push
 # Exports thumbs-up pairs → merges into train.csv → fine-tunes → pushes to HF
 ```
 
-### 6. Automated Retraining (Background Service)
+### 7. Automated Retraining (Background Service)
 ```bash
 # Check current feedback stats
 python backend/auto_retrain.py --stats
@@ -138,6 +160,7 @@ lunyoro-translator/
 │   ├── back_translate.py            # Back-translation augmentation
 │   ├── retrain_tokenizer.py         # SentencePiece retraining
 │   ├── train_marian.py              # MarianMT fine-tuning
+│   ├── upload_models_to_hf.py       # Upload models to HuggingFace Hub
 │   ├── feedback_store.py            # Human feedback storage + auto-export
 │   ├── retrain_from_feedback.py     # End-to-end feedback retraining
 │   ├── auto_retrain.py              # Automated retraining service
@@ -238,7 +261,7 @@ python backend/export_analytics.py --csv --output reports/csv_export/
 
 ## Models
 
-All models hosted on HuggingFace:
+All models are automatically loaded from HuggingFace Hub on first use and cached locally:
 
 - **MarianMT en2lun:** [keithtwesigye/lunyoro-en2lun](https://huggingface.co/keithtwesigye/lunyoro-en2lun)
 - **MarianMT lun2en:** [keithtwesigye/lunyoro-lun2en](https://huggingface.co/keithtwesigye/lunyoro-lun2en)
@@ -246,6 +269,8 @@ All models hosted on HuggingFace:
 - **NLLB lun2en:** [keithtwesigye/lunyoro-nllb_lun2en](https://huggingface.co/keithtwesigye/lunyoro-nllb_lun2en)
 - **Semantic search:** [sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)
 - **Chat:** [Qwen/Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) via HF Router
+
+**Note:** Models are downloaded automatically on first translation request. To pre-download all models, run `python backend/download_models.py`.
 
 ---
 
@@ -281,6 +306,20 @@ See `backend/language_rules.py` for full implementation.
 
 ## Deployment
 
+### Upload Models to HuggingFace Hub
+```bash
+# Set your HuggingFace token
+export HF_TOKEN=hf_...
+
+# Upload all models
+python backend/upload_models_to_hf.py --token $HF_TOKEN
+
+# Or use environment variable
+python backend/upload_models_to_hf.py
+```
+
+This uploads models to HuggingFace Hub, removing the need for Git LFS storage. Models are then downloaded on-demand via `download_models.py`.
+
 ### HuggingFace Space (Backend)
 ```bash
 python backend/push_to_hf_space.py
@@ -300,10 +339,10 @@ vercel --prod
 
 ### Backend (.env)
 ```bash
-HF_TOKEN=hf_...                    # HuggingFace API token (read access)
+HF_TOKEN=hf_...                    # HuggingFace API token (optional, for private models)
+HF_USERNAME=keithtwesigye          # HuggingFace username for model repositories
 HF_CHAT_MODEL=Qwen/Qwen2.5-7B-Instruct
 CORS_ORIGINS=http://localhost:3002,https://frontend-six-phi-25.vercel.app
-TRANSFORMERS_OFFLINE=1             # Force offline mode
 FEEDBACK_FILE=feedback.jsonl       # Feedback storage path
 AUTO_RETRAIN_THRESHOLD=100         # Min new pairs to trigger auto-retrain
 ```

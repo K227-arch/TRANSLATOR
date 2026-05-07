@@ -1,6 +1,6 @@
 """
 Translation logic:
-  Primary  — fine-tuned MarianMT models (en2lun / lun2en) when available
+  Primary  — fine-tuned MarianMT models (en2lun / lun2en) from HuggingFace Hub
   Fallback — semantic similarity retrieval + dictionary lookup
 """
 import os
@@ -15,10 +15,24 @@ INDEX_PATH = os.path.join(os.path.dirname(__file__), "model", "translation_index
 MODEL_DIR  = os.path.join(os.path.dirname(__file__), "model")
 SEM_MODEL_DIR = os.path.join(MODEL_DIR, "sem_model")
 
-# Force fully offline mode — no network calls to HuggingFace
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# HuggingFace model repositories
+HF_USERNAME = os.getenv("HF_USERNAME", "keithtwesigye")
+HF_MODELS = {
+    "en2lun": f"{HF_USERNAME}/lunyoro-en2lun",
+    "lun2en": f"{HF_USERNAME}/lunyoro-lun2en",
+    "nllb_en2lun": f"{HF_USERNAME}/lunyoro-nllb-en2lun",
+    "nllb_lun2en": f"{HF_USERNAME}/lunyoro-nllb-lun2en",
+    "sem_model": f"{HF_USERNAME}/lunyoro-sentence-embeddings",
+}
+
+# Allow HuggingFace downloads (models are cached locally after first download)
+# Remove offline mode to enable model downloads from HF Hub
+if "TRANSFORMERS_OFFLINE" in os.environ:
+    del os.environ["TRANSFORMERS_OFFLINE"]
+if "HF_DATASETS_OFFLINE" in os.environ:
+    del os.environ["HF_DATASETS_OFFLINE"]
+if "HF_HUB_OFFLINE" in os.environ:
+    del os.environ["HF_HUB_OFFLINE"]
 
 _APOSTROPHE_MAP = str.maketrans({
     "\u2018": "'", "\u2019": "'",
@@ -281,8 +295,8 @@ def _load_nllb(direction: str) -> bool:
         f.endswith((".safetensors", ".bin")) for f in os.listdir(path) if os.path.isdir(path)
     ):
         hf_repos = {
-            "en2lun": "keithtwesigye/lunyoro-nllb_en2lun",
-            "lun2en": "keithtwesigye/lunyoro-nllb_lun2en",
+            "en2lun": "keithtwesigye/lunyoro-nllb-en2lun",
+            "lun2en": "keithtwesigye/lunyoro-nllb-lun2en",
         }
         repo_id = hf_repos.get(direction)
         if repo_id:
