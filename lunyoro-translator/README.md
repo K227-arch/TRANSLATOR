@@ -1,5 +1,7 @@
 # Lunyoro-Rutooro Translator
 
+**Version 2.0** - Enhanced Feedback & Model Comparison
+
 A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - Fine-tuned MarianMT + NLLB-200 models
 - Semantic search fallback with 80k+ sentence pairs
@@ -65,27 +67,35 @@ python main.py
 
 See **[TRAINING_GUIDE.md](TRAINING_GUIDE.md)** for full details.
 
-### 1. Clean Training Data
+### 1. Build Translation Index
+```bash
+python backend/build_index.py
+# Builds semantic search index from cleaned dictionary data
+# Loads word_entries_clean.csv and rutooro_dictionary_clean.csv
+# Creates model/translation_index.pkl for retrieval fallback
+```
+
+### 2. Clean Training Data
 ```bash
 python backend/clean_training_data.py
 # Removes 13,899 noisy rows (domain tags, OCR garbage, duplicates)
 # 80,733 → 66,834 clean pairs
 ```
 
-### 2. Back-Translation (Data Augmentation)
+### 3. Back-Translation (Data Augmentation)
 ```bash
 python backend/back_translate.py --max 5000 --bleu-threshold 0.25
 # Generates 2,000-3,000 synthetic pairs via round-trip translation
 python backend/merge_back_translated.py
 ```
 
-### 3. Retrain Tokenizer (Better OOV Handling)
+### 4. Retrain Tokenizer (Better OOV Handling)
 ```bash
 python backend/retrain_tokenizer.py --vocab-size 65000 --direction both
 # Expands vocab from 64k → 65k tokens with subword regularization
 ```
 
-### 4. Fine-Tune Models
+### 5. Fine-Tune Models
 ```bash
 python backend/train_marian.py --direction both --epochs 5 --resize-embeddings
 # Features:
@@ -95,7 +105,7 @@ python backend/train_marian.py --direction both --epochs 5 --resize-embeddings
 #   - BLEU-based checkpoint selection
 ```
 
-### 5. Upload Models to HuggingFace Hub
+### 6. Upload Models to HuggingFace Hub
 ```bash
 # Upload all models
 python backend/upload_models_to_hf.py --token YOUR_HF_TOKEN
@@ -115,13 +125,13 @@ python backend/upload_models_to_hf.py --token YOUR_HF_TOKEN --username your-user
 - Supports selective model upload
 - Configurable username/organization
 
-### 6. Retrain from Human Feedback
+### 7. Retrain from Human Feedback
 ```bash
 python backend/retrain_from_feedback.py --epochs 5 --push
 # Exports thumbs-up pairs → merges into train.csv → fine-tunes → pushes to HF
 ```
 
-### 7. Automated Retraining (Background Service)
+### 8. Automated Retraining (Background Service)
 ```bash
 # Check current feedback stats
 python backend/auto_retrain.py --stats
@@ -156,6 +166,7 @@ lunyoro-translator/
 │   ├── main.py                      # FastAPI server
 │   ├── translate.py                 # Translation logic (MT + retrieval)
 │   ├── language_rules.py            # Runyoro grammar rules (3200+ lines)
+│   ├── build_index.py               # Build semantic search index from dictionary
 │   ├── clean_training_data.py       # Data cleaning script
 │   ├── back_translate.py            # Back-translation augmentation
 │   ├── retrain_tokenizer.py         # SentencePiece retraining
@@ -393,3 +404,21 @@ If you use this work, please cite:
 - Grammar documentation authors
 - HuggingFace for model hosting
 - Vercel for frontend hosting
+
+---
+
+## Version History
+
+### v2.0 - Enhanced Feedback & Model Comparison (Current)
+- **Enhanced feedback system:** Multi-select error categorization (grammar, spelling, context, vocabulary, other)
+- **Model comparison interface:** 2x2 grid to choose between MarianMT, NLLB-200, both correct, or both wrong
+- **Model preference learning:** Selected model becomes primary for future translations
+- **Separate feedback flows:** Independent tracking for quality feedback and model comparison
+- **Improved UX:** Immediate translation updates when model preference is selected
+
+### v1.0 - Initial Release
+- Dual neural models (MarianMT + NLLB-200)
+- Semantic search fallback
+- Grammar rule post-processing
+- Basic feedback system
+- Chat assistant integration
