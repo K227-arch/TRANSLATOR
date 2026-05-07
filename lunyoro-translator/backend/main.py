@@ -222,6 +222,7 @@ class FeedbackRequest(BaseModel):
     rating: int = 1             # 1 = correct, -1 = incorrect
     correction: str = ""        # user-provided correct translation
     error_type: str = ""        # grammar, spelling, context, vocabulary, other
+    model_used: str = ""        # "marian", "nllb", "both", "none"
 
 
 @app.post("/feedback")
@@ -240,9 +241,19 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "rating":      req.rating,
         "correction":  req.correction.strip(),
         "error_type":  req.error_type.strip(),
+        "model_used":  req.model_used.strip(),
         "ip":          request.client.host if request.client else "unknown",
     }
     save_feedback(entry)
+    
+    # Check if auto-retrain should be triggered (async, non-blocking)
+    try:
+        import threading
+        from auto_retrain import check_and_retrain
+        # Run check in background thread to avoid blocking the response
+        threading.Thread(target=check_and_retrain, daemon=True).start()
+    except Exception:
+        pass  # Don't fail feedback submission if auto-retrain check fails
     
     # If user provided a correction, use it immediately for the current session
     # (stored in feedback.jsonl for future retraining)
@@ -261,6 +272,20 @@ def feedback_stats():
     return get_stats()
 
 
+@app.get("/feedback/analytics")
+def feedback_analytics():
+    """Return detailed analytics about feedback patterns and model usage."""
+    from feedback_store import get_detailed_analytics
+    return get_detailed_analytics()
+
+
+@app.get("/feedback/model-comparison")
+def model_comparison():
+    """Compare performance between MarianMT and NLLB models."""
+    from feedback_store import get_model_comparison
+    return get_model_comparison()
+
+
 @app.get("/feedback/export")
 def export_feedback():
     """Export approved (thumbs-up) pairs as CSV for retraining."""
@@ -270,6 +295,36 @@ def export_feedback():
         return {"message": "No approved pairs yet", "count": 0, "path": None}
     path = export_for_retraining()
     return {"message": "Exported", "count": len(approved), "path": path}
+
+
+@app.get("/feedback/auto-retrain-status")
+def auto_retrain_status():
+    """Get status of automatic retraining system."""
+    try:
+        from auto_retrain import get_clean_approved_pairs, get_last_retrain_count, RETRAIN_THRESHOLD, LAST_RETRAIN_FILE
+        import json
+        
+        clean_pairs = get_clean_approved_pairs()
+        last_count = get_last_retrain_count()
+        new_pairs = len(clean_pairs) - last_count
+        
+        last_retrain_time = None
+        if LAST_RETRAIN_FILE.exists():
+            with open(LAST_RETRAIN_FILE, 'r') as f:
+                data = json.load(f)
+                last_retrain_time = data.get('timestamp')
+        
+        return {
+            "total_clean_pairs": len(clean_pairs),
+            "pairs_in_last_retrain": last_count,
+            "new_pairs_since_retrain": new_pairs,
+            "threshold": RETRAIN_THRESHOLD,
+            "progress_percentage": round(100 * new_pairs / RETRAIN_THRESHOLD, 1) if RETRAIN_THRESHOLD > 0 else 0,
+            "ready_for_retrain": new_pairs >= RETRAIN_THRESHOLD,
+            "last_retrain_timestamp": last_retrain_time,
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}

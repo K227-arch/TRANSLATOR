@@ -121,12 +121,19 @@ export default function Translator() {
     
     // Determine which translation to send based on model choice
     let translationToSend = result.translation;
+    let modelUsed = preferredModel || "";
+    
     if (modelChoice === "marian" && result.translation_marian) {
       translationToSend = result.translation_marian;
+      modelUsed = "marian";
     } else if (modelChoice === "nllb" && result.translation_nllb) {
       translationToSend = result.translation_nllb;
+      modelUsed = "nllb";
     } else if (modelChoice === "both") {
-      translationToSend = result.translation; // Use the primary translation
+      translationToSend = result.translation;
+      modelUsed = "both";
+    } else if (modelChoice === "none") {
+      modelUsed = "none";
     }
     
     try {
@@ -140,6 +147,7 @@ export default function Translator() {
           rating,
           correction: correction.trim(),
           error_type: modelChoice === "none" ? "both_models_wrong" : modelChoice === "both" ? "both_models_correct" : errorTypes.join(", "),
+          model_used: modelUsed,
         }),
       });
       if (!modelChoice) {

@@ -67,7 +67,13 @@ def main():
 
     # 2. Export feedback
     print("Exporting approved pairs...")
-    feedback_csv = export_for_retraining()
+    
+    # Try to use clean approved pairs first
+    feedback_csv = os.path.join(BASE, "data", "training", "feedback_clean_approved.csv")
+    if not os.path.exists(feedback_csv):
+        # Fall back to regular export
+        feedback_csv = export_for_retraining()
+    
     print(f"  Saved to: {feedback_csv}\n")
 
     # 3. Merge into train.csv

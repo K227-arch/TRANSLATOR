@@ -99,6 +99,29 @@ python backend/retrain_from_feedback.py --epochs 5 --push
 # Exports thumbs-up pairs → merges into train.csv → fine-tunes → pushes to HF
 ```
 
+### 6. Automated Retraining (Background Service)
+```bash
+# Check current feedback stats
+python backend/auto_retrain.py --stats
+
+# Run single check (triggers retrain if threshold met)
+python backend/auto_retrain.py --check
+
+# Run as continuous monitoring service (checks every hour)
+python backend/auto_retrain.py --monitor --interval 3600
+
+# Custom threshold (overrides default of 100 new pairs)
+python backend/auto_retrain.py --monitor --threshold 200
+python backend/auto_retrain.py --check --threshold 50
+```
+
+**Features:**
+- Monitors `feedback.jsonl` for approved pairs
+- Auto-cleans and validates feedback (length, repetition, language detection)
+- Triggers retraining when 100+ new clean pairs collected (configurable via `--threshold`)
+- Runs as background service or scheduled task
+- Logs to `auto_retrain.log`
+
 **Expected improvements:** +5-10 BLEU after full pipeline
 
 ---
@@ -115,8 +138,14 @@ lunyoro-translator/
 │   ├── back_translate.py            # Back-translation augmentation
 │   ├── retrain_tokenizer.py         # SentencePiece retraining
 │   ├── train_marian.py              # MarianMT fine-tuning
-│   ├── feedback_store.py            # Human feedback storage
+│   ├── feedback_store.py            # Human feedback storage + auto-export
 │   ├── retrain_from_feedback.py     # End-to-end feedback retraining
+│   ├── auto_retrain.py              # Automated retraining service
+│   ├── view_analytics.py            # View feedback analytics in terminal
+│   ├── export_analytics.py          # Export analytics to Excel/CSV
+│   ├── feedback/                    # Auto-exported feedback files
+│   │   ├── all_feedback.csv         # Raw feedback data (auto-updated)
+│   │   └── feedback_analytics.xlsx  # Multi-sheet analytics (auto-updated)
 │   ├── model/
 │   │   ├── en2lun/                  # MarianMT English→Lunyoro
 │   │   ├── lun2en/                  # MarianMT Lunyoro→English
@@ -153,9 +182,48 @@ lunyoro-translator/
 
 ### Feedback
 - `POST /feedback` — Submit translation rating with optional error categorization and corrections
-  - Parameters: `source_text`, `translation`, `direction`, `rating` (1/-1), `correction` (optional), `error_type` (optional - comma-separated list for multiple error types)
+  - Parameters: `source_text`, `translation`, `direction`, `rating` (1/-1), `correction` (optional), `error_type` (optional - comma-separated list for multiple error types), `model_used` (optional - "marian", "nllb", "both", "none")
+  - **Auto-export:** Automatically exports feedback to `backend/feedback/` folder after each submission
+    - `all_feedback.csv` — Complete feedback log in CSV format
+    - `feedback_analytics.xlsx` — Multi-sheet Excel workbook with analytics
 - `GET /feedback/stats` — Feedback statistics
 - `GET /feedback/export` — Export approved pairs
+
+### Analytics
+Feedback is automatically exported to `backend/feedback/` after each submission. You can also generate comprehensive reports on-demand:
+
+```bash
+# View analytics in terminal
+python backend/view_analytics.py
+
+# Export to Excel (single file with multiple sheets)
+python backend/export_analytics.py
+
+# Export to CSV files (separate files per report)
+python backend/export_analytics.py --csv
+
+# Custom output path
+python backend/export_analytics.py --output reports/feedback_report.xlsx
+python backend/export_analytics.py --csv --output reports/csv_export/
+```
+
+**Auto-exported files** (in `backend/feedback/`):
+- `all_feedback.csv` — Raw feedback data with all fields
+- `feedback_analytics.xlsx` — Excel workbook with 5 sheets:
+  - **All Feedback:** Complete feedback log with readable labels
+  - **Summary:** Total feedback, approval rates, unique users
+  - **Model Usage:** Usage statistics by model (MarianMT, NLLB-200, both, none)
+  - **Error Types:** Breakdown of reported error categories
+  - **Daily Activity:** Feedback timeline by date
+
+**On-demand reports** (via `export_analytics.py`):
+- **Summary Statistics:** Total feedback, approval rates, correction rates, unique users
+- **Model Performance:** MarianMT vs NLLB-200 comparison with winner determination
+- **Error Analysis:** Breakdown of error types (grammar, spelling, context, vocabulary, etc.)
+- **Direction Statistics:** Performance by translation direction (en→lun vs lun→en)
+- **Daily Activity:** Feedback timeline with day-of-week analysis
+- **User Engagement:** Anonymized user activity and engagement scores
+- **Raw Feedback Data:** Complete feedback log with all fields
 
 ### Utilities
 - `POST /summarize-pdf` — Extract + translate + summarize documents
@@ -235,6 +303,7 @@ HF_CHAT_MODEL=Qwen/Qwen2.5-7B-Instruct
 CORS_ORIGINS=http://localhost:3002,https://frontend-six-phi-25.vercel.app
 TRANSFORMERS_OFFLINE=1             # Force offline mode
 FEEDBACK_FILE=feedback.jsonl       # Feedback storage path
+AUTO_RETRAIN_THRESHOLD=100         # Min new pairs to trigger auto-retrain
 ```
 
 ### Frontend (.env.local)
