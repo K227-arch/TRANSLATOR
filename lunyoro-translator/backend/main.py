@@ -267,9 +267,47 @@ def submit_feedback(req: FeedbackRequest, request: Request):
 
 @app.get("/feedback/stats")
 def feedback_stats():
-    """Return summary statistics about collected feedback."""
+    """Return summary statistics and save to feedback folder."""
     from feedback_store import get_stats
-    return get_stats()
+    from pathlib import Path
+    import pandas as pd
+    import json
+    
+    stats = get_stats()
+    
+    # Save stats to feedback folder
+    feedback_dir = Path(__file__).parent / "feedback"
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save as JSON
+    json_path = feedback_dir / "stats.json"
+    with open(json_path, 'w') as f:
+        json.dump(stats, f, indent=2)
+    
+    # Save as CSV
+    stats_df = pd.DataFrame([{
+        'Metric': 'Total Feedback',
+        'Value': stats['total']
+    }, {
+        'Metric': 'Thumbs Up',
+        'Value': stats['thumbs_up']
+    }, {
+        'Metric': 'Thumbs Down',
+        'Value': stats['thumbs_down']
+    }, {
+        'Metric': 'Neutral',
+        'Value': stats['neutral']
+    }, {
+        'Metric': 'Exportable Pairs',
+        'Value': stats['exportable']
+    }])
+    
+    csv_path = feedback_dir / "stats.csv"
+    stats_df.to_csv(csv_path, index=False)
+    
+    stats['files_saved'] = ["feedback/stats.json", "feedback/stats.csv"]
+    
+    return stats
 
 
 @app.get("/feedback/analytics")
@@ -288,13 +326,47 @@ def model_comparison():
 
 @app.get("/feedback/export")
 def export_feedback():
-    """Export approved (thumbs-up) pairs as CSV for retraining."""
-    from feedback_store import export_for_retraining, get_approved_pairs
+    """Export approved (thumbs-up) pairs as CSV to feedback folder."""
+    from feedback_store import get_approved_pairs
+    from pathlib import Path
+    import pandas as pd
+    
     approved = get_approved_pairs(min_rating=1)
     if not approved:
-        return {"message": "No approved pairs yet", "count": 0, "path": None}
-    path = export_for_retraining()
-    return {"message": "Exported", "count": len(approved), "path": path}
+        return {"message": "No approved pairs yet", "count": 0, "files": []}
+    
+    # Create feedback directory
+    feedback_dir = Path(__file__).parent / "feedback"
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Export approved pairs
+    rows = []
+    for e in approved:
+        src = e.get("source_text", "").strip()
+        tgt = e.get("translation", "").strip()
+        direction = e.get("direction", "en→lun")
+        if not src or not tgt:
+            continue
+        if direction == "en→lun":
+            rows.append({"english": src, "lunyoro": tgt})
+        else:
+            rows.append({"english": tgt, "lunyoro": src})
+    
+    if not rows:
+        return {"message": "No valid pairs to export", "count": 0, "files": []}
+    
+    df = pd.DataFrame(rows).drop_duplicates(subset=["english", "lunyoro"])
+    
+    # Save to feedback folder
+    csv_path = feedback_dir / "approved_pairs.csv"
+    df.to_csv(csv_path, index=False, encoding="utf-8")
+    
+    return {
+        "message": "Exported approved pairs to feedback folder",
+        "count": len(df),
+        "files": ["feedback/approved_pairs.csv"],
+        "path": str(csv_path)
+    }
 
 
 @app.get("/feedback/auto-retrain-status")

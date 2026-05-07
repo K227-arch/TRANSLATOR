@@ -187,7 +187,8 @@ lunyoro-translator/
     - `all_feedback.csv` — Complete feedback log in CSV format
     - `feedback_analytics.xlsx` — Multi-sheet Excel workbook with analytics
 - `GET /feedback/stats` — Feedback statistics
-- `GET /feedback/export` — Export approved pairs
+- `GET /feedback/export` — Export approved (thumbs-up) pairs to `backend/feedback/approved_pairs.csv`
+  - Returns: `count`, `files`, `path` to exported CSV
 
 ### Analytics
 Feedback is automatically exported to `backend/feedback/` after each submission. You can also generate comprehensive reports on-demand:
@@ -215,6 +216,7 @@ python backend/export_analytics.py --csv --output reports/csv_export/
   - **Model Usage:** Usage statistics by model (MarianMT, NLLB-200, both, none)
   - **Error Types:** Breakdown of reported error categories
   - **Daily Activity:** Feedback timeline by date
+- `approved_pairs.csv` — Approved (thumbs-up) translation pairs ready for retraining (exported via `/feedback/export` endpoint)
 
 **On-demand reports** (via `export_analytics.py`):
 - **Summary Statistics:** Total feedback, approval rates, correction rates, unique users

@@ -98,6 +98,42 @@ def collate_fn(batch, tokenizer, max_length: int = 256,
     # Subword regularization: use SPM sampling instead of greedy tokenization
     # This makes the model robust to different segmentations of the same word
     if subword_reg and hasattr(tokenizer, 'sp_model'):
+        # Enable sampling in SentencePiece
+        try:
+            tokenizer.sp_model.SetEncodeExtraOptions(f"alpha:{alpha}")
+        except:
+            pass  # Fallback to greedy if sampling not supported
+
+    # Tokenize source
+    src_enc = tokenizer(
+        src_texts,
+        max_length=max_length,
+        padding="longest",
+        truncation=True,
+        return_tensors="pt",
+    )
+
+    # Tokenize target - use the same tokenizer without context manager
+    tgt_enc = tokenizer(
+        tgt_texts,
+        max_length=max_length,
+        padding="longest",
+        truncation=True,
+        return_tensors="pt",
+    )
+
+    # Reset SPM sampling
+    if subword_reg and hasattr(tokenizer, 'sp_model'):
+        try:
+            tokenizer.sp_model.SetEncodeExtraOptions("")
+        except:
+            pass
+
+    return {
+        "input_ids": src_enc["input_ids"],
+        "attention_mask": src_enc["attention_mask"],
+        "labels": tgt_enc["input_ids"],
+    }
         # Enable sampling mode on the underlying SPM model
         src_ids = []
         for text in src_texts:
