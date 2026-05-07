@@ -1,0 +1,5 @@
+{"source_text": "the girl is running", "translation": "omwasiki narubatana", "direction": "en→lun", "rating": -1, "correction": "", "error_type": "grammar", "ip": "127.0.0.1", "timestamp": "2026-05-07T00:07:00.026844"}
+{"source_text": "the girl is running", "translation": "omwasiki nairuka", "direction": "en→lun", "rating": 1, "correction": "", "error_type": "", "ip": "127.0.0.1", "timestamp": "2026-05-07T00:22:14.526998"}
+{"source_text": "the girl is running", "translation": "omwasiki narubatana", "direction": "en→lun", "rating": -1, "correction": "", "error_type": "spelling", "ip": "127.0.0.1", "timestamp": "2026-05-07T00:28:49.169787"}
+{"source_text": "the girl is running", "translation": "omwasiki narubatana", "direction": "en→lun", "rating": -1, "correction": "", "error_type": "grammar, context", "ip": "127.0.0.1", "timestamp": "2026-05-07T00:39:29.751877"}
+{"source_text": "the girl is running", "translation": "omwasiki nairuka", "direction": "en→lun", "rating": 1, "correction": "", "error_type": "grammar, context", "ip": "127.0.0.1", "timestamp": "2026-05-07T00:39:48.220862"}

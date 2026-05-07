@@ -409,6 +409,14 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     """English → Lunyoro/Rutooro — uses both MarianMT and NLLB if available."""
     text = _normalise(text.strip())
 
+    # Longer context window: trim context to last sentence if too long
+    if context:
+        import re as _re_ctx
+        ctx_sentences = _re_ctx.split(r'(?<=[.!?])\s+', context.strip())
+        context = ctx_sentences[-1] if ctx_sentences else context
+        if len(context) > 150:
+            context = context[-150:]
+
     marian = _mt_translate(text, "en2lun", context=context)
     nllb   = _nllb_translate(text, "en2lun", context=context)
 
@@ -452,6 +460,14 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
 def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     """Lunyoro/Rutooro → English — uses both MarianMT and NLLB if available."""
     text = _normalise(text.strip())
+
+    # Longer context window: trim context to last sentence if too long
+    if context:
+        import re as _re_ctx
+        ctx_sentences = _re_ctx.split(r'(?<=[.!?])\s+', context.strip())
+        context = ctx_sentences[-1] if ctx_sentences else context
+        if len(context) > 150:
+            context = context[-150:]
 
     marian = _mt_translate(text, "lun2en", context=context)
     nllb   = _nllb_translate(text, "lun2en", context=context)

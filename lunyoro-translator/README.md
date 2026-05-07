@@ -1,293 +1,284 @@
 # Lunyoro-Rutooro Translator
 
-An AI-powered translation system for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda.
+A neural machine translation system for Runyoro-Rutooro ↔ English with:
+- Fine-tuned MarianMT + NLLB-200 models
+- Semantic search fallback with 80k+ sentence pairs
+- Grammar rule post-processing (R/L rule, nasal assimilation, etc.)
+- Human feedback loop for continuous improvement
+- Chat assistant powered by Qwen 2.5 7B
+
+**Live Demo:** [frontend-six-phi-25.vercel.app](https://frontend-six-phi-25.vercel.app)  
+**API:** [keithtwesigye-runyoro-translator-api.hf.space](https://keithtwesigye-runyoro-translator-api.hf.space)
+
+---
 
 ## Features
 
-- English ↔ Lunyoro/Rutooro translation (MarianMT + NLLB-200)
-- Dictionary lookup with example sentences
-- AI chat assistant powered by Qwen 2.5 7B (via HuggingFace Router)
-- PDF/DOCX document summarization and translation
-- Voice translation
-- Spellcheck
-- Domain-aware translation (Medical, Education, Agriculture, etc.)
-- Model comparison view (MarianMT vs NLLB-200)
-- Grammar Rule 3 post-processing (consonant+suffix mutations, reflexive imperatives, initial vowel correction)
-- PWA support — installable on desktop and mobile, with offline-capable network-first caching (via `next-pwa`)
+### Translation
+- **Dual neural models:** MarianMT (primary) + NLLB-200 (comparison)
+- **Context-aware:** Uses previous sentence for better coherence
+- **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation
+- **Fallback chain:** Neural MT → Semantic search → Dictionary lookup
+- **Spellcheck:** Real-time Lunyoro spellcheck with suggestions
 
-## Dataset
+### Chat Assistant
+- **LLM-powered:** Qwen 2.5 7B via HuggingFace Router
+- **Domain-aware:** Sector-specific vocabulary (medical, agriculture, education, etc.)
+- **Bilingual output:** Replies in English + Lunyoro (MarianMT + NLLB)
+- **Grammar context:** Full Runyoro-Rutooro grammar rules in system prompt
 
-- ~53,948 English-Lunyoro sentence pairs
-- Sources:
-  - `english_nyoro_clean.csv` — main sentence pairs with domain tagging
-  - `runyoro_english_sentences_clean.csv` — April crowd-sourced sentence submissions
-  - `rutooro_dictionary_clean.csv` — word/definition/example pairs from the Rutooro dictionary
-  - `word_entries_clean.csv` — dictionary example sentences and word-level definition pairs
-  - `empaako_pairs.csv`, `idioms_pairs.csv`, `numbers_pairs.csv`, `interjections_pairs_clean.csv`, `proverbs_pairs_clean.csv` — small cultural/linguistic extras
-- Augmented via back-translation using the fine-tuned lun2en model
-- Cleaned with quality filters: deduplication, length checks, hallucination detection, round-trip consistency
+### Human Feedback
+- **Primary feedback:** Simple Yes/No rating for translation quality
+- **Multi-select error categorization:** Select multiple issue types (grammar, spelling, context, vocabulary, other)
+- **Model comparison:** Choose between MarianMT and NLLB-200 outputs, or mark both as incorrect
+- **Corrections:** Submit better translations with optional error details
+- **Separate feedback flows:** Primary quality feedback and model comparison feedback tracked independently
+- **Continuous learning:** Approved pairs feed back into training
+
+---
+
+## Quick Start
+
+### Frontend (Next.js)
+```bash
+cd lunyoro-translator/frontend
+npm install
+npm run dev
+# → http://localhost:3002
+```
+
+### Backend (FastAPI)
+```bash
+cd lunyoro-translator/backend
+pip install -r requirements.txt
+python download_models.py  # Downloads models from HuggingFace (~2GB)
+python main.py
+# → http://localhost:8000
+```
+
+---
+
+## Model Improvement Pipeline
+
+See **[TRAINING_GUIDE.md](TRAINING_GUIDE.md)** for full details.
+
+### 1. Clean Training Data
+```bash
+python backend/clean_training_data.py
+# Removes 13,899 noisy rows (domain tags, OCR garbage, duplicates)
+# 80,733 → 66,834 clean pairs
+```
+
+### 2. Back-Translation (Data Augmentation)
+```bash
+python backend/back_translate.py --max 5000 --bleu-threshold 0.25
+# Generates 2,000-3,000 synthetic pairs via round-trip translation
+python backend/merge_back_translated.py
+```
+
+### 3. Retrain Tokenizer (Better OOV Handling)
+```bash
+python backend/retrain_tokenizer.py --vocab-size 65000 --direction both
+# Expands vocab from 64k → 65k tokens with subword regularization
+```
+
+### 4. Fine-Tune Models
+```bash
+python backend/train_marian.py --direction both --epochs 5 --resize-embeddings
+# Features:
+#   - Subword regularization (SPM sampling, alpha=0.1)
+#   - Longer context window (prepends previous sentence)
+#   - Mixed precision (fp16) on GPU
+#   - BLEU-based checkpoint selection
+```
+
+### 5. Retrain from Human Feedback
+```bash
+python backend/retrain_from_feedback.py --epochs 5 --push
+# Exports thumbs-up pairs → merges into train.csv → fine-tunes → pushes to HF
+```
+
+**Expected improvements:** +5-10 BLEU after full pipeline
+
+---
+
+## Project Structure
+
+```
+lunyoro-translator/
+├── backend/
+│   ├── main.py                      # FastAPI server
+│   ├── translate.py                 # Translation logic (MT + retrieval)
+│   ├── language_rules.py            # Runyoro grammar rules (3200+ lines)
+│   ├── clean_training_data.py       # Data cleaning script
+│   ├── back_translate.py            # Back-translation augmentation
+│   ├── retrain_tokenizer.py         # SentencePiece retraining
+│   ├── train_marian.py              # MarianMT fine-tuning
+│   ├── feedback_store.py            # Human feedback storage
+│   ├── retrain_from_feedback.py     # End-to-end feedback retraining
+│   ├── model/
+│   │   ├── en2lun/                  # MarianMT English→Lunyoro
+│   │   ├── lun2en/                  # MarianMT Lunyoro→English
+│   │   ├── nllb_en2lun/             # NLLB-200 English→Lunyoro
+│   │   ├── nllb_lun2en/             # NLLB-200 Lunyoro→English
+│   │   └── translation_index.pkl    # Semantic search index (80k pairs)
+│   └── data/
+│       ├── training/
+│       │   ├── train.csv            # 80k training pairs
+│       │   ├── val.csv              # 4.5k validation pairs
+│       │   └── test.csv             # 4.5k test pairs
+│       ├── cleaned/                 # Cleaned dictionary/corpus
+│       └── raw/                     # Raw seed vocabulary
+├── frontend/
+│   ├── components/Translator.tsx    # Main translation UI
+│   ├── components/Chat.tsx          # Chat assistant UI
+│   └── app/                         # Next.js app router
+├── TRAINING_GUIDE.md                # Model improvement guide
+└── PIPELINE_GUIDE.md                # Data pipeline guide
+```
+
+---
+
+## API Endpoints
+
+### Translation
+- `POST /translate` — English → Lunyoro
+- `POST /translate-reverse` — Lunyoro → English
+- `POST /lookup` — Dictionary word lookup
+- `POST /spellcheck` — Lunyoro spellcheck
+
+### Chat
+- `POST /chat` — AI language assistant (Qwen 2.5 7B)
+
+### Feedback
+- `POST /feedback` — Submit translation rating with optional error categorization and corrections
+  - Parameters: `source_text`, `translation`, `direction`, `rating` (1/-1), `correction` (optional), `error_type` (optional - comma-separated list for multiple error types)
+- `GET /feedback/stats` — Feedback statistics
+- `GET /feedback/export` — Export approved pairs
+
+### Utilities
+- `POST /summarize-pdf` — Extract + translate + summarize documents
+- `GET /language-rules` — Full grammar rules JSON
+- `POST /language-rules/apply` — Apply specific grammar rule
+- `GET /history` — Translation history
+- `GET /health` — Health check
+
+---
 
 ## Models
 
-All 4 models are hosted on HuggingFace under [keithtwesigye](https://huggingface.co/keithtwesigye) and **download automatically** — either when you run the setup script, or on the first translation request if you start the backend directly.
+All models hosted on HuggingFace:
 
-| Model | Repo | Description |
-|-------|------|-------------|
-| MarianMT en→lun | `keithtwesigye/lunyoro-en2lun` | English to Lunyoro |
-| MarianMT lun→en | `keithtwesigye/lunyoro-lun2en` | Lunyoro to English |
-| NLLB-200 en→lun | `keithtwesigye/lunyoro-nllb_en2lun` | English to Lunyoro (NLLB) |
-| NLLB-200 lun→en | `keithtwesigye/lunyoro-nllb_lun2en` | Lunyoro to English (NLLB) |
-| Semantic search | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Retrieval index for context-aware translation |
+- **MarianMT en2lun:** [keithtwesigye/lunyoro-en2lun](https://huggingface.co/keithtwesigye/lunyoro-en2lun)
+- **MarianMT lun2en:** [keithtwesigye/lunyoro-lun2en](https://huggingface.co/keithtwesigye/lunyoro-lun2en)
+- **NLLB en2lun:** [keithtwesigye/lunyoro-nllb_en2lun](https://huggingface.co/keithtwesigye/lunyoro-nllb_en2lun)
+- **NLLB lun2en:** [keithtwesigye/lunyoro-nllb_lun2en](https://huggingface.co/keithtwesigye/lunyoro-nllb_lun2en)
+- **Semantic search:** [sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)
+- **Chat:** [Qwen/Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) via HF Router
 
-> Model weights (~6 GB total) are not stored in the git repo. They are downloaded from HuggingFace on first use and cached locally under `backend/model/`. After the initial download the 4 translation models run fully offline (`TRANSFORMERS_OFFLINE=1` in `.env`). The semantic search model is always loaded by name from the retrieval index so Sentence Transformers can resolve and download a compatible version automatically — it uses the ST cache (`~/.cache/torch/sentence_transformers`) rather than `backend/model/sem_model/`.
+---
 
-## Requirements
+## Grammar Rules
 
-- Python 3.10+
-- Node.js 18+
-- `python-dotenv` (optional — auto-loads `backend/.env` at startup if present)
-- `HF_TOKEN` environment variable with HuggingFace inference access (required for chat)
+Comprehensive Runyoro-Rutooro grammar implementation (3200+ lines):
 
-## Quick Setup
+- **R/L Rule:** L → R except adjacent to e/i
+- **Nasal assimilation:** nb→mb, np→mp, nr→nd, nl→nd
+- **Apostrophe elision:** na ente → n'ente, habwa okugonza → habw'okugonza
+- **Consonant+suffix mutations:** r/t/j + -ire → z/s/z + -ire
+- **Noun class system:** 15 classes with concordial agreement
+- **Verb conjugation:** 10+ tenses, derivative suffixes (causative, passive, etc.)
+- **Pronominal system:** Subject/object concords, demonstratives, possessives
+- **Numbers & ordinals:** Cardinals 1-1M, ordinal formation rules
+- **Particles:** Genitive, copula, conditional, coordinating
 
-> **Models download automatically** — no manual model setup needed. Just run the setup script after cloning.
+See `backend/language_rules.py` for full implementation.
 
-### Linux / macOS
+---
+
+## Data Sources
+
+- **Dictionary:** Runyoro-Rutooro Dictionary (OCR + manual entry)
+- **Corpus:** 80k+ sentence pairs from:
+  - Bible translations
+  - Seed vocabulary (medical, agriculture, education, daily life)
+  - Community submissions
+  - Grammar examples
+- **Grammar:** *A Grammar of Runyoro-Rutooro* + Orthography Guide (1995)
+
+---
+
+## Deployment
+
+### HuggingFace Space (Backend)
 ```bash
-cd lunyoro-translator
-bash setup.sh
-```
-
-### Windows
-```bat
-cd lunyoro-translator
-setup.bat
-```
-
-The setup script will:
-1. Install Python dependencies
-2. Install frontend (Node) dependencies
-3. Download all 5 models from HuggingFace (~6 GB): 4 translation models + 1 semantic search model
-
-Or manually:
-
-```bash
-# 1. Python backend
-pip install -r backend/requirements.txt
-
-# 2. Download all 4 models from HuggingFace
-python backend/download_models.py
-
-# 3. Frontend
-cd frontend && npm install
-```
-
-## Running the App
-
-Open 2 terminals:
-
-```bash
-# Terminal 1 — Backend API (port 8000)
-cd backend
-uvicorn main:app --reload --port 8000
-
-# Terminal 2 — Frontend (port 3002)
-cd frontend
-npm run dev
-```
-
-Then open **http://localhost:3002**
-
-## Training
-
-### Full Automated Pipeline (Recommended)
-
-Complete end-to-end pipeline that implements all Runyoro language rules:
-
-```bash
-cd backend
-
-# Full pipeline: OCR extraction → back-translation → training → indexing → deployment
-python full_pipeline.py
-
-# Verify grammar integration and API endpoints only (no training)
-python full_pipeline.py --verify-only
-
-# Skip OCR extraction (if already done)
-python full_pipeline.py --skip-ocr
-
-# Skip data preparation (if data already prepared)
-python full_pipeline.py --skip-data
-
-# Skip training, only push to HuggingFace/Git
-python full_pipeline.py --skip-train
-```
-
-The full pipeline executes:
-1. Extract OCR word glosses + sentence pairs using language_rules.py
-2. Back-translate sentence_submissions to augment training data
-3. Quality-filter synthetic pairs (round-trip + semantic checks)
-4. Rebuild training splits (train/val/test)
-5. Fine-tune MarianMT from checkpoint (15 epochs, LR=2e-5, label_smoothing=0.2)
-6. Fine-tune NLLB from checkpoint (8 epochs, DDP across 2+ GPUs if available)
-7. Rebuild semantic search index
-8. Push all 4 models to HuggingFace
-9. Commit and push to Git LFS
-
-Grammar rules integration:
-- Full Runyoro-Rutooro grammar context wired to /chat endpoint
-- All grammar rules exposed via /language-rules endpoint
-- OCR-derived rules from Chapters 2, 4, 7, 9, 10, 12, 13, 15, 16, 17
-
-### Manual Training Steps
-
-For more control over individual steps:
-
-```bash
-cd backend
-
-# 1. Merge new submissions and rebuild training splits
-python clean_new_submissions.py
-
-# (Alternative) Clean and merge previously unprocessed raw files
-python clean_unprocessed_raw.py
-
-# 2. Extract OCR pairs and glosses
-python extract_ocr_pairs.py
-
-# 3. Back-translation augmentation
-python back_translate.py
-python clean_backtranslated.py
-
-# 4. Retrain MarianMT models
-python fine_tune.py --direction both --epochs 10 --batch_size 32
-
-# 5. Retrain NLLB models
-python fine_tune_nllb.py --direction both --epochs 10 --batch_size 4
-
-# 6. Rebuild semantic search index
-python train.py
-
-# 7. Evaluate all 4 models on the test set
-python run_eval.py  # Sequential single-GPU (auto-selects GPU)
-python eval_all_parallel.py  # Parallel across 2 GPUs
-python eval_marian.py  # MarianMT only (CPU, leaves GPUs free)
-```
-
-## Publishing Models to HuggingFace
-
-To push README files to the 4 HuggingFace model repos, set your HuggingFace token as an environment variable before running the script:
-
-```bash
-# Linux / macOS
-export HF_TOKEN=your_token_here
-python backend/_push_hf_readmes.py
-
-# Windows
-set HF_TOKEN=your_token_here
-python backend\_push_hf_readmes.py
-```
-
-You can generate a token at https://huggingface.co/settings/tokens (needs write access to the target repos).
-
-## Deploying the Backend to HuggingFace Spaces
-
-`push_to_hf_space.py` deploys the FastAPI backend as a Docker-based HuggingFace Space (`keithtwesigye/runyoro-translator-api`). It creates the space if it doesn't exist, uploads all backend source files, and uploads the Space config files from `hf-space/` (README + Dockerfile override). Model weights, training data, OCR data, and `.env` are excluded automatically.
-
-**Requirements**: You must set the `HF_TOKEN` environment variable with write access to the target space before running the script.
-
-```bash
-# Linux / macOS
-export HF_TOKEN=your_token_here
 python backend/push_to_hf_space.py
-
-# Windows
-set HF_TOKEN=your_token_here
-python backend\push_to_hf_space.py
+# Pushes to: keithtwesigye-runyoro-translator-api.hf.space
 ```
 
-After deployment the API is available at:
-`https://keithtwesigye-runyoro-translator-api.hf.space`
-
-> Note: HuggingFace Spaces free tier has no persistent disk, so models are re-downloaded on each cold start. Set `DOWNLOAD_MODELS_ON_START=1` in the Space's environment variables.
-
-## Architecture
-
-```
-backend/
-  main.py                    — FastAPI server
-  translate.py               — Translation logic (MarianMT + NLLB + retrieval); strips any domain tags the model may reproduce from training data (e.g. `[GENERAL]`, `[MEDICAL]`) from the raw MT output before further processing; post-processes en→lun MT output with Runyoro-Rutooro orthographic rules (nasal assimilation nb→mb/np→mp/nr→nd, ni→nu prefix vowel harmony, R/L rule); pre-processes lun→en input by normalising nasal clusters to canonical forms; rules are lazy-loaded from language_rules so the module loads safely even if language_rules has an import error; the semantic search model is always loaded by name from the retrieval index (not from the local `model/sem_model/` path) so Sentence Transformers can download a compatible version automatically if the local copy is absent or mismatched
-  language_rules.py          — Single-module Runyoro-Rutooro grammar reference (language_rules_ocr_extension.py merged in). Covers: orthography (alphabet, R/L rule, long vowels, apostrophe), noun class system (classes 1–15, concordial agreement, plural formation), verb structure (infinitive/subject/tense prefixes, derivative suffixes), tense system, adjectives/adverbs, numbers/ordinals, particles/conjunctions/prepositions, pronouns, cultural elements (EMPAAKO, interjections, idioms, proverbs); OCR-derived rules (Chapters 2, 4, 7, 9, 10, 12, 13, 15–17): comparison, genitive/adverbial/coordinating particles, conditional mood, derivative verbs (applied, causative, passive, neuter, reciprocal), moods and tenses (imperative, subjunctive, indicative), extended noun class details, noun formation, ordinals, negation/affirmation, possessive pronouns, ideophones, orthography rules; Grammar Rule 3 post-processing: apply_consonant_suffix_mutations() (r→z/t→s/j→z/nd→nz/nt→ns before -ire/-ere/-i/-ya), apply_reflexive_imperative_correction() (okw-e... → wee.../mwe...), apply_initial_vowel_rule() (prefix-based initial vowel correction); apply_rl_rule_to_text() skips English words (detected via common digraphs, common English suffixes -ing/-ed/-ly/-ous/-ive/-ble/-ity/-ate/-ize/-ise/-ify/-ent/-ant/-ance/-ence, consonant-cluster endings -ld/-nd/-nt/-st/-ft/-lt/-lk/-rk/-rn/-nk/-ng/-mp/-mb/-sk/-sp/-sm/-sn/-sw/-sl/-sc, common word list, and all-caps acronyms) so loanwords and mixed-language text are not incorrectly transformed; utility functions: get_full_grammar_context(), get_derivative_verb_type(), get_imperative_form(), is_reflexive_verb()
-  prepare_training_data.py   — Corpus builder with domain tagging; merges all cleaned data sources including synthetic grammar rule pairs generated from all OCR grammar chapters (Ch.2 sound change, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional, Ch.16 comparison, Ch.17 genitive/adverbial particles) via generate_rule_training_pairs.py; strips any pre-existing domain tag(s) from english_nyoro_clean.csv before re-tagging — handles multiple stacked tags and mixed case (e.g. `[GENERAL] [GENerAL] text`) via a case-insensitive repeating regex, preventing double-tagging on repeated runs; applies four normalization steps to all Lunyoro training targets: (1) apostrophe standardisation (curly/Unicode apostrophes → straight ASCII apostrophe), (2) nasal assimilation (nb→mb, np→mp, nr→nd, nl→nd), (3) ni→nu prefix vowel harmony (nimugenda→numugenda before u-class concords), and (4) the R/L rule (L→R except adjacent to e/i), so models learn consistent orthographic forms
-  clean_and_merge_seeds.py   — Cleans and merges domain-specific seed vocabulary CSVs (medical, education, daily life, low-frequency, agriculture) into english_nyoro_clean.csv; applies OCR fixes and orthographic normalisation (nasal assimilation, ni→nu prefix, R/L rule), filters pairs shorter than 2 chars, deduplicates, and prepends domain tags (e.g. [MEDICAL], [AGRICULTURE]); run directly with `python clean_and_merge_seeds.py`
-  clean_new_submissions.py   — Merges new crowd-sourced submissions
-  clean_unprocessed_raw.py   — Cleans and merges previously unprocessed raw files (word_submissions_rows, word_entries_rows_root, sentence_submissions_rows) into english_nyoro_clean.csv and word_entries_clean.csv, then rebuilds train/val/test splits
-  analyze_ocr.py             — Analyses the OCR combined JSON (data/OCR/combined/all_ocr_combined.json): classifies lines as Runyoro-dominant, English-dominant, mixed, or unclassified using regex heuristics; reports per-source page/char/line counts; prints sample Runyoro lines and quoted lines (likely translation pairs); run directly with `python analyze_ocr.py`
-  analyze_ocr2.py            — Deep analysis of OCR grammar content: samples one full page per source, detects table/structured content (tab-separated or multi-space lines), extracts Runyoro example sentences using a broader prefix pattern set, finds inline word glosses (word 'meaning' patterns for Runyoro-prefixed terms), and summarises dominant grammar topic per source (noun_class, verb_tense, sound_change, adjective, derivative_verb, numbers, orthography); run directly with `python analyze_ocr2.py`
-  dump_ocr_sections.py       — Dumps the first 2000 chars of each page for a fixed list of unintegrated OCR sections (grammar_sound_change, grammar2_derivative_verbs, grammar2_moods_tenses_*, grammar2_compound_tenses_*, grammar_noun_classes*, grammar2_noun_formation, grammar_numbers_ordinals, grammar_words_affixes_*, runyoro_rutooro_orthography_guide) to stdout for manual review; run directly with `python dump_ocr_sections.py`
-  dump_ocr2.py               — Extracts the full text of the same unintegrated OCR sections and writes them to ocr_content.txt for offline review; unlike dump_ocr_sections.py (which truncates to 2000 chars per page and prints to stdout), this writes complete page content to a file; run directly with `python dump_ocr2.py`
-  dictionary_pipeline.py     — Full dictionary data pipeline (7 steps): (1) clean OCR noise + apply orthographic rules to dictionary Excel files (dictionary_pairs.xlsx, english_runyoro_dict.xlsx, runyoro_english_dict.xlsx); (2) augment with derivative verb forms (causative -isa, passive -ibwa, reciprocal -ana, reversive -ura) from Runyoro→English entries; (3) back-translate Runyoro example sentences via the lun2en model to generate synthetic pairs; (4) merge all new pairs into english_nyoro_clean.csv with [DICTIONARY] domain tag and rebuild train/val/test splits; (5) fine-tune MarianMT en2lun + lun2en from existing checkpoints — checkpoints are saved to a temp directory (_<direction>_training_tmp/) during training so the live model is never touched mid-run; the best checkpoint is atomically copied to the live model path only after training completes, then the temp dir is removed; push is skipped inside step_retrain() and handled centrally after all training (MarianMT step 5 + NLLB step 7) is complete — a single sequential push block uploads all retrained models to HuggingFace on CPU, keeping the GPU fully free during training; uploads use file-by-file transfers with up to 3 retries per file; models pushed are determined by --only-nllb and --skip-nllb flags (requires HF_TOKEN env var; skipped with a warning if not set); (6) explicit push of all 4 retrained models (en2lun, lun2en, nllb_en2lun, nllb_lun2en) to HuggingFace (fallback/standalone push); (7) rebuild semantic search index. Post-step quality filtering via clean_pairs_df() applied after augmentation and back-translation: length bounds (English 3–300 chars, Lunyoro 2–200 chars), grammar notation noise rejection, English/Runyoro side validation (rejects swapped pairs, pure-English Lunyoro, all-Runyoro English), round-trip identity check, orthographic normalisation, deduplication. Options: --skip-train (steps 1–4 only), --skip-backtrans (skip step 3), --skip-nllb (skip NLLB retraining), --only-nllb (skip MarianMT, retrain NLLB only), --skip-push (skip HuggingFace push after training), --epochs, --batch-size, --lr. Run: `python dictionary_pipeline.py`
-  extract_dictionary_pdf.py  — Extracts all entries from runyoro-Rutooro-Dictionary.pdf into structured CSVs; parses Runyoro→English entries (pages 14–446) and English→Runyoro entries (pages 447–627); outputs data/dictionary/runyoro_english_dict.csv, data/dictionary/english_runyoro_dict.csv, and data/dictionary/dictionary_pairs.csv (flat training pairs); training pairs are filtered using is_english_sentence() (requires ≥2 words, at least one English stopword, no grammar notation noise) and is_runyoro_phrase() (rejects grammar noise and predominantly English text) helpers; definition pairs use only the first sentence of each definition to avoid bleed-over; English→Runyoro entries skip noise tokens (digits, commas, semicolons in headword) and emit one primary equivalent per entry; final deduplication stage applies additional quality filters: length bounds (English 3–250 chars, Lunyoro 2–150 chars), rejects English fields containing Runyoro noun-class prefixes (oku/omu/emi/ebi/eki/aka/ama/obu/oru), rejects Lunyoro fields that are predominantly English (>3 words with English function words), and strips pairs containing grammar notation noise (pf., pr. form, c. form, pass. form, cl.N); run directly with `python extract_dictionary_pdf.py`
-  csv_to_xlsx.py             — Converts the three dictionary CSVs produced by extract_dictionary_pdf.py (runyoro_english_dict.csv, english_runyoro_dict.csv, dictionary_pairs.csv) to Excel format (.xlsx) and removes the original CSV files; run after extract_dictionary_pdf.py when Excel output is needed: `python csv_to_xlsx.py`
-  extract_ocr_pairs.py       — Extracts English ↔ Runyoro-Rutooro sentence pairs AND word glosses from OCR grammar data (data/OCR/combined/all_ocr_combined.json); uses language_rules.py prefix/vocabulary data for detection (threshold 0.10 for Runyoro, 0.15 for English); merges sentence pairs into english_nyoro_clean.csv and word glosses into word_entries_clean.csv; outputs data/cleaned/ocr_pairs_extracted.csv (sentence pairs) and data/cleaned/ocr_glosses_extracted.csv (word glosses) for review; run directly with `python extract_ocr_pairs.py`
-  push_models_hf.py            — Uploads all 4 fine-tuned model folders (en2lun, lun2en, nllb_en2lun, nllb_lun2en) to their respective HuggingFace repos; requires HF_TOKEN env var with write access
-  push_to_hf_space.py          — Deploys the backend to HuggingFace Spaces (space ID: keithtwesigye/runyoro-translator-api, SDK: docker); creates the space if it doesn't exist, then uploads all backend source files (skipping model weights, training data, OCR data, and .env); also uploads Space config files from hf-space/ (README.md + Dockerfile override); requires HF_TOKEN env var with write access to the target space (script will exit with error if not set)
-  clean_sentence_submission.py — Cleans the April sentence submission Excel file (Runyoro-English_Translation.xlsx); standardises columns, strips whitespace, drops empty rows and duplicates, writes data/cleaned/runyoro_english_sentences_clean.csv
-  clean_remaining_raw.py     — Extracts translation pairs from remaining raw CSVs (word_submissions_rows*.csv, corpus_sentences_rows (1).csv); merges new pairs into english_nyoro_clean.csv after deduplication
-  clean_extra.py             — Merges Excel dictionary datasets
-  clean_dictionaries.py      — Cleans and converts Rutooro/Runyoro Excel dictionary files to CSV; normalises column names, strips definition noise (grammar notation, cross-references, OCR-duplicated phrases), deduplicates entries, and writes data/cleaned/rutooro_dictionary_clean.csv
-  inspect_raw.py             — Inspects raw CSV files: prints row counts, column names, null counts, and sample rows for word/sentence submission and corpus files
-  _audit.py                  — Full audit of training data quality AND grammar rule coverage: (1) quality checks — double-tagged pairs, source==target, repeated word runs, short/empty rows, exact duplicates; (2) orthographic rule checks — R/L rule violations, nasal assimilation violations, ni→nu prefix violations, apostrophe normalisation violations; (3) grammar rule coverage — verifies every OCR chapter (Ch.2 sound change, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional, Ch.16 comparison, Ch.17 particles) plus cultural data and orthography examples are represented in the corpus; prints OK/MISSING per category with match counts; exits with "DATA IS CLEAN AND QUALIFIED FOR TRAINING" or "ISSUES REMAIN - DO NOT TRAIN YET"
-  audit_csvs.py              — Audits all CSV files in data/: reports row counts, nulls, duplicates, and whether a cleaned version exists
-  check_dups.py              — Checks whether pairs of raw CSV files are identical (e.g. versioned duplicates like word_entries_rows.csv vs word_entries_rows (1).csv)
-  verify_dict.py             — Verifies the cleaned dictionary CSV: prints row count, null counts per column, and sample rows that have both a definition and a Runyoro example sentence
-  generate_rule_training_pairs.py — Generates synthetic (english, lunyoro) training pairs by mining every grammar rule constant in language_rules.py; covers all OCR grammar chapters (Ch.2 sound changes, Ch.4 numbers/particles, Ch.7 noun classes, Ch.9/10 noun formation, Ch.12 derivative verbs, Ch.13 moods/tenses, Ch.15 conditional mood, Ch.16 adjectives/comparison, Ch.17 genitive/adverbial/coordinating particles) plus cultural data (EMPAAKO, interjections, idioms) and orthography examples; also synthesises derivative verb pairs (causative, passive, neuter, reciprocal, conversive) for 18 common verb stems; deduplicates output; run directly with `python generate_rule_training_pairs.py` to preview generated pairs
-  back_translate.py          — Back-translation augmentation
-  clean_backtranslated.py    — Quality filtering for synthetic pairs
-  improve_and_retrain.py     — Full improvement pipeline: extracts OCR pairs (step 0), back-translates sentence_submissions, quality-filters synthetic pairs, rebuilds training splits, fine-tunes MarianMT (15 epochs, LR=2e-5, label_smoothing=0.2) and NLLB (8 epochs, label_smoothing=0.2) from existing checkpoints, rebuilds the semantic search index, then pushes all 4 models + updated dataset to HuggingFace and commits/pushes code and data to GitHub. NLLB training uses DistributedDataParallel (DDP) via torchrun when 2+ GPUs are available (gloo backend, compatible with Windows); falls back to single-GPU automatically. Pass --skip-ocr to skip OCR extraction (step 0); pass --skip-data to skip steps 0-3; pass --skip-train to skip training and only push existing models to HuggingFace
-  verify_implementation.py   — Standalone verification script: checks grammar rules files exist and import correctly (NOUN_CLASSES, TENSES, IMPERATIVE_TENSES, CAUSATIVE_FORMATION, COMPARISON_POSITIVE, GENITIVE_PARTICLES, get_full_grammar_context()), validates R/L rule application and noun class detection, confirms /chat and /language-rules endpoints are wired in main.py, checks pipeline scripts exist, verifies OCR data and cleaned data directories, and checks all 4 model directories; run directly with `python verify_implementation.py`
-  full_pipeline.py           — Orchestrator that wraps improve_and_retrain.py with pre-flight verification: checks grammar rule integration (NOUN_CLASSES, TENSES, IMPERATIVE_TENSES, CAUSATIVE_FORMATION, COMPARISON_POSITIVE, GENITIVE_PARTICLES, get_full_grammar_context()) and API endpoint configuration (/chat wired with full grammar context, /language-rules exposing all OCR-derived rules) before running the pipeline. Accepts the same --skip-ocr / --skip-data / --skip-train flags as improve_and_retrain.py, plus --verify-only to run checks without executing the pipeline. Steps: 0 (OCR extraction) → 1 (back-translate) → 2 (quality filter) → 3 (rebuild splits) → 4 (fine-tune MarianMT) → 5 (fine-tune NLLB) → 6 (rebuild index) → 7 (push to HuggingFace) → 8 (push to Git LFS)
-  fine_tune.py               — MarianMT fine-tuning
-  fine_tune_nllb.py          — NLLB-200 fine-tuning
-  eval_models.py             — Evaluates all 4 models on the test set (BLEU, token F1, exact match)
-  eval_marian.py             — MarianMT-only evaluation: runs on CPU, leaving both GPUs free for concurrent NLLB training; outputs eval_marian_results.json (BLEU, token F1, exact match)
-  run_eval.py                — Sequential single-GPU evaluation: auto-selects the GPU with the most free memory (avoids conflicts with Ollama); outputs eval_results_all.json
-  eval_all_parallel.py       — Evaluates all 4 models in parallel across 2 GPUs (GPU 0: MarianMT, GPU 1: NLLB); outputs eval_results_all.json
-  download_models.py         — Downloads all 5 models from HuggingFace: 4 fine-tuned translation models (en2lun, lun2en, nllb_en2lun, nllb_lun2en) and the sentence-transformers semantic search model (paraphrase-multilingual-MiniLM-L12-v2 → model/sem_model/)
-  model/
-    en2lun/                  — MarianMT English→Lunyoro
-    lun2en/                  — MarianMT Lunyoro→English
-    nllb_en2lun/             — NLLB-200 English→Lunyoro
-    nllb_lun2en/             — NLLB-200 Lunyoro→English
-    sem_model/               — Sentence transformer for semantic search
-
-frontend/
-  next.config.ts             — Next.js config; standalone output is enabled only for Docker
-                               builds (DOCKER_BUILD=1 env var, set automatically by the
-                               Dockerfile). Vercel and local dev use Next.js default output.
-                               turbopack: {} is set to suppress the webpack/turbopack conflict
-                               warning emitted by next-pwa. PWA is configured via next-pwa:
-                               service worker registered at public/sw.js, network-first caching
-                               for all requests (cache name: runyoro-api-cache, 200 entries max,
-                               7-day TTL, 10s network timeout). PWA is disabled in development
-                               mode.
-  app/
-    layout.tsx               — Root layout; sets page metadata (title, manifest, Apple web app tags) and viewport config (themeColor, width, initialScale); injects PWA meta tags (<link rel="manifest">, apple-mobile-web-app-* meta) into <head> for installability on desktop and mobile
-  components/
-    Translator.tsx           — Main translation UI
-    Dictionary.tsx           — Dictionary lookup
-    ChatPage.tsx             — AI chat assistant; renders LLM responses with inline markdown formatting (bold, italic, quoted text) and bullet lists as styled JSX
-    PdfTranslator.tsx        — Document summarization
-    VoiceTranslator.tsx      — Voice input/output
-    History.tsx              — Translation history
+### Vercel (Frontend)
+```bash
+cd frontend
+vercel --prod
+# Deployed to: frontend-six-phi-25.vercel.app
 ```
 
-## Chat (LLM)
+---
 
-The chat assistant uses **Qwen 2.5 7B Instruct** via the HuggingFace Router (OpenAI-compatible API). It generates responses in English, which are then translated to Runyoro-Rutooro by both MarianMT and NLLB-200 in parallel (via `ThreadPoolExecutor`), returning results from both models. Requires a valid `HF_TOKEN` with inference access.
+## Environment Variables
 
-The model is configurable via the `HF_CHAT_MODEL` environment variable (default: `Qwen/Qwen2.5-7B-Instruct`). The backend uses the `openai` Python package pointed at `https://router.huggingface.co/v1` — no local Ollama installation is needed.
+### Backend (.env)
+```bash
+HF_TOKEN=hf_...                    # HuggingFace API token (read access)
+HF_CHAT_MODEL=Qwen/Qwen2.5-7B-Instruct
+CORS_ORIGINS=http://localhost:3002,https://frontend-six-phi-25.vercel.app
+TRANSFORMERS_OFFLINE=1             # Force offline mode
+FEEDBACK_FILE=feedback.jsonl       # Feedback storage path
+```
 
-The full grammar context from `get_full_grammar_context()` (core rules + all OCR-derived rules) is built once at startup and cached in `_GRAMMAR_CONTEXT_CACHE`, truncated to 6000 characters to stay within the model's context window. Each chat request injects this cached context into the system prompt rather than rebuilding it per request.
+### Frontend (.env.local)
+```bash
+NEXT_PUBLIC_API_URL=https://keithtwesigye-runyoro-translator-api.hf.space
+```
 
-The `/chat` endpoint has a simple in-memory rate limiter: **5 requests per 60 seconds per IP**. Requests exceeding this return HTTP 429.
+---
+
+## Contributing
+
+Contributions welcome! Priority areas:
+
+1. **More training data** — native speaker corrections, domain-specific pairs
+2. **Grammar rule refinements** — edge cases, dialect variations
+3. **UI improvements** — mobile responsiveness, accessibility
+4. **Model optimizations** — quantization, distillation, faster inference
+
+---
+
+## License
+
+MIT License — see LICENSE file
+
+---
+
+## Citation
+
+If you use this work, please cite:
+
+```bibtex
+@software{lunyoro_translator_2024,
+  author = {Twesigye, Keith},
+  title = {Lunyoro-Rutooro Neural Machine Translation System},
+  year = {2024},
+  url = {https://github.com/keithtwesigye/lunyoro-translator}
+}
+```
+
+---
+
+## Acknowledgments
+
+- Runyoro-Rutooro Dictionary contributors
+- Bible translation teams
+- Grammar documentation authors
+- HuggingFace for model hosting
+- Vercel for frontend hosting

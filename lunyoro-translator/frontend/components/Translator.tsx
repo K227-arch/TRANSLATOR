@@ -38,6 +38,14 @@ export default function Translator() {
   const [tooltip, setTooltip] = useState<{ word: string; suggestions: string[]; x: number; y: number } | null>(null);
   const [showComparison, setShowComparison] = useState(false);
   const [ignored, setIgnored] = useState<Set<string>>(new Set());
+  // Feedback state
+  const [feedbackRating, setFeedbackRating] = useState<1 | -1 | null>(null);
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [correction, setCorrection] = useState("");
+  const [errorTypes, setErrorTypes] = useState<string[]>([]);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<"marian" | "nllb" | "none" | null>(null);
+  const [modelFeedbackSent, setModelFeedbackSent] = useState(false);
 
   const spellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -51,7 +59,16 @@ export default function Translator() {
   // Clear stale result when input changes
   function handleInputChange(val: string) {
     setInput(val);
-    if (result) setResult(null);
+    if (result) {
+      setResult(null);
+      setFeedbackRating(null);
+      setFeedbackSent(false);
+      setModelFeedbackSent(false);
+      setShowCorrection(false);
+      setCorrection("");
+      setErrorTypes([]);
+      setSelectedModel(null);
+    }
   }
 
   function swapDirection() {
@@ -63,6 +80,60 @@ export default function Translator() {
     setTooltip(null);
     setShowComparison(false);
     setIgnored(new Set());
+    setFeedbackRating(null);
+    setFeedbackSent(false);
+    setModelFeedbackSent(false);
+    setShowCorrection(false);
+    setCorrection("");
+    setErrorTypes([]);
+    setSelectedModel(null);
+  }
+
+  async function submitFeedback(rating: 1 | -1, modelChoice?: "marian" | "nllb" | "none") {
+    if (!result?.translation || !input.trim()) return;
+    
+    // For primary feedback (not model choice)
+    if (!modelChoice) {
+      // If rating is negative, require either error_types or correction
+      if (rating === -1 && errorTypes.length === 0 && !correction.trim()) {
+        return; // Don't submit without any feedback details
+      }
+    }
+    
+    if (modelChoice) {
+      setModelFeedbackSent(true);
+    } else {
+      setFeedbackRating(rating);
+      setFeedbackSent(true);
+    }
+    
+    // Determine which translation to send based on model choice
+    let translationToSend = result.translation;
+    if (modelChoice === "marian" && result.translation_marian) {
+      translationToSend = result.translation_marian;
+    } else if (modelChoice === "nllb" && result.translation_nllb) {
+      translationToSend = result.translation_nllb;
+    }
+    
+    try {
+      await fetch(`${API}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_text: input.trim(),
+          translation: translationToSend,
+          direction,
+          rating,
+          correction: correction.trim(),
+          error_type: modelChoice === "none" ? "both_models_wrong" : errorTypes.join(", "),
+        }),
+      });
+      if (!modelChoice) {
+        setShowCorrection(false);
+      }
+    } catch {
+      // silently fail — feedback is non-critical
+    }
   }
 
   // ── spellcheck ───────────────────────────────────────────────────────────────
@@ -216,6 +287,13 @@ export default function Translator() {
       });
       if (!res.ok) throw new Error();
       setResult(await res.json());
+      setFeedbackRating(null);
+      setFeedbackSent(false);
+      setModelFeedbackSent(false);
+      setShowCorrection(false);
+      setCorrection("");
+      setErrorTypes([]);
+      setSelectedModel(null);
     } catch {
       setError("Could not connect to the translation server. Make sure the backend is running.");
     } finally {
@@ -352,22 +430,209 @@ export default function Translator() {
             {matchedValue && result.method !== "exact_match" && (
               <p className="text-xs text-gray-400 mt-2">{matchedLabel}: &quot;{matchedValue}&quot;</p>
             )}
-            {/* NLLB comparison — hidden behind toggle */}
-            {result.translation_marian && result.translation_nllb && (
-              <div className="mt-2">
-                <button
-                  onClick={() => setShowComparison(v => !v)}
-                  className="text-xs text-gray-400 hover:text-gray-600 underline"
-                >
-                  {showComparison ? "Hide model comparison" : "Show model comparison"}
-                </button>
-                {showComparison && (
-                  <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
-                    <p className="text-xs text-gray-400 font-medium">Model comparison (experimental):</p>
-                    <p className="text-xs text-gray-600"><span className="font-medium">MarianMT:</span> {result.translation_marian}</p>
-                    <p className="text-xs text-gray-600"><span className="font-medium">NLLB-200:</span> {result.translation_nllb}</p>
-                  </div>
-                )}
+
+            {/* Feedback Section */}
+            {result.translation && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="space-y-3">
+                  {/* Primary Feedback: Is this the right translation? */}
+                  {!feedbackSent && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-gray-600 font-medium">Is this the right translation?</span>
+                        <button
+                          onClick={() => submitFeedback(1)}
+                          className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${
+                            feedbackRating === 1
+                              ? "bg-green-500 text-white"
+                              : "bg-gray-100 hover:bg-green-50 text-gray-700 hover:text-green-600 border border-gray-200"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => { setFeedbackRating(-1); setShowCorrection(true); }}
+                          className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${
+                            feedbackRating === -1
+                              ? "bg-red-500 text-white"
+                              : "bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 border border-gray-200"
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+
+                      {/* Error categorization when user clicks No */}
+                      {showCorrection && feedbackRating === -1 && (
+                        <div className="mt-2 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
+                          <p className="text-xs text-gray-600 font-medium">What's wrong with this translation? (Select all that apply)</p>
+                          <div className="space-y-1">
+                            {["grammar", "spelling", "context", "vocabulary", "other"].map((type) => (
+                              <label key={type} className="flex items-center gap-2 text-xs cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  value={type}
+                                  checked={errorTypes.includes(type)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setErrorTypes([...errorTypes, type]);
+                                    } else {
+                                      setErrorTypes(errorTypes.filter(t => t !== type));
+                                    }
+                                  }}
+                                  className="cursor-pointer"
+                                />
+                                <span className="text-gray-700 capitalize">{type === "context" ? "Context awareness" : type === "vocabulary" ? "Word doesn't exist in vocabulary" : type}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <div className="mt-2">
+                            <textarea
+                              className="w-full border border-gray-300 rounded p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              rows={2}
+                              placeholder="Enter the correct translation (optional)..."
+                              value={correction}
+                              onChange={(e) => setCorrection(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => submitFeedback(-1)}
+                              disabled={errorTypes.length === 0 && !correction.trim()}
+                              className="text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                              title={errorTypes.length === 0 && !correction.trim() ? "Please select at least one error type or provide a correction" : ""}
+                            >
+                              Submit Feedback
+                            </button>
+                            <button
+                              onClick={() => { 
+                                setShowCorrection(false); 
+                                setFeedbackRating(null); 
+                                setErrorTypes([]); 
+                                setCorrection(""); 
+                              }}
+                              className="text-xs text-gray-500 hover:text-gray-700 px-2"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {feedbackSent && !modelFeedbackSent && (
+                    <p className="text-xs text-green-600">Thanks for the feedback!</p>
+                  )}
+
+                  {/* Model Comparison (only if both models available) */}
+                  {result.translation_marian && result.translation_nllb && !modelFeedbackSent && (
+                    <div className="pt-3 border-t border-gray-100 space-y-2">
+                      <p className="text-xs text-gray-600 font-medium">Or choose which model translation is better or close to better:</p>
+                      
+                      {/* MarianMT Option */}
+                      <div 
+                        onClick={() => setSelectedModel("marian")}
+                        className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                          selectedModel === "marian" 
+                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
+                            : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <input
+                            type="radio"
+                            name="model_choice"
+                            checked={selectedModel === "marian"}
+                            onChange={() => setSelectedModel("marian")}
+                            className="mt-0.5 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-gray-700 mb-1">MarianMT</p>
+                            <p className="text-sm text-gray-800">{result.translation_marian}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* NLLB Option */}
+                      <div 
+                        onClick={() => setSelectedModel("nllb")}
+                        className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                          selectedModel === "nllb" 
+                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
+                            : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <input
+                            type="radio"
+                            name="model_choice"
+                            checked={selectedModel === "nllb"}
+                            onChange={() => setSelectedModel("nllb")}
+                            className="mt-0.5 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-gray-700 mb-1">NLLB-200</p>
+                            <p className="text-sm text-gray-800">{result.translation_nllb}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* None Option */}
+                      <div 
+                        onClick={() => setSelectedModel("none")}
+                        className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                          selectedModel === "none" 
+                            ? "border-red-500 bg-red-50 ring-2 ring-red-200" 
+                            : "border-gray-200 hover:border-red-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <input
+                            type="radio"
+                            name="model_choice"
+                            checked={selectedModel === "none"}
+                            onChange={() => setSelectedModel("none")}
+                            className="mt-0.5 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-red-700">None - Both are wrong</p>
+                            <p className="text-xs text-gray-600">Neither translation is correct</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Submit Button for Model Selection */}
+                      {selectedModel && (
+                        <div className="space-y-2">
+                          {selectedModel === "none" && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 space-y-2">
+                              <p className="text-xs text-gray-600 font-medium">Please provide the correct translation:</p>
+                              <textarea
+                                className="w-full border border-gray-300 rounded p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                rows={2}
+                                placeholder="Enter the correct translation..."
+                                value={correction}
+                                onChange={(e) => setCorrection(e.target.value)}
+                              />
+                            </div>
+                          )}
+                          <button
+                            onClick={() => submitFeedback(selectedModel === "none" ? -1 : 1, selectedModel)}
+                            disabled={selectedModel === "none" && !correction.trim()}
+                            className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                          >
+                            Submit Model Feedback
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {modelFeedbackSent && (
+                    <p className="text-xs text-green-600">Thanks for the model feedback!</p>
+                  )}
+                </div>
               </div>
             )}
           </div>

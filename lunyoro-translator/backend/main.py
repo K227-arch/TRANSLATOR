@@ -213,6 +213,65 @@ def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
+# ── Human Feedback Loop ───────────────────────────────────────────────────────
+
+class FeedbackRequest(BaseModel):
+    source_text: str
+    translation: str
+    direction: str = "en→lun"   # "en→lun" or "lun→en"
+    rating: int = 1             # 1 = correct, -1 = incorrect
+    correction: str = ""        # user-provided correct translation
+    error_type: str = ""        # grammar, spelling, context, vocabulary, other
+
+
+@app.post("/feedback")
+def submit_feedback(req: FeedbackRequest, request: Request):
+    """Submit a translation rating with error categorization and correction."""
+    if not req.source_text.strip() or not req.translation.strip():
+        raise HTTPException(status_code=400, detail="source_text and translation are required")
+    if req.rating not in (-1, 0, 1):
+        raise HTTPException(status_code=400, detail="rating must be -1, 0, or 1")
+
+    from feedback_store import save_feedback
+    entry = {
+        "source_text": req.source_text.strip(),
+        "translation": req.translation.strip(),
+        "direction":   req.direction,
+        "rating":      req.rating,
+        "correction":  req.correction.strip(),
+        "error_type":  req.error_type.strip(),
+        "ip":          request.client.host if request.client else "unknown",
+    }
+    save_feedback(entry)
+    
+    # If user provided a correction, use it immediately for the current session
+    # (stored in feedback.jsonl for future retraining)
+    return {
+        "status": "saved",
+        "rating": req.rating,
+        "correction_received": bool(req.correction.strip()),
+        "error_type": req.error_type or None,
+    }
+
+
+@app.get("/feedback/stats")
+def feedback_stats():
+    """Return summary statistics about collected feedback."""
+    from feedback_store import get_stats
+    return get_stats()
+
+
+@app.get("/feedback/export")
+def export_feedback():
+    """Export approved (thumbs-up) pairs as CSV for retraining."""
+    from feedback_store import export_for_retraining, get_approved_pairs
+    approved = get_approved_pairs(min_rating=1)
+    if not approved:
+        return {"message": "No approved pairs yet", "count": 0, "path": None}
+    path = export_for_retraining()
+    return {"message": "Exported", "count": len(approved), "path": path}
+
+
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
 
 

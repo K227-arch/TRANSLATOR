@@ -2775,3 +2775,484 @@ def get_full_grammar_context() -> str:
         "  2nd-5th: genitive + ka- + numeral (omwaka gwa kabiri 'second year')\n"
     )
     return base + additional
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GRAMMAR RULES 4 — Pronominal System, Copula, Particles, Relatives, Genitives,
+#                   Numbers (extended), Ordinals, Fractions, Suffixes
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Self-standing pronouns ────────────────────────────────────────────────────
+SELF_STANDING_PRONOUNS = {
+    "1sg": "nyowe",   # I / me
+    "2sg": "iwe",     # you (sg)
+    "3sg": "uwe",     # he / she / him / her
+    "1pl": "itwe",    # we / us
+    "2pl": "inywe",   # you (pl)
+    "3pl": "bo",      # they / them
+    # class-based (classes 3-15)
+    3:  "gwo",  4:  "yo",  5:  "lyo",  6:  "go",
+    7:  "kyo",  8:  "byo", 9:  "yo",   10: "zo",
+    11: "rwo",  12: "ko",  13: "two",  14: "bwo", 15: "kwo",
+}
+
+# ── Pronominal concords (subject) ─────────────────────────────────────────────
+SUBJECT_PRONOMINAL_CONCORDS = {
+    1:  "a-",   2:  "ba-",  3:  "gu-",  4:  "e-",
+    5:  "li-",  6:  "ga-",  7:  "ki-",  8:  "bi-",
+    9:  "e-",   10: "zi-",  11: "ru-",  12: "ka-",
+    13: "tu-",  14: "bu-",  15: "ku-",
+}
+
+# ── Pronominal concords (object) ──────────────────────────────────────────────
+OBJECT_PRONOMINAL_CONCORDS = {
+    1:  "-mu-",  2:  "-ba-",  3:  "-gu-",  4:  "-gi-",
+    5:  "-li-",  6:  "-ga-",  7:  "-ki-",  8:  "-bi-",
+    9:  "-gi-",  10: "-zi-",  11: "-ru-",  12: "-ka-",
+    13: "-tu-",  14: "-bu-",  15: "-ku-",
+}
+
+# ── Subject relative concords ─────────────────────────────────────────────────
+SUBJECT_RELATIVE_CONCORDS = {
+    1:  "a-",    2:  "aba-",  3:  "ogu-",  4:  "e-",
+    5:  "eri-",  6:  "aga-",  7:  "eki-",  8:  "ebi-",
+    9:  "e-",    10: "ezi-",  11: "eru-",  12: "aka-",
+    13: "otu-",  14: "obu-",  15: "oku-",
+}
+
+# ── Object relative concords ──────────────────────────────────────────────────
+OBJECT_RELATIVE_CONCORDS = {
+    1:  "ou",   2:  "aba",  3:  "ogu",  4:  "ei",
+    5:  "eri",  6:  "aga",  7:  "eki",  8:  "ebi",
+    9:  "ei",   10: "ezi",  11: "oru",  12: "aka",
+    13: "otu",  14: "obu",  15: "oku",
+}
+
+# ── Demonstratives for things in mind (near/mentioned) ───────────────────────
+DEMONSTRATIVES_IN_MIND = {
+    1:  "ogu",  2:  "abo",  3:  "ogu",  4:  "egi",
+    5:  "eri",  6:  "ago",  7:  "eki",  8:  "egi",
+    9:  "egi",  10: "ezi",  11: "oru",  12: "ako",
+    13: "otu",  14: "obu",  15: "oku",
+}
+
+# ── Demonstratives: -nu (near speaker) and -li (far from speaker) ─────────────
+DEMONSTRATIVES_NEAR = {   # built on root -nu
+    1:  "onu",   2:  "banu",  3:  "gunu",  4:  "enu",
+    5:  "linu",  6:  "ganu",  7:  "kinu",  8:  "binu",
+    9:  "enu",   10: "zinu",  11: "runu",  12: "kanu",
+    13: "tunu",  14: "bunu",  15: "kunu",
+}
+
+DEMONSTRATIVES_FAR = {    # built on root -li
+    1:  "oli",   2:  "bali",  3:  "guli",  4:  "eri",
+    5:  "liri",  6:  "gali",  7:  "kiri",  8:  "biri",
+    9:  "eri",   10: "ziri",  11: "ruli",  12: "kali",
+    13: "tuli",  14: "buli",  15: "kuli",
+}
+
+# ── Genitive particles (object relative concord + -a of relationship) ─────────
+GENITIVE_PARTICLES_FULL = {
+    1:  "owa",   2:  "aba",   3:  "ogwa",  4:  "eya",
+    5:  "erya",  6:  "aga",   7:  "ekya",  8:  "ebya",
+    9:  "eya",   10: "eza",   11: "orwa",  12: "aka",
+    13: "otwa",  14: "obwa",  15: "okwa",
+}
+
+# Short forms (drop initial vowel between two nouns)
+GENITIVE_PARTICLES_SHORT = {
+    1:  "wa-",   2:  "ba-",   3:  "gwa-",  4:  "ya-",
+    5:  "lya-",  6:  "ga-",   7:  "kya-",  8:  "bya-",
+    9:  "ya-",   10: "za-",   11: "rwa-",  12: "ka-",
+    13: "twa-",  14: "bwa-",  15: "kwa-",
+}
+
+# ── Possessive pronoun suffixes (combined with genitive particle) ─────────────
+POSSESSIVE_SUFFIXES = {
+    "1sg": "-nge",   # my
+    "2sg": "-we",    # your (sg)
+    "3sg": "-e",     # his/her/its
+    "1pl": "-itu",   # our
+    "2pl": "-nyu",   # your (pl)
+    "3pl": "-bo",    # their
+}
+
+# ── Copula particles ──────────────────────────────────────────────────────────
+COPULA_NI = {
+    # ni- + self-standing pronouns
+    "1sg": "niinyowe",  "2sg": "niiwe",   "3sg": "nuwe",
+    "1pl": "niitwe",    "2pl": "niinywe", "3pl": "nubo",
+    # ni- + demonstratives (near)
+    "near_1":  "noonu",  "near_far_1": "nooli",  "near_mind_1": "noogu",
+    "near_2":  "nibanu", "far_2":      "nibali",  "mind_2":      "naabo",
+}
+
+COPULA_N = {
+    # n- + demonstratives near (-nu root)
+    1:  "ngunu",  2:  "mbanu",  3:  "ngunu",  4:  "nginu",
+    5:  "ndinu",  6:  "nganu",  7:  "nkinu",  8:  "mbinu",
+    9:  "nginu",  10: "nzinu",  11: "ndunu",  12: "nkanu",
+    13: "ntunu",  14: "mbunu",  15: "nkunu",
+}
+
+COPULA_N_FAR = {
+    # n- + demonstratives far (-li root)
+    1:  "nguli",  2:  "mbali",  3:  "nguli",  4:  "ngiri",
+    5:  "ndiri",  6:  "ngali",  7:  "nkiri",  8:  "mbiri",
+    9:  "ngiri",  10: "nziri",  11: "nduli",  12: "nkali",
+    13: "ntuli",  14: "mbuli",  15: "nkuli",
+}
+
+# ── Particle KA (emphatic / permissive) ───────────────────────────────────────
+PARTICLE_KA_EXAMPLES = {
+    "emphatic_noun":    "ka muntu — the very person",
+    "emphatic_adj":     "ka murungi — a really good one",
+    "emphatic_pronoun": "ka niiwe — it's really you",
+    "emphatic_poss":    "ka wange — it's really my relative",
+    "emphatic_dem":     "ka ngunu — here he/she truly is",
+    "permissive":       "ka tugende — let's go (shortened from leka tugende)",
+}
+
+# ── Joining word NA ───────────────────────────────────────────────────────────
+NA_WITH_PRONOUNS = {
+    "1sg": "na nyowe",   "2sg": "na iwe",   "3sg": "na uwe",
+    "1pl": "na itwe",    "2pl": "na inywe",  "3pl": "na bo",
+}
+
+NA_WITH_DEMONSTRATIVES = {
+    "near_1":  "n'onu",   "far_1":  "n'oli",   "mind_1": "n'ogu",
+    "near_2":  "na banu", "far_2":  "na bali",  "mind_2": "n'abo",
+}
+
+# ── DARA (presentative/locative particle) ────────────────────────────────────
+DARA_WITH_PRONOUNS = {
+    "1sg": "daranyowe",  # here I am
+    "3sg": "darawe",     # here he/she is
+    "1pl": "daraitwe",   # here we are
+    "3pl": "darabo",     # here they are
+    3:  "daragwo",  4:  "darayo",  5:  "daralyo",  6:  "darago",
+    7:  "darakyo",  8:  "darabyo", 9:  "darayo",   10: "darazo",
+    11: "dararwo",  12: "darako",  13: "daratwo",  14: "darabwo", 15: "darakwo",
+}
+
+DARA_WITH_NEAR_DEMONSTRATIVES = {
+    1:  "daroonu",  2:  "darabanu",  3:  "daragunu",  4:  "daleenu",
+    5:  "daralinu", 6:  "daraganu",  7:  "darakinu",  8:  "darabinu",
+    9:  "daleenu",  10: "darazinu",  11: "dararunu",  12: "darakanu",
+    13: "daratunu", 14: "darabunu",  15: "darakunu",
+}
+
+# ── Modal particles -ta and -ti ───────────────────────────────────────────────
+MODAL_PARTICLE_TA_EXAMPLES = [
+    ("Oraire ota?",          "Good morning / How have you slept?"),
+    ("Oroho ota?",           "How are you?"),
+    ("Ndooho nti!",          "I am fine! (I am like that)"),
+    ("Abakazi balima bata?", "How do women dig?"),
+    ("Balima bati:",         "They dig like this (show action)"),
+    ("Ente zijuga zita?",    "How do cows moo?"),
+    ("Zijuga ziti:",         "They moo like this"),
+]
+
+MODAL_PARTICLE_TI_EXAMPLES = [
+    ("Tukabagambira tuti, 'Na itwe tuli bantu nka inywe.'",
+     "We told them, 'We are also human beings like yourselves.'"),
+    ("Mukatugira muti, 'Obu aliija mulituha ente.'",
+     "You said to us, 'If he comes you will give us a cow.'"),
+]
+
+# ── Names of relationship ─────────────────────────────────────────────────────
+NAMES_OF_RELATIONSHIP = {
+    "father":           {"3sg": "ise",       "1pl": "ise",       "2pl": "ise",       "3pl": "ise"},
+    "mother":           {"3sg": "nyina",     "1pl": "nyinen",    "2pl": "nyina",     "3pl": "nyina"},
+    "grandfather":      {"3sg": "isenkuru",  "1pl": "isenkuru",  "2pl": "isenkuru",  "3pl": "isenkuru"},
+    "grandmother":      {"3sg": "nyinenkuru","1pl": "nyinenkuru","2pl": "nyinenkuru","3pl": "nyinenkuru"},
+    "paternal_aunt":    {"3sg": "isenkati",  "1pl": "isenkati",  "2pl": "isenkati",  "3pl": "isenkati"},
+    "maternal_aunt":    {"3sg": "nyinento",  "1pl": "nyinento",  "2pl": "nyinento",  "3pl": "nyinento"},
+    "maternal_uncle":   {"3sg": "nyinarumi", "1pl": "nyinarumi", "2pl": "nyinarumi", "3pl": "nyinarumi"},
+    "paternal_uncle":   {"3sg": "isento",    "1pl": "isento",    "2pl": "isento",    "3pl": "isento"},
+    "father_in_law":    {"3sg": "isezaara"},
+    "mother_in_law":    {"3sg": "nyinazaara"},
+    "husband":          {"3sg": "iba"},
+}
+
+# Combined forms (ise + itwe → isiitwe, isenkuru + itwe → isenkurwitwe)
+RELATIONSHIP_COMBINED = {
+    "isiitwe":       "our father",
+    "isiinywe":      "your father",
+    "isenkurwitwe":  "our grandfather",
+    "isenkurwinywe": "your grandfather",
+}
+
+# ── Extended cardinal numbers (6-1,000,000) ───────────────────────────────────
+CARDINALS_EXTENDED = {
+    6:       "mukaaga",
+    7:       "musanju",
+    8:       "munaana",
+    9:       "mwenda",
+    10:      "ikumi",       # class 5 noun
+    20:      "makumi abiri",
+    30:      "makumi asatu",
+    40:      "makumi ana",
+    50:      "makumi ataano",
+    60:      "nsanju",      # class 9 prefix
+    70:      "nsanju",      # (e)nsanju
+    80:      "kinaana",     # class 7
+    90:      "kyenda",      # class 7
+    100:     "kikumi",      # class 7
+    200:     "ebikumi bibiri",
+    300:     "ebikumi bisatu",
+    400:     "ebikumi bina",
+    500:     "ebikumi bitaano",
+    600:     "rukaaga",     # class 11
+    700:     "rusanju",
+    800:     "runaana",
+    900:     "rwenda",
+    1000:    "rukumi rumu",  # class 11
+    2000:    "enkumi ibiri", # class 10
+    6000:    "akakaaga",    # class 13
+    7000:    "akasanju",
+    8000:    "akanaana",
+    9000:    "akenda",
+    10000:   "omutwaro gumu",  # class 3, or akakumi kamu (class 13)
+    100000:  "emitwaro kikumi",
+    1000000: "akakaikuru kamu",
+}
+
+# Adverbial number prefixes (how many times)
+ADVERBIAL_NUMBER_PREFIX = {
+    1: "dimu",     # once
+    2: "kabiri",   # twice
+    3: "kasatu",   # three times
+    4: "kana",     # four times
+    5: "kataano",  # five times
+}
+
+# ── Ordinal formation rules ───────────────────────────────────────────────────
+ORDINAL_RULES = {
+    "1st":  "genitive_particle + okubanza  (e.g. omwana w'okubanza = first child)",
+    "2nd":  "genitive_particle + kabiri    (e.g. omwaka gwa kabiri = second year)",
+    "3rd":  "genitive_particle + kasatu    (e.g. ekitebe kya kasatu = third class)",
+    "4th":  "genitive_particle + kana",
+    "5th":  "genitive_particle + kataano   (e.g. orukumo rwa kataano = fifth finger)",
+    "6th":  "genitive_particle + mukaaga   (e.g. ekiragiro kya mukaaga = sixth commandment)",
+    "7th":  "genitive_particle + musanju   (e.g. omwaka gwa musanju = seventh year)",
+    "8th":  "genitive_particle + munaana",
+    "9th":  "genitive_particle + mwenda",
+    "10th": "genitive_particle + ikumi",
+    "11th+": "genitive_particle + cardinal (units joined by na, e.g. okwezi kwa ikumi na kumu = 11th month)",
+}
+
+# ── Fraction formation ────────────────────────────────────────────────────────
+FRACTION_RULES = {
+    "numerator_first": {
+        "description": "numerator (class 7 for 1, class 8 for 2-5) + genitive + ka- + denominator",
+        "examples": {
+            "1/2": "kimu kya kabiri",
+            "2/5": "bibiri bya kataano",
+        }
+    },
+    "denominator_first": {
+        "description": "denominator with ka- + class 7/8 genitive + numerator",
+        "examples": {
+            "1/2": "ekyakabiri kimu",
+            "2/5": "ebyakataano bibiri",
+            "6/7": "ebyamukaaga musanju",
+        }
+    },
+}
+
+# ── Distributive numbers ──────────────────────────────────────────────────────
+DISTRIBUTIVE_EXAMPLES = [
+    ("Abantu bazina babiri babiri.",
+     "People dance two by two."),
+    ("Habisoro byona ebisemiire olitwara musanju musanju.",
+     "Of all the clean beasts you will take seven and seven."),
+    ("Buli bantu basatu bahimbe orubbaaho rumu.",
+     "Let every three persons carry one bench."),
+]
+
+# ── Noun suffix alternation ───────────────────────────────────────────────────
+NOUN_SUFFIX_ALTERNATION = {
+    "-a":  "infinitive / basic verb form (okulima = to dig)",
+    "-ira/-era": "applied/prepositional — action for/at/with reference to (limira = dig for)",
+    "-isa/-esa": "causative — cause action (limisa = cause to dig / dig with)",
+    "-i":  "agent noun (omulimi = cultivator, from -lim-)",
+    "-o":  "action noun (omulimo = work/digging, from -lim-)",
+    "-a (noun)": "professional/habitual agent (omulima = professional digger)",
+    "en- + root + -a": "method noun (endima = method of digging)",
+}
+
+VERB_DERIVED_NOUN_EXAMPLES = {
+    "okulima":   {"agent": "omulimi (cultivator)", "action": "omulimo (work)", "method": "endima (method of digging)"},
+    "okuzaana":  {"agent": "omuzaani (player)",    "action": "omuzaano (play)", "method": "enzaana (method of playing)",
+                  "servant": "omuzaana (maid servant)"},
+}
+
+# ── Interrogative roots ───────────────────────────────────────────────────────
+INTERROGATIVE_ROOTS = {
+    "-ha?": {
+        "description": "Who? / Which? — takes subject pronominal concords",
+        "examples": [
+            ("Noogonza oha?",  "Whom do you want?"),
+            ("Abaantu baha?",  "Which people?"),
+            ("Niiwe oha?",     "Who are you?"),
+        ]
+    },
+    "-ki?": {
+        "description": "What? / Which? — takes adjectival concords (irregular)",
+        "examples": [
+            ("Omutooro muki?", "What kind of Mutooro person?"),
+            ("Gunu muki?",     "What is this? (class 4 noun)"),
+            ("Muti ki?",       "Which tree?"),
+            ("Ogambire ki?",   "What have you said?"),
+        ]
+    },
+}
+
+# ── Enumerative roots ─────────────────────────────────────────────────────────
+ENUMERATIVE_ROOTS = {
+    "-enka / -onka": "alone, only, self (exclusive): nyenka = I alone, bonka = they only",
+    "-ena / -ona":   "all, inclusive: nyeena = all of myself, boona = all of them",
+    "-enyini / -onyini": "self, selves (selective): nyeenyini = I myself, boonyini = they themselves",
+    "-embi / -ombi": "both (plural only): itwembi = both of us, bombi = both of them",
+    "-ndi":          "other: orundi = another, abandi = others",
+    "-mu":           "some/one: ente emu = one cow, ezimu = some (cattle)",
+}
+
+
+# ── Helper functions ──────────────────────────────────────────────────────────
+
+def get_subject_relative_concord(noun_class: int) -> str:
+    """Return the subject relative concord for a given noun class."""
+    return SUBJECT_RELATIVE_CONCORDS.get(noun_class, "")
+
+
+def get_object_relative_concord(noun_class: int) -> str:
+    """Return the object relative concord for a given noun class."""
+    return OBJECT_RELATIVE_CONCORDS.get(noun_class, "")
+
+
+def get_genitive_particle(noun_class: int, emphatic: bool = False) -> str:
+    """
+    Return the genitive particle for a noun class.
+    emphatic=True returns the full form (with initial vowel).
+    emphatic=False returns the short form (drops initial vowel between nouns).
+    """
+    if emphatic:
+        return GENITIVE_PARTICLES_FULL.get(noun_class, "")
+    return GENITIVE_PARTICLES_SHORT.get(noun_class, "")
+
+
+def build_possessive(noun_class: int, person: str) -> str:
+    """
+    Build a possessive phrase: genitive particle + possessive suffix.
+    person: '1sg','2sg','3sg','1pl','2pl','3pl'
+    e.g. build_possessive(1, '1sg') → 'wange' (my, for class 1 noun)
+    """
+    gp = GENITIVE_PARTICLES_SHORT.get(noun_class, "")
+    ps = POSSESSIVE_SUFFIXES.get(person, "")
+    if not gp or not ps:
+        return ""
+    # Strip trailing dash from genitive particle, append suffix (drop leading dash)
+    return gp.rstrip("-") + ps.lstrip("-")
+
+
+def apply_copula_ni(word: str) -> str:
+    """
+    Prepend the copula ni- to a word, applying sound change before vowels
+    (ni + vowel → n + vowel, e.g. ni + onu → noonu).
+    """
+    if not word:
+        return word
+    if word[0] in "aeiouAEIOU":
+        return "n" + word
+    return "ni" + word
+
+
+def apply_joining_na(word: str) -> str:
+    """
+    Prepend the joining word na to a word, applying elision before vowels
+    (na + vowel → n' + vowel).
+    """
+    if not word:
+        return word
+    if word[0] in "aeiouAEIOU":
+        return "n'" + word
+    return "na " + word
+
+
+def build_ordinal_extended(n: int, noun_class: int) -> str:
+    """
+    Build an ordinal number phrase for n >= 1 with the given noun class.
+    Returns a string like 'gwa kabiri' or 'w'okubanza'.
+    """
+    gp = get_genitive_particle(noun_class, emphatic=False).rstrip("-")
+    if n == 1:
+        # genitive particle + elision before okubanza (wa → w'okubanza, gwa → gw'okubanza)
+        if gp.endswith("a"):
+            return f"{gp[:-1]}'okubanza"
+        return f"{gp}w'okubanza"
+    stems = {
+        1: "kumu",
+        2: "kabiri", 3: "kasatu", 4: "kana", 5: "kataano",
+        6: "mukaaga", 7: "musanju", 8: "munaana", 9: "mwenda", 10: "ikumi",
+    }
+    if n in stems:
+        stem = stems[n]
+        # apply elision: if gp ends in vowel and stem starts with vowel
+        if gp and gp[-1] in "aeiou" and stem[0] in "aeiou":
+            return f"{gp[:-1]}'{stem}"
+        return f"{gp} {stem}"
+    # n > 10: cardinal with na
+    tens = (n // 10) * 10
+    units = n % 10
+    tens_word = CARDINALS_EXTENDED.get(tens, str(tens))
+    if units == 0:
+        return f"{gp} {tens_word}"
+    units_word = stems.get(units, str(units))
+    return f"{gp} {tens_word} na {units_word}"
+
+
+def build_fraction(numerator: int, denominator: int, numerator_first: bool = True) -> str:
+    """
+    Build a fraction expression.
+    numerator_first=True: kimu kya kabiri (1/2)
+    numerator_first=False: ekyakabiri kimu (1/2)
+    """
+    denom_stems = {2: "kabiri", 3: "kasatu", 4: "kana", 5: "kataano",
+                   6: "mukaaga", 7: "musanju", 8: "munaana", 9: "mwenda", 10: "ikumi"}
+    num_stems   = {1: "kimu", 2: "bibiri", 3: "bisatu", 4: "bina", 5: "bitaano"}
+
+    d_stem = denom_stems.get(denominator, str(denominator))
+    n_stem = num_stems.get(numerator, str(numerator))
+    # class 7 genitive for numerator=1, class 8 for 2-5
+    gp_num = "kya" if numerator == 1 else "bya"
+    gp_den = "ekya" if numerator == 1 else "ebya"
+
+    if numerator_first:
+        return f"{n_stem} {gp_num} {d_stem}"
+    else:
+        return f"{gp_den}{d_stem} {n_stem}"
+
+
+def get_demonstrative(noun_class: int, proximity: str = "near") -> str:  # type: ignore[override]
+    """
+    Return demonstrative for a noun class.
+    proximity: 'near' (-nu root), 'far' (-li root), 'mind' (things in mind)
+    """
+    if proximity == "near":
+        return DEMONSTRATIVES_NEAR.get(noun_class, "")
+    elif proximity == "far":
+        return DEMONSTRATIVES_FAR.get(noun_class, "")
+    else:
+        return DEMONSTRATIVES_IN_MIND.get(noun_class, "")
+
+
+def get_relationship_name(relation: str, person: str = "3sg") -> str:
+    """
+    Return the name of relationship for a given relation and person.
+    relation: 'father','mother','grandfather','grandmother', etc.
+    person: '3sg','1pl','2pl','3pl'
+    """
+    rel = NAMES_OF_RELATIONSHIP.get(relation, {})
+    return rel.get(person, rel.get("3sg", ""))
