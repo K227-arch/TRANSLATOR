@@ -3,6 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://lunyoro-backend.onrender.com"
+    "NEXT_PUBLIC_API_URL": "https://keithtwesigye-runyoro-translator-api.hf.space"
   }
 }
