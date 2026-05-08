@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Sync Feedback from GitHub",
+  "description": "Pulls latest feedback_pairs.json from GitHub so local file stays up to date with Vercel user feedback",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "python lunyoro-translator/backend/sync_feedback.py"
+  }
+}
