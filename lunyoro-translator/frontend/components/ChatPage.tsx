@@ -1,246 +1,117 @@
 "use client";
-
 import { useState, useEffect, useRef } from "react";
 
-/** Convert LLM markdown-ish text to clean readable JSX */
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 function formatMessage(text: string) {
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
   let listItems: string[] = [];
-
   const flushList = (key: string) => {
-    if (listItems.length === 0) return;
-    elements.push(
-      <ul key={key} className="list-none space-y-1 my-1">
-        {listItems.map((item, i) => (
-          <li key={i} className="flex gap-2 items-start">
-            <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-            <span>{formatInline(item)}</span>
-          </li>
-        ))}
-      </ul>
-    );
+    if (!listItems.length) return;
+    elements.push(<ul key={key} className="list-none space-y-1 my-1">{listItems.map((item, i) => (<li key={i} className="flex gap-2 items-start"><span className="mt-1 w-1.5 h-1.5 rounded-full bg-secondary shrink-0" /><span>{item}</span></li>))}</ul>);
     listItems = [];
   };
-
   lines.forEach((line, i) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      flushList(`list-${i}`);
-      elements.push(<div key={`br-${i}`} className="h-1" />);
-      return;
-    }
-    // Bullet lines: *, -, •, or numbered
-    if (/^(\*|-|•|\d+\.)\s+/.test(trimmed)) {
-      listItems.push(trimmed.replace(/^(\*|-|•|\d+\.)\s+/, ""));
-    } else {
-      flushList(`list-${i}`);
-      elements.push(
-        <p key={`p-${i}`} className="leading-relaxed">
-          {formatInline(trimmed)}
-        </p>
-      );
-    }
+    const t = line.trim();
+    if (!t) { flushList(`l${i}`); elements.push(<div key={`b${i}`} className="h-1" />); return; }
+    if (/^(\*|-|•|\d+\.)\s+/.test(t)) { listItems.push(t.replace(/^(\*|-|•|\d+\.)\s+/, "")); }
+    else { flushList(`l${i}`); elements.push(<p key={`p${i}`} className="leading-relaxed">{t}</p>); }
   });
-  flushList("list-end");
-  return <div className="space-y-1 text-sm text-gray-800">{elements}</div>;
+  flushList("end");
+  return <div className="space-y-1 text-sm">{elements}</div>;
 }
 
-/** Handle inline markdown: **bold**, *italic*, "quotes" → styled spans */
-function formatInline(text: string): React.ReactNode {
-  // Split on **bold**, *italic*, and "quoted" patterns
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|"[^"]{2,80}")/g);
-  return parts.map((part, i) => {
-    if (/^\*\*[^*]+\*\*$/.test(part))
-      return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
-    if (/^\*[^*]+\*$/.test(part))
-      return <em key={i} className="italic text-gray-700">{part.slice(1, -1)}</em>;
-    if (/^"[^"]{2,80}"$/.test(part))
-      return <span key={i} className="italic text-blue-700">{"\u201C"}{part.slice(1, -1)}{"\u201D"}</span>;
-    return part;
-  });
-}
-
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-type ChatItem = {
-  role: "user" | "assistant";
-  content: string;
-  reply_marian?: string | null;
-  reply_nllb?: string | null;
-};
+type ChatItem = { role: "user" | "assistant"; content: string; reply_marian?: string | null; reply_nllb?: string | null; };
 
 const SECTORS = [
-  { code: "ALL", label: "All Sectors",           icon: "🌐", prompt: "Give me a mix of Runyoro-Rutooro vocabulary across all topics." },
-  { code: "DLY", label: "Daily Life",             icon: "🏠", prompt: "What are common Runyoro-Rutooro words used in everyday daily life?" },
-  { code: "NAR", label: "Storytelling",           icon: "📖", prompt: "Tell me a short story or proverb in Runyoro-Rutooro." },
-  { code: "SPR", label: "Spirituality",           icon: "🙏", prompt: "Tell me about spiritual and religious terms in Runyoro-Rutooro." },
-  { code: "AGR", label: "Agriculture",            icon: "🌾", prompt: "What are common Runyoro-Rutooro words used in farming and agriculture?" },
-  { code: "EDU", label: "Education",              icon: "📚", prompt: "What are common Runyoro-Rutooro words used in education and schools?" },
-  { code: "ENV", label: "Environment & Nature",   icon: "🌿", prompt: "What are Runyoro-Rutooro words related to the environment and nature?" },
-  { code: "ART", label: "Arts & Music",           icon: "🎵", prompt: "Tell me about traditional Runyoro-Rutooro arts and music." },
-  { code: "CUL", label: "Culture & Traditions",   icon: "🏛️", prompt: "Tell me about Runyoro-Rutooro culture and traditions." },
-  { code: "GOV", label: "Governance",             icon: "⚖️", prompt: "What are Runyoro-Rutooro words related to governance and leadership?" },
-  { code: "ECO", label: "Economy & Trade",        icon: "💰", prompt: "What are Runyoro-Rutooro words related to trade and the economy?" },
-  { code: "HIS", label: "History",                icon: "🏺", prompt: "Tell me about historical terms and events in Runyoro-Rutooro." },
-  { code: "HLT", label: "Health",                 icon: "🏥", prompt: "What are Runyoro-Rutooro words related to health and medicine?" },
-  { code: "POL", label: "Politics",               icon: "🗳️", prompt: "What are Runyoro-Rutooro words related to politics?" },
+  { code: "ALL", label: "All Sectors",         icon: "🌐", prompt: "Give me a mix of Runyoro-Rutooro vocabulary across all topics." },
+  { code: "DLY", label: "Daily Life",           icon: "🏠", prompt: "What are common Runyoro-Rutooro words used in everyday daily life?" },
+  { code: "NAR", label: "Storytelling",         icon: "📖", prompt: "Tell me a short story or proverb in Runyoro-Rutooro." },
+  { code: "SPR", label: "Spirituality",         icon: "🙏", prompt: "Tell me about spiritual and religious terms in Runyoro-Rutooro." },
+  { code: "AGR", label: "Agriculture",          icon: "🌾", prompt: "What are common Runyoro-Rutooro words used in farming?" },
+  { code: "EDU", label: "Education",            icon: "📚", prompt: "What are common Runyoro-Rutooro words used in education?" },
+  { code: "CUL", label: "Culture & Traditions", icon: "🏛️", prompt: "Tell me about Runyoro-Rutooro culture and traditions." },
+  { code: "HLT", label: "Health",               icon: "🏥", prompt: "What are Runyoro-Rutooro words related to health?" },
 ];
 
 export default function ChatPage() {
-  const [message, setMessage] = useState("");
-  const [history, setHistory] = useState<ChatItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [sectorOpen, setSectorOpen] = useState(false);
+  const [message, setMessage]           = useState("");
+  const [history, setHistory]           = useState<ChatItem[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [sectorOpen, setSectorOpen]     = useState(false);
   const [selectedSector, setSelectedSector] = useState<typeof SECTORS[0] | null>(null);
   const [conversationMode, setConversationMode] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef  = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const suggestions = [
-    { label: "Grammar Help",   prompt: "Explain the difference between 'Kwebembera' and 'Kutandika'." },
-    { label: "Conversation",   prompt: "CONVERSATION_MODE" },
-  ];
-
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setSectorOpen(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setSectorOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [history, loading]);
 
   async function sendMessage(overrideMessage?: string) {
-    const textToSend = overrideMessage || message;
-    if (!textToSend.trim() || loading) return;
-
-    const userMessage: ChatItem = { role: "user", content: textToSend };
-    const newHistory = [...history, userMessage];
-
-    setHistory(newHistory);
-    setMessage("");
-    setLoading(true);
-
+    const text = overrideMessage || message;
+    if (!text.trim() || loading) return;
+    const userMsg: ChatItem = { role: "user", content: text };
+    const newHistory = [...history, userMsg];
+    setHistory(newHistory); setMessage(""); setLoading(true);
     try {
       const res = await fetch(`${API}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: textToSend,
-          history: history,
-          sector: selectedSector?.code || null,
-          conversation_mode: conversationMode,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history, sector: selectedSector?.code || null, conversation_mode: conversationMode }),
       });
-
       if (res.status === 429) {
-        setHistory([
-          ...newHistory,
-          { role: "assistant", content: "You're sending messages too fast. Please wait a moment and try again." },
-        ]);
+        setHistory([...newHistory, { role: "assistant", content: "You're sending messages too fast. Please wait a moment." }]);
         return;
       }
-
       const data = await res.json();
-      const botMessage: ChatItem = {
-        role: "assistant",
-        content: data.reply || "No response returned.",
-        reply_marian: data.reply_marian,
-        reply_nllb: data.reply_nllb,
-      };
-
-      setHistory([...newHistory, botMessage]);
-    } catch (error) {
-      setHistory([
-        ...newHistory,
-        { role: "assistant", content: "Error talking to backend. Make sure the server is running." },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+      setHistory([...newHistory, { role: "assistant", content: data.reply || "No response.", reply_marian: data.reply_marian, reply_nllb: data.reply_nllb }]);
+    } catch {
+      setHistory([...newHistory, { role: "assistant", content: "Sorry, the chat assistant is unavailable right now. Please try again." }]);
+    } finally { setLoading(false); }
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col transition-all">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-        <div>
-          <h2 className="font-bold text-gray-800 text-lg">AI Language Assistant</h2>
-          <p className="text-xs text-gray-500">Ask questions in English or Runyoro-Rutooro</p>
+    <div className="max-w-screen-xl mx-auto w-full flex flex-col h-[calc(100vh-140px)] pb-20">
+      {/* Language switcher */}
+      <div className="flex justify-center py-md px-margin sticky top-0 z-40">
+        <div className="bg-surface-container-highest/80 backdrop-blur-md p-xs rounded-full flex gap-xs shadow-sm">
+          <button className="px-md py-xs rounded-full bg-secondary text-on-secondary text-label-sm font-semibold transition-all">English</button>
+          <button className="px-md py-xs rounded-full hover:bg-surface-container-high text-on-surface-variant text-label-sm font-semibold transition-all">Runyoro-Rutooro</button>
         </div>
-        {history.length > 0 && (
-          <button
-            onClick={() => { setHistory([]); setConversationMode(false); }}
-            className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
-          >
-            Clear Chat
-          </button>
-        )}
       </div>
 
-      {/* Chat Window */}
-      <div
-        ref={scrollRef}
-        className="h-112.5 overflow-y-auto p-4 space-y-4 bg-white scroll-smooth"
-      >
+      {/* Chat messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-margin py-md space-y-md">
         {history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
-            <div className="space-y-2">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl mx-auto shadow-inner">💬</div>
-              <h3 className="font-semibold text-gray-700">Oraire otya?</h3>
-              <p className="text-gray-400 text-sm max-w-62.5">I can help you translate, explain grammar, or chat about culture.</p>
+          <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-12">
+            <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center shadow-inner">
+              <span className="text-4xl">💬</span>
             </div>
-
-            {/* Suggestion Chips + Culture Dropdown */}
-            <div className="flex flex-wrap justify-center gap-2 max-w-md">
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (s.prompt === "CONVERSATION_MODE") {
-                      setConversationMode(true);
-                    } else {
-                      sendMessage(s.prompt);
-                    }
-                  }}
-                  className="text-xs bg-white border border-blue-200 text-blue-600 px-3 py-2 rounded-full hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
-                >
-                  {s.label}
-                </button>
-              ))}
-
-              {/* Culture sector dropdown */}
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-800 text-2xl">Oraire otya?</h3>
+              <p className="text-gray-400 text-base leading-relaxed" style={{ maxWidth: "28rem" }}>I can help you translate, explain grammar, or chat about culture.</p>
+            </div>
+            <div className="flex flex-row flex-wrap justify-center gap-3">
+              <button onClick={() => sendMessage("Explain the difference between Kwebembera and Kutandika.")} className="text-sm bg-white border border-blue-200 text-blue-600 px-5 py-2 rounded-full hover:bg-blue-50 transition-all shadow-sm font-medium">Grammar Help</button>
+              <button onClick={() => setConversationMode(true)} className="text-sm bg-white border border-blue-200 text-blue-600 px-5 py-2 rounded-full hover:bg-blue-50 transition-all shadow-sm font-medium">Conversation</button>
               <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setSectorOpen((o) => !o)}
-                  className="text-xs bg-white border border-blue-200 text-blue-600 px-3 py-2 rounded-full hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm flex items-center gap-1"
-                >
-                  {selectedSector ? `${selectedSector.icon} ${selectedSector.label}` : "🏛️ Culture & Sectors"}
-                  <span className="ml-1">▾</span>
+                <button onClick={() => setSectorOpen(o => !o)} className="text-sm bg-white border border-blue-200 text-blue-600 px-5 py-2 rounded-full hover:bg-blue-50 transition-all shadow-sm font-medium flex items-center gap-1">
+                  {selectedSector ? `${selectedSector.icon} ${selectedSector.label}` : "🏛️ Culture & Sectors"} <span className="text-xs">▾</span>
                 </button>
-
                 {sectorOpen && (
-                  <div className="absolute left-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                    {SECTORS.map((s) => (
-                      <button
-                        key={s.code}
-                        onClick={() => {
-                          setSelectedSector(s);
-                          setSectorOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 transition-colors"
-                      >
-                        <span>{s.icon}</span>
-                        <span>{s.label}</span>
+                  <div className="absolute left-0 top-full mt-xs w-56 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg z-50 overflow-hidden">
+                    {SECTORS.map(s => (
+                      <button key={s.code} onClick={() => { setSelectedSector(s); setSectorOpen(false); }} className="w-full text-left px-md py-sm text-sm text-on-surface hover:bg-surface-container-low flex items-center gap-sm transition-colors">
+                        <span>{s.icon}</span><span>{s.label}</span>
                       </button>
                     ))}
                   </div>
@@ -249,36 +120,29 @@ export default function ChatPage() {
             </div>
           </div>
         ) : (
-          history.map((item, index) => (
-            <div
-              key={index}
-              className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}
-            >
+          history.map((item, i) => (
+            <div key={i} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}>
               {item.role === "user" ? (
-                <div className="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-blue-600 text-white rounded-tr-none">
+                <div className="max-w-[85%] bg-primary text-on-primary px-md py-sm rounded-xl rounded-tr-none shadow-sm text-body-md">
                   {item.content}
                 </div>
               ) : (item.reply_marian || item.reply_nllb) ? (
-                <div className="flex flex-col gap-2 max-w-[95%] w-full">
-                  <div className="flex gap-2 w-full">
-                    {/* MarianMT — primary */}
-                    <div className="flex-1 flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide px-1">MarianMT</span>
-                      <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed shadow-sm bg-blue-50 text-gray-800 border border-blue-200">
-                        {item.reply_marian ? formatMessage(item.reply_marian) : "—"}
-                      </div>
+                <div className="flex gap-sm w-full max-w-[95%]">
+                  <div className="flex-1 flex flex-col gap-xs">
+                    <span className="text-label-sm text-primary font-semibold px-xs">MarianMT</span>
+                    <div className="bg-surface-container-lowest border border-primary-container px-md py-sm rounded-xl rounded-tl-none shadow-sm text-body-md text-on-surface">
+                      {item.reply_marian ? formatMessage(item.reply_marian) : "—"}
                     </div>
-                    {/* NLLB-200 — comparison */}
-                    <div className="flex-1 flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide px-1">NLLB-200</span>
-                      <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed shadow-sm bg-purple-50 text-gray-800 border border-purple-200">
-                        {item.reply_nllb ? formatMessage(item.reply_nllb) : "—"}
-                      </div>
+                  </div>
+                  <div className="flex-1 flex flex-col gap-xs">
+                    <span className="text-label-sm text-secondary font-semibold px-xs">NLLB-200</span>
+                    <div className="bg-surface-container-lowest border border-secondary-container px-md py-sm rounded-xl rounded-tl-none shadow-sm text-body-md text-on-surface">
+                      {item.reply_nllb ? formatMessage(item.reply_nllb) : "—"}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-gray-100 text-gray-800 rounded-tl-none border border-gray-200">
+                <div className="max-w-[85%] bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-xl rounded-tl-none shadow-sm text-body-md text-on-surface">
                   {formatMessage(item.content)}
                 </div>
               )}
@@ -286,52 +150,49 @@ export default function ChatPage() {
           ))
         )}
         {loading && (
-          <div className="flex justify-start items-center space-x-2">
-            <div className="bg-gray-100 px-4 py-3 rounded-2xl rounded-tl-none border border-gray-200">
+          <div className="flex justify-start">
+            <div className="bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-xl rounded-tl-none">
               <div className="flex space-x-1">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                {[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 bg-secondary rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Sector badge + Input Area */}
-      <div className="p-4 bg-gray-50 border-t border-gray-100 space-y-2">
+      {/* Input area */}
+      <div className="fixed bottom-16 left-0 w-full z-40 px-margin pb-sm">
         {conversationMode && (
-          <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
-            <span>💬</span>
-            <span>Conversation mode — type in Runyoro-Rutooro, model replies in Runyoro-Rutooro</span>
-            <button onClick={() => setConversationMode(false)} className="ml-auto text-green-400 hover:text-green-700">✕</button>
+          <div className="flex items-center gap-sm text-xs text-secondary bg-secondary-container/30 border border-secondary-container rounded-lg px-md py-xs mb-xs">
+            <span>💬</span><span>Conversation mode — type in Runyoro-Rutooro</span>
+            <button onClick={() => setConversationMode(false)} className="ml-auto text-secondary hover:text-on-secondary-container">✕</button>
           </div>
         )}
         {selectedSector && (
-          <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5">
-            <span>{selectedSector.icon}</span>
-            <span>Sector: <strong>{selectedSector.label}</strong> — translations will focus on this domain</span>
-            <button
-              onClick={() => setSelectedSector(null)}
-              className="ml-auto text-blue-400 hover:text-blue-700"
-            >✕</button>
+          <div className="flex items-center gap-sm text-xs text-primary bg-primary-fixed/30 border border-primary-container rounded-lg px-md py-xs mb-xs">
+            <span>{selectedSector.icon}</span><span>Sector: <strong>{selectedSector.label}</strong></span>
+            <button onClick={() => setSelectedSector(null)} className="ml-auto">✕</button>
           </div>
         )}
-        <div className="flex gap-2">
-          <input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder={conversationMode ? "Ngamba omu Runyoro-Rutooro..." : selectedSector ? `Ask about ${selectedSector.label} in Runyoro-Rutooro...` : "Type your question here..."}
-            className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm text-gray-800 shadow-sm transition-all"
-          />
-          <button
-            onClick={() => sendMessage()}
-            disabled={loading || !message.trim()}
-            className="px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl font-bold text-sm transition-all shadow-md flex items-center justify-center active:scale-95"
-          >
-            {loading ? "..." : "Send"}
-          </button>
+        <div className="bg-surface-container-lowest rounded-xl shadow-[0_-8px_24px_rgba(7,2,53,0.08)] border border-outline-variant p-sm flex items-end gap-sm">
+          <div className="flex-grow">
+            <textarea
+              className="w-full bg-surface-container-low border-none rounded-lg py-sm px-md text-on-surface text-body-md focus:ring-2 focus:ring-secondary resize-none outline-none"
+              placeholder={conversationMode ? "Ngamba omu Runyoro-Rutooro..." : "Type or speak a message..."}
+              rows={1}
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendMessage())}
+            />
+          </div>
+          <div className="flex gap-xs">
+            <button className="p-sm bg-secondary-container text-on-secondary-container rounded-lg hover:bg-secondary-fixed transition-all active:scale-90">
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>mic</span>
+            </button>
+            <button onClick={() => sendMessage()} disabled={loading || !message.trim()} className="p-sm bg-primary text-on-primary rounded-lg hover:opacity-90 transition-all active:scale-90 disabled:opacity-50">
+              <span className="material-symbols-outlined">send</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

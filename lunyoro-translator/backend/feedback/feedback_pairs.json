@@ -31,5 +31,137 @@
     "model_used": "marian",
     "ip": "10.16.42.153",
     "timestamp": "2026-05-08T08:40:54.797261"
+  },
+  {
+    "source_text": "where is my girl",
+    "translation": "omwasiki wange ali nkaha",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "ip": "10.16.29.229",
+    "timestamp": "2026-05-08T09:51:21.061217"
+  },
+  {
+    "source_text": "where is my girl",
+    "translation": "omwasiki wange ali nkaha",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "both_models_correct",
+    "model_used": "both",
+    "ip": "10.16.1.102",
+    "timestamp": "2026-05-08T09:51:24.917821"
+  },
+  {
+    "source_text": "the man has ran wild",
+    "translation": "omusaija agwire obwooki",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "ip": "10.16.42.153",
+    "timestamp": "2026-05-08T13:09:16.435980"
+  },
+  {
+    "source_text": "the man has ran wild",
+    "translation": "omusaija agwire obwooki",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "ip": "10.16.14.160",
+    "timestamp": "2026-05-08T13:09:22.391156"
+  },
+  {
+    "source_text": "What did the grandmother say about food",
+    "translation": "Nyinenkuru akagamba ata habwebyokuzya",
+    "direction": "en→lun",
+    "rating": -1,
+    "correction": "Nyinenkuru akagamba ata habwebyokulya",
+    "error_type": "both_models_wrong",
+    "model_used": "none",
+    "ip": "10.16.14.160",
+    "timestamp": "2026-05-08T13:11:20.950669"
+  },
+  {
+    "source_text": "The car was moving so fast that it was hard for driver to control",
+    "translation": "Emetooka ekaba nayanguha kukira bwango eki kibaire kigumire hali omubimbi",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "ip": "10.16.1.102",
+    "timestamp": "2026-05-08T13:24:13.595033"
+  },
+  {
+    "source_text": "The car was moving so fast that it was hard for driver to control",
+    "translation": "Emetooka ekaba nayanguha kukira bwango eki kibaire kigumire hali omubimbi",
+    "direction": "en→lun",
+    "rating": -1,
+    "correction": "Emotoka ekaba niruka munu eki kiaba kigumire omubingi wayo okukisonora",
+    "error_type": "",
+    "model_used": "marian",
+    "ip": "10.16.1.102",
+    "timestamp": "2026-05-08T13:31:39.211674"
+  },
+  {
+    "source_text": "Teacher can I go for short call",
+    "translation": "Omwagesa nasobora kugenda kweta",
+    "direction": "en→lun",
+    "rating": -1,
+    "correction": "Omusomesa/ omwegesa Ninsobora kugenda kataito",
+    "error_type": "both_models_wrong",
+    "model_used": "none",
+    "ip": "10.16.42.153",
+    "timestamp": "2026-05-08T13:36:37.219587"
+  },
+  {
+    "source_text": "Teacher can I go for short call",
+    "translation": "Omwagesa nasobora kugenda kweta",
+    "direction": "en→lun",
+    "rating": -1,
+    "correction": "Omusomesa/ omwegesa Ninsobora kugenda kataito",
+    "error_type": "spelling, different meaning",
+    "model_used": "marian",
+    "ip": "10.16.14.160",
+    "timestamp": "2026-05-08T13:38:25.699013"
+  },
+  {
+    "source_text": "Look at him he is not ok",
+    "translation": "Murole tali kurungi",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "nllb",
+    "ip": "10.16.1.102",
+    "timestamp": "2026-05-08T13:41:42.967138"
+  },
+  {
+    "source_text": "Look at him he is not ok",
+    "translation": "Murole tali kurungi",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "nllb",
+    "ip": "10.16.14.160",
+    "timestamp": "2026-05-08T13:42:16.184988"
+  },
+  {
+    "source_text": "How is life",
+    "translation": "Obwomezi buta",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "ip": "10.16.29.229",
+    "timestamp": "2026-05-08T13:43:32.487532"
   }
 ]

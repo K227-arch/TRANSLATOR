@@ -1,6 +1,6 @@
-# Lunyoro-Rutooro Translator
+# AI Stick — Runyoro / Rutooro Translator
 
-**Version 2.0** - Enhanced Feedback & Model Comparison
+**Version 2.2** - Document Editor Mobile Responsiveness
 
 A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - Fine-tuned MarianMT + NLLB-200 models
@@ -26,9 +26,11 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 
 ### Chat Assistant
 - **LLM-powered:** Qwen 2.5 7B via HuggingFace Router
-- **Domain-aware:** Sector-specific vocabulary (medical, agriculture, education, etc.)
-- **Bilingual output:** Replies in English + Lunyoro (MarianMT + NLLB)
+- **Domain-aware:** Sector-specific vocabulary across 8 domains (Daily Life, Storytelling, Spirituality, Agriculture, Education, Culture, Health, All Sectors)
+- **Bilingual output:** Replies in English + Lunyoro (MarianMT + NLLB side-by-side)
 - **Grammar context:** Full Runyoro-Rutooro grammar rules in system prompt
+- **Conversation mode:** Type in Runyoro-Rutooro for immersive practice
+- **Multi-line input:** Textarea with mic button for voice input (UI placeholder)
 
 ### Human Feedback
 - **Primary feedback:** Simple Yes/No rating for translation quality
@@ -195,7 +197,9 @@ lunyoro-translator/
 │       └── raw/                     # Raw seed vocabulary
 ├── frontend/
 │   ├── components/Translator.tsx    # Main translation UI
-│   ├── components/Chat.tsx          # Chat assistant UI
+│   ├── components/ChatPage.tsx      # Chat assistant UI
+│   ├── components/TopBar.tsx        # Top navigation bar
+│   ├── components/BottomNav.tsx     # Fixed bottom navigation bar (Home, Translate, Chat, Editor)
 │   └── app/                         # Next.js app router
 ├── TRAINING_GUIDE.md                # Model improvement guide
 └── PIPELINE_GUIDE.md                # Data pipeline guide
@@ -356,6 +360,7 @@ HF_CHAT_MODEL=Qwen/Qwen2.5-7B-Instruct
 CORS_ORIGINS=http://localhost:3002,https://frontend-six-phi-25.vercel.app
 FEEDBACK_FILE=feedback.jsonl       # Feedback storage path
 AUTO_RETRAIN_THRESHOLD=100         # Min new pairs to trigger auto-retrain
+GITHUB_TOKEN=ghp_...               # GitHub token for sync_feedback.py (required)
 ```
 
 ### Frontend (.env.local)
@@ -409,7 +414,19 @@ If you use this work, please cite:
 
 ## Version History
 
-### v2.0 - Enhanced Feedback & Model Comparison (Current)
+### v2.2 - Document Editor Mobile Responsiveness (Current)
+- **Document Editor toolbar** — replaced custom design-system tokens with standard Tailwind classes; toolbar and sub-tabs are now horizontally scrollable on mobile (`overflow-x-auto`); spellcheck label hidden on small screens; padding and icon sizes adjusted for compact mobile layout
+
+### v2.1 - Rebranding & UI Refresh
+- **App renamed** to "AI Stick — Runyoro / Rutooro Translator"
+- **Theme color** updated to `#070235` (deep navy)
+- **Typography:** Inter font (400/600/700/800) loaded via Google Fonts
+- **Icons:** Material Symbols Outlined added via Google Fonts
+- **PWA title** updated to "AI Stick"
+- **Bottom navigation bar** (`BottomNav.tsx`) — fixed mobile nav with Home, Translate, Chat, and Editor tabs; active tab uses filled icon + secondary-container highlight
+- **Chat UI redesign** — migrated to Material Design 3 tokens; input upgraded to multi-line textarea with mic button; language switcher (English / Runyoro-Rutooro) added at top; sector list consolidated to 8 domains
+
+### v2.0 - Enhanced Feedback & Model Comparison
 - **Enhanced feedback system:** Multi-select error categorization (grammar, spelling, context, vocabulary, other)
 - **Model comparison interface:** 2x2 grid to choose between MarianMT, NLLB-200, both correct, or both wrong
 - **Model preference learning:** Selected model becomes primary for future translations

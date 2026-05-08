@@ -1,15 +1,10 @@
-"use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿"use client";
+import { useState, useRef, useCallback } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+type Direction = "en\u2192lun" | "lun\u2192en";
 
-type Direction = "en→lun" | "lun→en";
-
-interface Misspelled {
-  word: string;
-  suggestions: string[];
-}
-
+interface Misspelled { word: string; suggestions: string[]; }
 interface TranslationResult {
   translation: string | null;
   translation_nllb?: string | null;
@@ -18,247 +13,98 @@ interface TranslationResult {
   confidence: number;
   matched_english?: string;
   matched_lunyoro?: string;
-  alternatives?: { english: string; lunyoro: string; score: number }[];
-  dictionary_matches?: {
-    english_word?: string;
-    lunyoro_word?: string;
-    definition?: string;
-    english_definition?: string;
-  }[];
   message?: string;
 }
 
 export default function Translator() {
-  const [input, setInput] = useState("");
-  const [result, setResult] = useState<TranslationResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [direction, setDirection] = useState<Direction>("en→lun");
+  const [input, setInput]           = useState("");
+  const [result, setResult]         = useState<TranslationResult | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState("");
+  const [direction, setDirection]   = useState<Direction>("en\u2192lun");
   const [misspelled, setMisspelled] = useState<Misspelled[]>([]);
-  const [tooltip, setTooltip] = useState<{ word: string; suggestions: string[]; x: number; y: number } | null>(null);
-  const [showComparison, setShowComparison] = useState(false);
-  const [ignored, setIgnored] = useState<Set<string>>(new Set());
-  // Feedback state
-  const [feedbackRating, setFeedbackRating] = useState<1 | -1 | null>(null);
-  const [showCorrection, setShowCorrection] = useState(false);
-  const [correction, setCorrection] = useState("");
-  const [errorTypes, setErrorTypes] = useState<string[]>([]);
-  const [feedbackSent, setFeedbackSent] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<"marian" | "nllb" | "none" | "both" | null>(null);
-  const [modelFeedbackSent, setModelFeedbackSent] = useState(false);
-  const [preferredModel, setPreferredModel] = useState<"marian" | "nllb" | null>(null);
+  const [tooltip, setTooltip]       = useState<{ word: string; suggestions: string[]; x: number; y: number } | null>(null);
+  const [ignored, setIgnored]       = useState<Set<string>>(new Set());
+  const [feedbackRating, setFeedbackRating]         = useState<1 | -1 | null>(null);
+  const [showCorrection, setShowCorrection]         = useState(false);
+  const [correction, setCorrection]                 = useState("");
+  const [errorTypes, setErrorTypes]                 = useState<string[]>([]);
+  const [feedbackSent, setFeedbackSent]             = useState(false);
+  const [selectedModel, setSelectedModel]           = useState<"marian" | "nllb" | "none" | "both" | null>(null);
+  const [modelFeedbackSent, setModelFeedbackSent]   = useState(false);
+  const [preferredModel, setPreferredModel]         = useState<"marian" | "nllb" | null>(null);
 
-  const spellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
+  const editorRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
+  const tooltipLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fromLabel = direction === "en→lun" ? "English" : "Runyoro / Rutooro";
-  const toLabel   = direction === "en→lun" ? "Runyoro / Rutooro" : "English";
-  const endpoint  = direction === "en→lun" ? "/translate" : "/translate-reverse";
+  const fromLabel = direction === "en\u2192lun" ? "English" : "Runyoro / Rutooro";
+  const toLabel   = direction === "en\u2192lun" ? "Runyoro / Rutooro" : "English";
+  const endpoint  = direction === "en\u2192lun" ? "/translate" : "/translate-reverse";
 
-  // Clear stale result when input changes
+  function resetFeedback() {
+    setFeedbackRating(null); setFeedbackSent(false); setModelFeedbackSent(false);
+    setShowCorrection(false); setCorrection(""); setErrorTypes([]); setSelectedModel(null);
+  }
+
   function handleInputChange(val: string) {
     setInput(val);
-    if (result) {
-      setResult(null);
-      setFeedbackRating(null);
-      setFeedbackSent(false);
-      setModelFeedbackSent(false);
-      setShowCorrection(false);
-      setCorrection("");
-      setErrorTypes([]);
-      setSelectedModel(null);
-    }
+    if (result) { setResult(null); resetFeedback(); }
   }
 
   function swapDirection() {
-    setDirection((d) => (d === "en→lun" ? "lun→en" : "en→lun"));
-    setInput("");
-    setResult(null);
-    setError("");
-    setMisspelled([]);
-    setTooltip(null);
-    setShowComparison(false);
-    setIgnored(new Set());
-    setFeedbackRating(null);
-    setFeedbackSent(false);
-    setModelFeedbackSent(false);
-    setShowCorrection(false);
-    setCorrection("");
-    setErrorTypes([]);
-    setSelectedModel(null);
+    setDirection(d => d === "en\u2192lun" ? "lun\u2192en" : "en\u2192lun");
+    setInput(""); setResult(null); setError(""); setMisspelled([]);
+    setTooltip(null); setIgnored(new Set()); resetFeedback();
   }
 
   async function submitFeedback(rating: 1 | -1, modelChoice?: "marian" | "nllb" | "none" | "both") {
     if (!result?.translation || !input.trim()) return;
-    
-    // For primary feedback (not model choice)
-    if (!modelChoice) {
-      // If rating is negative, require either error_types or correction
-      if (rating === -1 && errorTypes.length === 0 && !correction.trim()) {
-        return; // Don't submit without any feedback details
-      }
-    }
-    
+    if (!modelChoice && rating === -1 && errorTypes.length === 0 && !correction.trim()) return;
     if (modelChoice) {
       setModelFeedbackSent(true);
-      // Set preferred model only for marian or nllb, not for "both" or "none"
       if (modelChoice === "marian" || modelChoice === "nllb") {
         setPreferredModel(modelChoice);
-        
-        // Immediately update the primary translation to reflect the selected model
-        if (modelChoice === "marian" && result.translation_marian) {
-          setResult({ ...result, translation: result.translation_marian });
-        } else if (modelChoice === "nllb" && result.translation_nllb) {
-          setResult({ ...result, translation: result.translation_nllb });
-        }
+        if (modelChoice === "marian" && result.translation_marian) setResult({ ...result, translation: result.translation_marian });
+        else if (modelChoice === "nllb" && result.translation_nllb) setResult({ ...result, translation: result.translation_nllb });
       }
-    } else {
-      setFeedbackRating(rating);
-      setFeedbackSent(true);
-    }
-    
-    // Determine which translation to send based on model choice
+    } else { setFeedbackRating(rating); setFeedbackSent(true); }
     let translationToSend = result.translation;
     let modelUsed = preferredModel || "";
-    
-    if (modelChoice === "marian" && result.translation_marian) {
-      translationToSend = result.translation_marian;
-      modelUsed = "marian";
-    } else if (modelChoice === "nllb" && result.translation_nllb) {
-      translationToSend = result.translation_nllb;
-      modelUsed = "nllb";
-    } else if (modelChoice === "both") {
-      translationToSend = result.translation;
-      modelUsed = "both";
-    } else if (modelChoice === "none") {
-      modelUsed = "none";
-    }
-    
+    if (modelChoice === "marian" && result.translation_marian) { translationToSend = result.translation_marian; modelUsed = "marian"; }
+    else if (modelChoice === "nllb" && result.translation_nllb) { translationToSend = result.translation_nllb; modelUsed = "nllb"; }
+    else if (modelChoice === "both") { modelUsed = "both"; }
+    else if (modelChoice === "none") { modelUsed = "none"; }
     try {
       await fetch(`${API}/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source_text: input.trim(),
-          translation: translationToSend,
-          direction,
-          rating,
-          correction: correction.trim(),
-          error_type: modelChoice === "none" ? "both_models_wrong" : modelChoice === "both" ? "both_models_correct" : errorTypes.join(", "),
-          model_used: modelUsed,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_text: input.trim(), translation: translationToSend, direction, rating, correction: correction.trim(), error_type: modelChoice === "none" ? "both_models_wrong" : modelChoice === "both" ? "both_models_correct" : errorTypes.join(", "), model_used: modelUsed }),
       });
-      if (!modelChoice) {
-        setShowCorrection(false);
-      }
-    } catch {
-      // silently fail — feedback is non-critical
-    }
+      if (!modelChoice) setShowCorrection(false);
+    } catch { /* non-critical */ }
   }
 
-  // ── spellcheck ───────────────────────────────────────────────────────────────
   const runSpellcheck = useCallback(async (text: string) => {
     if (!text.trim()) { setMisspelled([]); return; }
     try {
-      const res = await fetch(`${API}/spellcheck`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      const res = await fetch(`${API}/spellcheck`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
       const data = await res.json();
       setMisspelled((data.misspelled || []).filter((m: Misspelled) => !ignored.has(m.word.toLowerCase())));
-    } catch {
-      setMisspelled([]);
-    }
+    } catch { setMisspelled([]); }
   }, [ignored]);
 
   function ignoreWord(word: string) {
     const lower = word.toLowerCase();
-    setIgnored((prev) => new Set([...prev, lower]));
-    setMisspelled((prev) => prev.filter((m) => m.word.toLowerCase() !== lower));
-    if (editorRef.current) {
-      editorRef.current.innerHTML = buildHtml(input);
-    }
+    setIgnored(prev => new Set([...prev, lower]));
+    setMisspelled(prev => prev.filter(m => m.word.toLowerCase() !== lower));
     setTooltip(null);
   }
 
-  useEffect(() => {
-    // Spellcheck disabled for lun→en — Lunyoro grammar is always accepted as-is
-    setMisspelled([]);
-  }, [input, direction]);
-
-  // ── build HTML with red wavy underlines ──────────────────────────────────────
-  function escHtml(s: string) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  }
-
-  function buildHtml(text: string): string {
-    if (!misspelled.length) return escHtml(text);
-    const badWords = new Map(misspelled.map((m) => [m.word.toLowerCase(), m]));
-    return text.split(/(\b)/).map((chunk) => {
-      const entry = badWords.get(chunk.toLowerCase());
-      if (entry) {
-        const tips = entry.suggestions.join("|");
-        return `<span class="misspelled" data-word="${escHtml(chunk)}" data-tips="${escHtml(tips)}" style="text-decoration:underline;text-decoration-style:wavy;text-decoration-color:#ef4444;cursor:pointer;">${escHtml(chunk)}</span>`;
-      }
-      return escHtml(chunk);
-    }).join("");
-  }
-
-  // ── caret preservation ───────────────────────────────────────────────────────
-  function saveCaret(el: HTMLDivElement): number {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return 0;
-    const range = sel.getRangeAt(0);
-    const pre = range.cloneRange();
-    pre.selectNodeContents(el);
-    pre.setEnd(range.endContainer, range.endOffset);
-    return pre.toString().length;
-  }
-
-  function restoreCaret(el: HTMLDivElement, offset: number) {
-    const walk = (node: Node, remaining: number): { node: Node; offset: number } | null => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const len = (node.textContent || "").length;
-        if (remaining <= len) return { node, offset: remaining };
-        return null;
-      }
-      for (const child of Array.from(node.childNodes)) {
-        const len = (child.textContent || "").length;
-        if (remaining <= len) return walk(child, remaining);
-        remaining -= len;
-      }
-      return null;
-    };
-    const pos = walk(el, offset);
-    if (!pos) return;
-    const range = document.createRange();
-    range.setStart(pos.node, pos.offset);
-    range.collapse(true);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-  }
-
-  useEffect(() => {
-    if (direction !== "lun→en" || !editorRef.current) return;
-    const el = editorRef.current;
-    const caretPos = saveCaret(el);
-    el.innerHTML = buildHtml(input);
-    restoreCaret(el, caretPos);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [misspelled]);
-
   function handleEditorInput() {
     if (isComposing.current || !editorRef.current) return;
-    setInput(editorRef.current.innerText);
-    setResult(null);
+    setInput(editorRef.current.innerText); setResult(null);
   }
-
-  // ── hover tooltip ────────────────────────────────────────────────────────────
-  const tooltipLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleEditorMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
@@ -268,9 +114,7 @@ export default function Translator() {
       const tips = (target.getAttribute("data-tips") || "").split("|").filter(Boolean);
       const rect = target.getBoundingClientRect();
       setTooltip({ word, suggestions: tips, x: rect.left, y: rect.bottom });
-    } else {
-      scheduleTooltipClose();
-    }
+    } else { scheduleTooltipClose(); }
   }
 
   function scheduleTooltipClose() {
@@ -278,480 +122,174 @@ export default function Translator() {
     tooltipLeaveTimer.current = setTimeout(() => setTooltip(null), 120);
   }
 
-  function cancelTooltipClose() {
-    if (tooltipLeaveTimer.current) clearTimeout(tooltipLeaveTimer.current);
-  }
-
   function applySuggestion(original: string, suggestion: string) {
-    if (!editorRef.current) return;
-    const newText = input.replace(new RegExp(`\\b${original}\\b`, "i"), suggestion);
-    setInput(newText);
-    setResult(null);
-    setTooltip(null);
+    setInput(input.replace(new RegExp(`\\b${original}\\b`, "i"), suggestion));
+    setResult(null); setTooltip(null);
   }
 
-  // ── translate ────────────────────────────────────────────────────────────────
   async function handleTranslate() {
-    const text = direction === "lun→en" ? (editorRef.current?.innerText || input) : input;
+    const text = direction === "lun\u2192en" ? (editorRef.current?.innerText || input) : input;
     if (!text.trim()) return;
-    setLoading(true);
-    setError("");
-    setResult(null);
-
-    // Build context from the last translation result for context-aware translation
-    const context = "";
-
+    setLoading(true); setError(""); setResult(null);
     try {
-      const res = await fetch(`${API}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, context }),
-      });
+      const res = await fetch(`${API}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, context: "" }) });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      
-      // If user has a preferred model, use that model's translation as primary
-      if (preferredModel && data.translation_marian && data.translation_nllb) {
-        if (preferredModel === "marian") {
-          data.translation = data.translation_marian;
-        } else if (preferredModel === "nllb") {
-          data.translation = data.translation_nllb;
-        }
-      }
-      
-      setResult(data);
-      setFeedbackRating(null);
-      setFeedbackSent(false);
-      setModelFeedbackSent(false);
-      setShowCorrection(false);
-      setCorrection("");
-      setErrorTypes([]);
-      setSelectedModel(null);
-    } catch {
-      setError("Could not connect to the translation server. Make sure the backend is running.");
-    } finally {
-      setLoading(false);
-    }
+      if (preferredModel && data.translation_marian && data.translation_nllb)
+        data.translation = preferredModel === "marian" ? data.translation_marian : data.translation_nllb;
+      setResult(data); resetFeedback();
+    } catch { setError("Could not connect to the translation server."); }
+    finally { setLoading(false); }
   }
 
-  const confidenceColor =
-    result?.confidence && result.confidence > 0.8 ? "text-green-600"
-    : result?.confidence && result.confidence > 0.5 ? "text-yellow-600"
-    : "text-red-500";
-
-  const matchedValue = result?.matched_english || result?.matched_lunyoro;
-  const matchedLabel = direction === "en→lun" ? "Closest match found" : "Closest Lunyoro match found";
-  
-  // Determine confidence display text
-  const getConfidenceText = () => {
-    if (!result) return "";
-    if (result.method === "exact_match") return "Exact match";
-    
-    const confidence = Math.round((result.confidence || 0) * 100);
-    const modelName = preferredModel === "marian" ? "MarianMT" : preferredModel === "nllb" ? "NLLB-200" : "";
-    
-    if (confidence === 100 && modelName) {
-      return modelName;
-    }
-    
-    return `${confidence}% confidence`;
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Direction selector */}
-      <div className="flex items-center justify-center gap-3">
-        <span className="text-sm font-medium text-gray-700 w-36 text-right">{fromLabel}</span>
-        <button onClick={swapDirection} className="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full px-3 py-1 text-sm transition-colors">
-          ⇄ Swap
-        </button>
-        <span className="text-sm font-medium text-gray-700 w-36">{toLabel}</span>
-      </div>
-
-      {/* Input */}
-      <div>
-        <div className="flex justify-between items-center mb-1">
-          <label className="text-sm font-medium text-gray-700">{fromLabel}</label>
-          {direction === "lun→en" && misspelled.length > 0 && (
-            <span className="text-xs text-red-500">
-              {misspelled.length} possible misspelling{misspelled.length > 1 ? "s" : ""} — hover to fix
-            </span>
-          )}
+    <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 w-full flex flex-col gap-4">
+      <div className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+        <div className="flex items-center gap-3">
+          <button className="px-4 py-1 rounded-full bg-teal-100 text-teal-800 text-sm font-semibold flex items-center gap-1">
+            {fromLabel} <span className="material-symbols-outlined text-[16px]">expand_more</span>
+          </button>
+          <button onClick={swapDirection} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all active:scale-90">
+            <span className="material-symbols-outlined text-teal-600">swap_horiz</span>
+          </button>
+          <button className="px-4 py-1 rounded-full bg-gray-100 text-gray-600 text-sm font-semibold flex items-center gap-1">
+            {toLabel} <span className="material-symbols-outlined text-[16px]">expand_more</span>
+          </button>
         </div>
-
-        {direction === "lun→en" ? (
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={handleEditorInput}
-            onMouseMove={handleEditorMouseMove}
-            onMouseLeave={scheduleTooltipClose}
-            onCompositionStart={() => { isComposing.current = true; }}
-            onCompositionEnd={() => { isComposing.current = false; handleEditorInput(); }}
-            onKeyDown={(e) => e.key === "Enter" && e.ctrlKey && misspelled.length === 0 && handleTranslate()}
-            className={`w-full border rounded-lg p-3 text-sm min-h-[96px] focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed text-gray-900 whitespace-pre-wrap break-words ${
-              misspelled.length > 0 ? "border-red-300" : "border-gray-300"
-            }`}
-            style={{ fontFamily: "inherit" }}
-          />
-        ) : (
-          <textarea
-            ref={textareaRef}
-            className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed text-gray-900"
-            rows={4}
-            placeholder={`Enter ${fromLabel} text to translate...`}
-            value={input}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && e.ctrlKey && handleTranslate()}
-          />
-        )}
-        <p className="text-xs text-gray-400 mt-1">Ctrl+Enter to translate</p>
       </div>
 
-      {/* Hover tooltip for misspelled words */}
-      {tooltip && (
-        <div
-          className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm min-w-[140px]"
-          style={{ top: tooltip.y + 6, left: tooltip.x }}
-          onMouseEnter={cancelTooltipClose}
-          onMouseLeave={scheduleTooltipClose}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="text-xs text-gray-400 mb-1.5">Did you mean?</p>
-          {tooltip.suggestions.length > 0 ? (
-            tooltip.suggestions.map((s) => (
-              <button
-                key={s}
-                className="block w-full text-left text-blue-600 hover:bg-blue-50 active:bg-blue-100 px-2 py-1.5 rounded text-sm cursor-pointer"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  applySuggestion(tooltip.word, s);
-                }}
-              >
-                {s}
-              </button>
-            ))
+      <div className="flex flex-col md:flex-row gap-4 min-h-[400px]">
+        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-lg p-6 flex flex-col">
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Source</span>
+            {input && <button onClick={() => { setInput(""); setResult(null); resetFeedback(); }} className="text-gray-400 hover:text-red-500 transition-colors"><span className="material-symbols-outlined">close</span></button>}
+          </div>
+          {direction === "lun\u2192en" ? (
+            <div ref={editorRef} contentEditable suppressContentEditableWarning onInput={handleEditorInput} onMouseMove={handleEditorMouseMove} onMouseLeave={scheduleTooltipClose} onCompositionStart={() => { isComposing.current = true; }} onCompositionEnd={() => { isComposing.current = false; handleEditorInput(); }} onKeyDown={e => e.key === "Enter" && e.ctrlKey && handleTranslate()} className="flex-grow outline-none text-lg text-gray-800 min-h-[160px] whitespace-pre-wrap break-words" style={{ fontFamily: "inherit" }} />
           ) : (
-            <p className="text-gray-400 italic text-xs">No suggestions</p>
+            <textarea ref={textareaRef} className="flex-grow outline-none text-lg text-gray-800 resize-none placeholder:text-gray-300 min-h-[160px]" placeholder="Enter text here to translate..." value={input} onChange={e => handleInputChange(e.target.value)} onKeyDown={e => e.key === "Enter" && e.ctrlKey && handleTranslate()} />
           )}
-          <div className="border-t border-gray-100 mt-1.5 pt-1.5">
-            <button
-              className="block w-full text-left text-gray-400 hover:bg-gray-50 active:bg-gray-100 px-2 py-1.5 rounded text-xs cursor-pointer"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                ignoreWord(tooltip.word);
-              }}
-            >
-              Ignore
-            </button>
+          <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-4">
+            <span className="text-xs text-gray-400">{input.length} / 5000</span>
+            <button className="p-1 text-gray-400 hover:text-indigo-900 transition-colors"><span className="material-symbols-outlined">mic</span></button>
           </div>
         </div>
-      )}
 
-      <button
-        onClick={handleTranslate}
-        disabled={loading || !input.trim() || (direction === "lun→en" && misspelled.length > 0)}
-        title={direction === "lun→en" && misspelled.length > 0 ? "Fix spelling errors before translating" : undefined}
-        className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {loading ? "Translating..." : direction === "lun→en" && misspelled.length > 0 ? `Fix ${misspelled.length} spelling error${misspelled.length > 1 ? "s" : ""} to translate` : `Translate to ${toLabel}`}
-      </button>
+        <div className="flex flex-row md:flex-col justify-center items-center gap-4">
+          <button onClick={handleTranslate} disabled={loading || !input.trim()} className="bg-teal-600 text-white w-16 h-16 md:w-20 md:h-20 rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-all hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span className="material-symbols-outlined text-[32px] md:text-[40px]">{loading ? "hourglass_empty" : "translate"}</span>
+          </button>
+        </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>
-      )}
-
-      {result && (
-        <div className="space-y-3">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">{toLabel}</span>
-              <div className="flex items-center gap-2">
-                {preferredModel ? (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
-                    Using {preferredModel === "marian" ? "MarianMT" : "NLLB-200"}
-                  </span>
-                ) : (
-                  <span className={`text-xs font-medium ${confidenceColor}`}>
-                    {getConfidenceText()}
-                  </span>
-                )}
+        <div className="flex-1 bg-white border-2 border-teal-100 rounded-xl shadow-lg p-6 flex flex-col">
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-xs text-teal-600 uppercase tracking-widest font-semibold">{toLabel}</span>
+            {result?.translation && <button onClick={() => navigator.clipboard.writeText(result.translation || "")} className="p-1 text-gray-400 hover:text-indigo-900 transition-colors"><span className="material-symbols-outlined">content_copy</span></button>}
+          </div>
+          <div className="flex-grow text-lg text-gray-800 flex flex-col justify-start">
+            {loading ? (
+              <div className="flex items-center gap-2 text-gray-400">
+                <div className="flex space-x-1">{[0,1,2].map(i => <div key={i} className="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}</div>
+                <span className="text-sm">Translating...</span>
               </div>
-            </div>
-            {result.translation
-              ? <p className="text-gray-800 text-base leading-relaxed">{result.translation}</p>
-              : <p className="text-gray-400 italic text-sm">{result.message}</p>
-            }
-            {matchedValue && result.method !== "exact_match" && (
-              <p className="text-xs text-gray-400 mt-2">{matchedLabel}: &quot;{matchedValue}&quot;</p>
-            )}
+            ) : result?.translation ? <p className="leading-relaxed">{result.translation}</p>
+              : error ? <p className="text-red-500 text-base">{error}</p>
+              : <p className="text-gray-300 italic">Translation will appear here...</p>}
+          </div>
 
-            {/* Feedback Section */}
-            {result.translation && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="space-y-3">
-                  {/* Primary Feedback: Is this the right translation? */}
-                  {!feedbackSent && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-gray-600 font-medium">Is this the right translation?(Considering Everything)</span>
-                        <button
-                          onClick={() => submitFeedback(1)}
-                          className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${
-                            feedbackRating === 1
-                              ? "bg-green-500 text-white"
-                              : "bg-gray-100 hover:bg-green-50 text-gray-700 hover:text-green-600 border border-gray-200"
-                          }`}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={() => { setFeedbackRating(-1); setShowCorrection(true); }}
-                          className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${
-                            feedbackRating === -1
-                              ? "bg-red-500 text-white"
-                              : "bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 border border-gray-200"
-                          }`}
-                        >
-                          No
-                        </button>
+          {result && preferredModel && (
+            <div className="mt-2"><span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">Using {preferredModel === "marian" ? "MarianMT" : "NLLB-200"}</span></div>
+          )}
+
+          {result?.translation && (
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+              {!feedbackSent && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-gray-500 font-semibold">Is this the right translation? (Considering Everything)</span>
+                    <button onClick={() => submitFeedback(1)} className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-colors ${feedbackRating === 1 ? "bg-teal-600 text-white" : "bg-gray-100 hover:bg-teal-50 text-gray-600 border border-gray-200"}`}>Yes</button>
+                    <button onClick={() => { setFeedbackRating(-1); setShowCorrection(true); }} className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-colors ${feedbackRating === -1 ? "bg-red-500 text-white" : "bg-gray-100 hover:bg-red-50 text-gray-600 border border-gray-200"}`}>No</button>
+                  </div>
+                  {showCorrection && feedbackRating === -1 && (
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2">
+                      <p className="text-xs text-gray-500 font-semibold">What&apos;s wrong? (Select all that apply)</p>
+                      <div className="space-y-1">
+                        {["grammar","spelling","context","vocabulary","different meaning","other"].map(type => (
+                          <label key={type} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" checked={errorTypes.includes(type)} onChange={e => setErrorTypes(e.target.checked ? [...errorTypes, type] : errorTypes.filter(t => t !== type))} />
+                            <span className="text-gray-600 capitalize">{type === "context" ? "Lack of context awareness" : type === "vocabulary" ? "Word doesn't exist in vocabulary" : type}</span>
+                          </label>
+                        ))}
                       </div>
-
-                      {/* Error categorization when user clicks No */}
-                      {showCorrection && feedbackRating === -1 && (
-                        <div className="mt-2 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
-                          <p className="text-xs text-gray-600 font-medium">What's wrong with this translation? (Select all that apply)</p>
-                          <div className="space-y-1">
-                            {["grammar", "spelling", "context", "vocabulary", "different meaning", "other"].map((type) => (
-                              <label key={type} className="flex items-center gap-2 text-xs cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  value={type}
-                                  checked={errorTypes.includes(type)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setErrorTypes([...errorTypes, type]);
-                                    } else {
-                                      setErrorTypes(errorTypes.filter(t => t !== type));
-                                    }
-                                  }}
-                                  className="cursor-pointer"
-                                />
-                                <span className="text-gray-700 capitalize">{type === "context" ? "Lack of context awareness" : type === "vocabulary" ? "Word doesn't exist in vocabulary" : type === "different meaning" ? "Different meaning" : type}</span>
-                              </label>
-                            ))}
-                          </div>
-                          <div className="mt-2">
-                            <textarea
-                              className="w-full border border-gray-300 rounded p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-                              rows={2}
-                              placeholder="Enter the correct translation (optional)..."
-                              value={correction}
-                              onChange={(e) => setCorrection(e.target.value)}
-                            />
-                          </div>
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={() => submitFeedback(-1)}
-                              disabled={errorTypes.length === 0 && !correction.trim()}
-                              className="text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                              title={errorTypes.length === 0 && !correction.trim() ? "Please select at least one error type or provide a correction" : ""}
-                            >
-                              Submit Feedback
-                            </button>
-                            <button
-                              onClick={() => { 
-                                setShowCorrection(false); 
-                                setFeedbackRating(null); 
-                                setErrorTypes([]); 
-                                setCorrection(""); 
-                              }}
-                              className="text-xs text-gray-500 hover:text-gray-700 px-2"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {feedbackSent && !modelFeedbackSent && (
-                    <p className="text-xs text-green-600">Thanks for the feedback!</p>
-                  )}
-
-                  {/* Model Comparison (only if both models available) */}
-                  {result.translation_marian && result.translation_nllb && !modelFeedbackSent && (
-                    <div className="pt-3 border-t border-gray-100 space-y-2">
-                      <p className="text-xs text-gray-600 font-medium">Or choose which model translation is better or close to better:</p>
-                      
-                      {/* 2x2 Grid Layout */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* MarianMT Option */}
-                        <div 
-                          onClick={() => setSelectedModel("marian")}
-                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                            selectedModel === "marian" 
-                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
-                              : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <input
-                              type="radio"
-                              name="model_choice"
-                              checked={selectedModel === "marian"}
-                              onChange={() => setSelectedModel("marian")}
-                              className="mt-0.5 cursor-pointer flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-gray-700 mb-1">MarianMT</p>
-                              <p className="text-xs text-gray-800 line-clamp-3">{result.translation_marian}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* NLLB Option */}
-                        <div 
-                          onClick={() => setSelectedModel("nllb")}
-                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                            selectedModel === "nllb" 
-                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
-                              : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <input
-                              type="radio"
-                              name="model_choice"
-                              checked={selectedModel === "nllb"}
-                              onChange={() => setSelectedModel("nllb")}
-                              className="mt-0.5 cursor-pointer flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-gray-700 mb-1">NLLB-200</p>
-                              <p className="text-xs text-gray-800 line-clamp-3">{result.translation_nllb}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Both Correct Option */}
-                        <div 
-                          onClick={() => setSelectedModel("both")}
-                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                            selectedModel === "both" 
-                              ? "border-green-500 bg-green-50 ring-2 ring-green-200" 
-                              : "border-gray-200 hover:border-green-300 hover:bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <input
-                              type="radio"
-                              name="model_choice"
-                              checked={selectedModel === "both"}
-                              onChange={() => setSelectedModel("both")}
-                              className="mt-0.5 cursor-pointer flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-green-700">Both are correct</p>
-                              <p className="text-xs text-gray-600">Both translations are accurate</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* None Option */}
-                        <div 
-                          onClick={() => setSelectedModel("none")}
-                          className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                            selectedModel === "none" 
-                              ? "border-red-500 bg-red-50 ring-2 ring-red-200" 
-                              : "border-gray-200 hover:border-red-300 hover:bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <input
-                              type="radio"
-                              name="model_choice"
-                              checked={selectedModel === "none"}
-                              onChange={() => setSelectedModel("none")}
-                              className="mt-0.5 cursor-pointer flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-red-700">Both are wrong</p>
-                              <p className="text-xs text-gray-600">Neither translation is correct</p>
-                            </div>
-                          </div>
-                        </div>
+                      <textarea className="w-full border border-gray-200 rounded-lg p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-teal-400" rows={2} placeholder="Enter the correct translation (optional)..." value={correction} onChange={e => setCorrection(e.target.value)} />
+                      <div className="flex gap-2">
+                        <button onClick={() => submitFeedback(-1)} disabled={errorTypes.length === 0 && !correction.trim()} className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-full hover:bg-red-600 disabled:opacity-50 font-semibold">Submit Feedback</button>
+                        <button onClick={() => { setShowCorrection(false); setFeedbackRating(null); setErrorTypes([]); setCorrection(""); }} className="text-xs text-gray-400 hover:text-gray-600 px-2">Cancel</button>
                       </div>
-
-                      {/* Submit Button for Model Selection */}
-                      {selectedModel && (
-                        <div className="space-y-2">
-                          {selectedModel === "none" && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 space-y-2">
-                              <p className="text-xs text-gray-600 font-medium">Please provide the correct translation:</p>
-                              <textarea
-                                className="w-full border border-gray-300 rounded p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                rows={2}
-                                placeholder="Enter the correct translation..."
-                                value={correction}
-                                onChange={(e) => setCorrection(e.target.value)}
-                              />
-                            </div>
-                          )}
-                          <button
-                            onClick={() => submitFeedback(selectedModel === "none" ? -1 : 1, selectedModel)}
-                            disabled={selectedModel === "none" && !correction.trim()}
-                            className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                          >
-                            Submit Model Feedback
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  )}
-
-                  {modelFeedbackSent && (
-                    <p className="text-xs text-green-600">Thanks for the model feedback!</p>
                   )}
                 </div>
-              </div>
-            )}
-          </div>
-
-          {result.dictionary_matches && result.dictionary_matches.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-yellow-800 mb-2">Word matches found:</p>
-              <ul className="space-y-1">
-                {result.dictionary_matches.map((m, i) => (
-                  <li key={i} className="text-sm text-yellow-700">
-                    {direction === "en→lun" ? (
-                      <><span className="font-medium">{m.english_word}</span> → {m.lunyoro_word}{m.definition && <span className="text-yellow-600"> ({m.definition})</span>}</>
-                    ) : (
-                      <><span className="font-medium">{m.lunyoro_word}</span> → {m.english_definition}</>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              )}
+              {feedbackSent && !modelFeedbackSent && <p className="text-xs text-teal-600 font-semibold">Thanks for the feedback!</p>}
+              {result.translation_marian && result.translation_nllb && !modelFeedbackSent && (
+                <div className="pt-2 border-t border-gray-100 space-y-2">
+                  <p className="text-xs text-gray-500 font-semibold">Which model translation is better?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { id: "marian" as const, label: "MarianMT",        text: result.translation_marian },
+                      { id: "nllb"   as const, label: "NLLB-200",         text: result.translation_nllb },
+                      { id: "both"   as const, label: "Both are correct", text: "Both translations are accurate" },
+                      { id: "none"   as const, label: "Both are wrong",   text: "Neither is accurate" },
+                    ]).map(({ id, label, text }) => (
+                      <div key={id} onClick={() => setSelectedModel(id)} className={`border-2 rounded-xl p-2 cursor-pointer transition-all ${selectedModel === id ? "border-teal-500 bg-teal-50" : "border-gray-200 hover:border-gray-300"}`}>
+                        <div className="flex items-start gap-2">
+                          <input type="radio" name="model_choice" checked={selectedModel === id} onChange={() => setSelectedModel(id)} className="mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-indigo-900 mb-0.5">{label}</p>
+                            <p className="text-xs text-gray-500 line-clamp-2">{text}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedModel && (
+                    <button onClick={() => submitFeedback(selectedModel === "none" ? -1 : 1, selectedModel)} className="w-full bg-teal-600 text-white py-2 rounded-full text-xs font-semibold hover:bg-teal-700 transition-all">Confirm Selection</button>
+                  )}
+                </div>
+              )}
+              {modelFeedbackSent && <p className="text-xs text-teal-600 font-semibold">Model preference saved!</p>}
             </div>
           )}
+        </div>
+      </div>
 
-          {result.alternatives && result.alternatives.length > 0 && (
-            <details className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <summary className="text-sm font-medium text-gray-600 cursor-pointer">Other close matches</summary>
-              <ul className="mt-2 space-y-2">
-                {result.alternatives.map((alt, i) => (
-                  <li key={i} className="text-sm border-t border-gray-100 pt-2">
-                    <p className="text-gray-500 text-xs">{direction === "en→lun" ? alt.english : alt.lunyoro}</p>
-                    <p className="text-gray-700">{direction === "en→lun" ? alt.lunyoro : alt.english}</p>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+      {tooltip && (
+        <div className="fixed z-50 bg-gray-900 text-white rounded-xl p-3 shadow-xl min-w-[140px]" style={{ top: tooltip.y + 6, left: tooltip.x }} onMouseEnter={() => { if (tooltipLeaveTimer.current) clearTimeout(tooltipLeaveTimer.current); }} onMouseLeave={scheduleTooltipClose}>
+          <p className="text-xs opacity-70 mb-1">Did you mean?</p>
+          {tooltip.suggestions.length > 0 ? tooltip.suggestions.map(s => (
+            <button key={s} className="block w-full text-left text-teal-300 hover:bg-white/10 px-2 py-1.5 rounded text-sm" onMouseDown={e => { e.preventDefault(); applySuggestion(tooltip.word, s); }}>{s}</button>
+          )) : <p className="text-xs opacity-60 italic">No suggestions</p>}
+          <div className="border-t border-white/10 mt-1 pt-1">
+            <button className="text-xs opacity-60 hover:opacity-100 px-2 py-1" onMouseDown={e => { e.preventDefault(); ignoreWord(tooltip.word); }}>Ignore</button>
+          </div>
         </div>
       )}
+
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        {[
+          { icon: "menu_book",    title: "Dictionary",       desc: "Explore Runyoro word roots and etymology." },
+          { icon: "construction", title: "Linguistic Tools", desc: "Analyze grammar structure and tonal markers." },
+          { icon: "star",         title: "Saved Phrases",    desc: "Quick access to your most used bilingual cards." },
+        ].map(({ icon, title, desc }) => (
+          <div key={title} className="bg-gray-50 p-4 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="material-symbols-outlined text-gray-500">{icon}</span>
+              <h3 className="font-semibold text-indigo-900">{title}</h3>
+            </div>
+            <p className="text-gray-500 text-sm">{desc}</p>
+          </div>
+        ))}
+      </section>
     </div>
   );
 }
