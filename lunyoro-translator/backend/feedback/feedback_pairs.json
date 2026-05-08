@@ -20,5 +20,16 @@
     "model_used": "both",
     "ip": "10.16.29.107",
     "timestamp": "2026-05-08T08:39:17.459158"
+  },
+  {
+    "source_text": "test",
+    "translation": "obuteekateeka",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "ip": "10.16.42.153",
+    "timestamp": "2026-05-08T08:40:54.797261"
   }
 ]
