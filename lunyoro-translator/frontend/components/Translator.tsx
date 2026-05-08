@@ -2,7 +2,7 @@
 import { useState, useRef, useCallback } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-type Direction = "en\u2192lun" | "lun\u2192en";
+type Direction = "en->lun" | "lun->en";
 
 interface Misspelled { word: string; suggestions: string[]; }
 interface TranslationResult {
@@ -21,31 +21,32 @@ export default function Translator() {
   const [result, setResult]         = useState<TranslationResult | null>(null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState("");
-  const [direction, setDirection]   = useState<Direction>("en\u2192lun");
+  const [direction, setDirection]   = useState<Direction>("en->lun");
   const [misspelled, setMisspelled] = useState<Misspelled[]>([]);
   const [tooltip, setTooltip]       = useState<{ word: string; suggestions: string[]; x: number; y: number } | null>(null);
   const [ignored, setIgnored]       = useState<Set<string>>(new Set());
-  const [feedbackRating, setFeedbackRating]         = useState<1 | -1 | null>(null);
-  const [showCorrection, setShowCorrection]         = useState(false);
-  const [correction, setCorrection]                 = useState("");
-  const [errorTypes, setErrorTypes]                 = useState<string[]>([]);
-  const [feedbackSent, setFeedbackSent]             = useState(false);
-  const [selectedModel, setSelectedModel]           = useState<"marian" | "nllb" | "none" | "both" | null>(null);
-  const [modelFeedbackSent, setModelFeedbackSent]   = useState(false);
-  const [preferredModel, setPreferredModel]         = useState<"marian" | "nllb" | null>(null);
+  const [feedbackRating, setFeedbackRating]       = useState<1 | -1 | null>(null);
+  const [showCorrection, setShowCorrection]       = useState(false);
+  const [correction, setCorrection]               = useState("");
+  const [errorTypes, setErrorTypes]               = useState<string[]>([]);
+  const [otherNote, setOtherNote]                 = useState("");
+  const [feedbackSent, setFeedbackSent]           = useState(false);
+  const [selectedModel, setSelectedModel]         = useState<"marian" | "nllb" | "none" | "both" | null>(null);
+  const [modelFeedbackSent, setModelFeedbackSent] = useState(false);
+  const [preferredModel, setPreferredModel]       = useState<"marian" | "nllb" | null>(null);
 
   const editorRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
   const tooltipLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fromLabel = direction === "en\u2192lun" ? "English" : "Runyoro / Rutooro";
-  const toLabel   = direction === "en\u2192lun" ? "Runyoro / Rutooro" : "English";
-  const endpoint  = direction === "en\u2192lun" ? "/translate" : "/translate-reverse";
+  const fromLabel = direction === "en->lun" ? "English" : "Runyoro / Rutooro";
+  const toLabel   = direction === "en->lun" ? "Runyoro / Rutooro" : "English";
+  const endpoint  = direction === "en->lun" ? "/translate" : "/translate-reverse";
 
   function resetFeedback() {
     setFeedbackRating(null); setFeedbackSent(false); setModelFeedbackSent(false);
-    setShowCorrection(false); setCorrection(""); setErrorTypes([]); setSelectedModel(null);
+    setShowCorrection(false); setCorrection(""); setErrorTypes([]); setOtherNote(""); setSelectedModel(null);
   }
 
   function handleInputChange(val: string) {
@@ -54,7 +55,7 @@ export default function Translator() {
   }
 
   function swapDirection() {
-    setDirection(d => d === "en\u2192lun" ? "lun\u2192en" : "en\u2192lun");
+    setDirection(d => d === "en->lun" ? "lun->en" : "en->lun");
     setInput(""); setResult(null); setError(""); setMisspelled([]);
     setTooltip(null); setIgnored(new Set()); resetFeedback();
   }
@@ -76,10 +77,13 @@ export default function Translator() {
     else if (modelChoice === "nllb" && result.translation_nllb) { translationToSend = result.translation_nllb; modelUsed = "nllb"; }
     else if (modelChoice === "both") { modelUsed = "both"; }
     else if (modelChoice === "none") { modelUsed = "none"; }
+    const errorTypeStr = modelChoice === "none" ? "both_models_wrong"
+      : modelChoice === "both" ? "both_models_correct"
+      : errorTypes.map(t => t === "other" && otherNote.trim() ? `other: ${otherNote.trim()}` : t).join(", ");
     try {
       await fetch(`${API}/feedback`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source_text: input.trim(), translation: translationToSend, direction, rating, correction: correction.trim(), error_type: modelChoice === "none" ? "both_models_wrong" : modelChoice === "both" ? "both_models_correct" : errorTypes.join(", "), model_used: modelUsed }),
+        body: JSON.stringify({ source_text: input.trim(), translation: translationToSend, direction, rating, correction: correction.trim(), error_type: errorTypeStr, model_used: modelUsed }),
       });
       if (!modelChoice) setShowCorrection(false);
     } catch { /* non-critical */ }
@@ -128,7 +132,7 @@ export default function Translator() {
   }
 
   async function handleTranslate() {
-    const text = direction === "lun\u2192en" ? (editorRef.current?.innerText || input) : input;
+    const text = direction === "lun->en" ? (editorRef.current?.innerText || input) : input;
     if (!text.trim()) return;
     setLoading(true); setError(""); setResult(null);
     try {
@@ -142,29 +146,32 @@ export default function Translator() {
     finally { setLoading(false); }
   }
 
+  const ERROR_TYPES = ["grammar", "spelling", "context", "vocabulary", "different meaning", "other"];
+
   return (
     <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 w-full flex flex-col gap-4">
-      <div className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-1 rounded-full bg-teal-100 text-teal-800 text-sm font-semibold flex items-center gap-1">
-            {fromLabel} <span className="material-symbols-outlined text-[16px]">expand_more</span>
-          </button>
-          <button onClick={swapDirection} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all active:scale-90">
-            <span className="material-symbols-outlined text-teal-600">swap_horiz</span>
-          </button>
-          <button className="px-4 py-1 rounded-full bg-gray-100 text-gray-600 text-sm font-semibold flex items-center gap-1">
-            {toLabel} <span className="material-symbols-outlined text-[16px]">expand_more</span>
-          </button>
-        </div>
+      {/* Language bar */}
+      <div className="flex items-center bg-white rounded-xl p-3 shadow-sm border border-gray-100 gap-3">
+        <button className="px-4 py-1 rounded-full bg-teal-100 text-teal-800 text-sm font-semibold flex items-center gap-1">
+          {fromLabel} <span className="material-symbols-outlined text-[16px]">expand_more</span>
+        </button>
+        <button onClick={swapDirection} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all active:scale-90">
+          <span className="material-symbols-outlined text-teal-600">swap_horiz</span>
+        </button>
+        <button className="px-4 py-1 rounded-full bg-gray-100 text-gray-600 text-sm font-semibold flex items-center gap-1">
+          {toLabel} <span className="material-symbols-outlined text-[16px]">expand_more</span>
+        </button>
       </div>
 
+      {/* Split workspace */}
       <div className="flex flex-col md:flex-row gap-4 min-h-[400px]">
+        {/* Source */}
         <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-lg p-6 flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <span className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Source</span>
             {input && <button onClick={() => { setInput(""); setResult(null); resetFeedback(); }} className="text-gray-400 hover:text-red-500 transition-colors"><span className="material-symbols-outlined">close</span></button>}
           </div>
-          {direction === "lun\u2192en" ? (
+          {direction === "lun->en" ? (
             <div ref={editorRef} contentEditable suppressContentEditableWarning onInput={handleEditorInput} onMouseMove={handleEditorMouseMove} onMouseLeave={scheduleTooltipClose} onCompositionStart={() => { isComposing.current = true; }} onCompositionEnd={() => { isComposing.current = false; handleEditorInput(); }} onKeyDown={e => e.key === "Enter" && e.ctrlKey && handleTranslate()} className="flex-grow outline-none text-lg text-gray-800 min-h-[160px] whitespace-pre-wrap break-words" style={{ fontFamily: "inherit" }} />
           ) : (
             <textarea ref={textareaRef} className="flex-grow outline-none text-lg text-gray-800 resize-none placeholder:text-gray-300 min-h-[160px]" placeholder="Enter text here to translate..." value={input} onChange={e => handleInputChange(e.target.value)} onKeyDown={e => e.key === "Enter" && e.ctrlKey && handleTranslate()} />
@@ -175,34 +182,52 @@ export default function Translator() {
           </div>
         </div>
 
+        {/* Translate button */}
         <div className="flex flex-row md:flex-col justify-center items-center gap-4">
           <button onClick={handleTranslate} disabled={loading || !input.trim()} className="bg-teal-600 text-white w-16 h-16 md:w-20 md:h-20 rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-all hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed">
             <span className="material-symbols-outlined text-[32px] md:text-[40px]">{loading ? "hourglass_empty" : "translate"}</span>
           </button>
         </div>
 
+        {/* Target */}
         <div className="flex-1 bg-white border-2 border-teal-100 rounded-xl shadow-lg p-6 flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <span className="text-xs text-teal-600 uppercase tracking-widest font-semibold">{toLabel}</span>
-            {result?.translation && <button onClick={() => navigator.clipboard.writeText(result.translation || "")} className="p-1 text-gray-400 hover:text-indigo-900 transition-colors"><span className="material-symbols-outlined">content_copy</span></button>}
+            {result?.translation && (
+              <button onClick={() => navigator.clipboard.writeText(result.translation || "")} className="p-1 text-gray-400 hover:text-indigo-900 transition-colors">
+                <span className="material-symbols-outlined">content_copy</span>
+              </button>
+            )}
           </div>
+
           <div className="flex-grow text-lg text-gray-800 flex flex-col justify-start">
             {loading ? (
               <div className="flex items-center gap-2 text-gray-400">
                 <div className="flex space-x-1">{[0,1,2].map(i => <div key={i} className="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}</div>
                 <span className="text-sm">Translating...</span>
               </div>
-            ) : result?.translation ? <p className="leading-relaxed">{result.translation}</p>
-              : error ? <p className="text-red-500 text-base">{error}</p>
-              : <p className="text-gray-300 italic">Translation will appear here...</p>}
+            ) : result?.translation ? (
+              <p className="leading-relaxed">{result.translation}</p>
+            ) : error ? (
+              <p className="text-red-500 text-base">{error}</p>
+            ) : (
+              <p className="text-gray-300 italic">Translation will appear here...</p>
+            )}
           </div>
 
           {result && preferredModel && (
-            <div className="mt-2"><span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">Using {preferredModel === "marian" ? "MarianMT" : "NLLB-200"}</span></div>
+            <div className="mt-2">
+              <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">
+                Using {preferredModel === "marian" ? "MarianMT" : "NLLB-200"}
+              </span>
+            </div>
           )}
 
+          {/* Feedback */}
           {result?.translation && (
             <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+
+              {/* Primary yes/no */}
               {!feedbackSent && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -210,27 +235,51 @@ export default function Translator() {
                     <button onClick={() => submitFeedback(1)} className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-colors ${feedbackRating === 1 ? "bg-teal-600 text-white" : "bg-gray-100 hover:bg-teal-50 text-gray-600 border border-gray-200"}`}>Yes</button>
                     <button onClick={() => { setFeedbackRating(-1); setShowCorrection(true); }} className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-colors ${feedbackRating === -1 ? "bg-red-500 text-white" : "bg-gray-100 hover:bg-red-50 text-gray-600 border border-gray-200"}`}>No</button>
                   </div>
+
                   {showCorrection && feedbackRating === -1 && (
                     <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2">
-                      <p className="text-xs text-gray-500 font-semibold">What&apos;s wrong? (Select all that apply)</p>
+                      <p className="text-xs text-gray-500 font-semibold">What is wrong? (Select all that apply)</p>
                       <div className="space-y-1">
-                        {["grammar","spelling","context","vocabulary","different meaning","other"].map(type => (
-                          <label key={type} className="flex items-center gap-2 text-xs cursor-pointer">
-                            <input type="checkbox" checked={errorTypes.includes(type)} onChange={e => setErrorTypes(e.target.checked ? [...errorTypes, type] : errorTypes.filter(t => t !== type))} />
-                            <span className="text-gray-600 capitalize">{type === "context" ? "Lack of context awareness" : type === "vocabulary" ? "Word doesn't exist in vocabulary" : type}</span>
-                          </label>
+                        {ERROR_TYPES.map(type => (
+                          <div key={type}>
+                            <label className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={errorTypes.includes(type)}
+                                onChange={e => setErrorTypes(e.target.checked ? [...errorTypes, type] : errorTypes.filter(t => t !== type))}
+                              />
+                              <span className="text-gray-600 capitalize">
+                                {type === "context" ? "Lack of context awareness"
+                                  : type === "vocabulary" ? "Word does not exist in vocabulary"
+                                  : type}
+                              </span>
+                            </label>
+                            {type === "other" && errorTypes.includes("other") && (
+                              <input
+                                type="text"
+                                autoFocus
+                                className="mt-1 ml-5 w-[calc(100%-1.25rem)] border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                placeholder="Describe the problem..."
+                                value={otherNote}
+                                onChange={e => setOtherNote(e.target.value)}
+                              />
+                            )}
+                          </div>
                         ))}
                       </div>
                       <textarea className="w-full border border-gray-200 rounded-lg p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-teal-400" rows={2} placeholder="Enter the correct translation (optional)..." value={correction} onChange={e => setCorrection(e.target.value)} />
                       <div className="flex gap-2">
                         <button onClick={() => submitFeedback(-1)} disabled={errorTypes.length === 0 && !correction.trim()} className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-full hover:bg-red-600 disabled:opacity-50 font-semibold">Submit Feedback</button>
-                        <button onClick={() => { setShowCorrection(false); setFeedbackRating(null); setErrorTypes([]); setCorrection(""); }} className="text-xs text-gray-400 hover:text-gray-600 px-2">Cancel</button>
+                        <button onClick={() => { setShowCorrection(false); setFeedbackRating(null); setErrorTypes([]); setCorrection(""); setOtherNote(""); }} className="text-xs text-gray-400 hover:text-gray-600 px-2">Cancel</button>
                       </div>
                     </div>
                   )}
                 </div>
               )}
+
               {feedbackSent && !modelFeedbackSent && <p className="text-xs text-teal-600 font-semibold">Thanks for the feedback!</p>}
+
+              {/* Model comparison */}
               {result.translation_marian && result.translation_nllb && !modelFeedbackSent && (
                 <div className="pt-2 border-t border-gray-100 space-y-2">
                   <p className="text-xs text-gray-500 font-semibold">Which model translation is better?</p>
@@ -257,12 +306,14 @@ export default function Translator() {
                   )}
                 </div>
               )}
+
               {modelFeedbackSent && <p className="text-xs text-teal-600 font-semibold">Model preference saved!</p>}
             </div>
           )}
         </div>
       </div>
 
+      {/* Spellcheck tooltip */}
       {tooltip && (
         <div className="fixed z-50 bg-gray-900 text-white rounded-xl p-3 shadow-xl min-w-[140px]" style={{ top: tooltip.y + 6, left: tooltip.x }} onMouseEnter={() => { if (tooltipLeaveTimer.current) clearTimeout(tooltipLeaveTimer.current); }} onMouseLeave={scheduleTooltipClose}>
           <p className="text-xs opacity-70 mb-1">Did you mean?</p>
@@ -275,6 +326,7 @@ export default function Translator() {
         </div>
       )}
 
+      {/* Linguistic tools */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
         {[
           { icon: "menu_book",    title: "Dictionary",       desc: "Explore Runyoro word roots and etymology." },
