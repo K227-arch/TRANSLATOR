@@ -109,6 +109,12 @@ def preload_model():
     try:
         from language_rules import get_full_grammar_context
         full = get_full_grammar_context()
+        # Append Grammar Rules 4 context
+        try:
+            from language_rules_gr4 import get_gr4_grammar_context
+            full += get_gr4_grammar_context()
+        except Exception:
+            pass
         # Keep only the first 6000 chars to stay within Ollama's context window
         _GRAMMAR_CONTEXT_CACHE = full[:6000]
     except Exception:
@@ -467,6 +473,19 @@ async def summarize_pdf(file: UploadFile = File(...)):
     if is_lunyoro:
         english_sentences = []
         for sent in sentences:
+            # Apply grammar rules to normalise Lunyoro input before translation
+            try:
+                from language_rules import (
+                    apply_rl_rule_to_text, apply_nasal_assimilation,
+                    apply_particle_elision,
+                )
+                from language_rules_gr4 import apply_kinship_correction, apply_copula_to_text
+                sent = apply_nasal_assimilation(sent)
+                sent = apply_particle_elision(sent)
+                sent = apply_kinship_correction(sent)
+                sent = apply_copula_to_text(sent)
+            except Exception:
+                pass
             translated = _mt_translate(sent, "lun2en") or sent
             english_sentences.append(translated)
     else:
@@ -514,6 +533,12 @@ async def summarize_pdf(file: UploadFile = File(...)):
                 result = _nllb_translate(sent, "en2lun") or _mt_translate(sent, "en2lun") or sent
             else:
                 result = _mt_translate(sent, "en2lun") or sent
+            # Apply all grammar rules (including gr4) to Lunyoro output
+            try:
+                from language_rules_gr4 import apply_gr4_rules
+                result = apply_gr4_rules(result, direction="en->lun")
+            except Exception:
+                pass
             out.append(result)
         return " ".join(out)
 
@@ -521,11 +546,61 @@ async def summarize_pdf(file: UploadFile = File(...)):
     summary_lunyoro_nllb   = _translate_summary(summary, use_nllb=True)
     summary_lunyoro = summary_lunyoro_nllb or summary_lunyoro_marian
 
+    # ── Qwen refinement pass (both models independently) ─────────────────────
+    def _qwen_refine(draft: str) -> str:
+        """Refine a single MT draft with Qwen. Returns draft unchanged on failure."""
+        try:
+            _hf_token = os.getenv("HF_TOKEN", "")
+            _hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+            if not _hf_token:
+                return draft
+            from openai import OpenAI as _OpenAI
+            from language_rules_gr4 import get_gr4_grammar_context, apply_gr4_rules
+            _grammar_hint = (_GRAMMAR_CONTEXT_CACHE or "")[:2000] + get_gr4_grammar_context()[:1000]
+            _refine_prompt = (
+                "You are a Runyoro-Rutooro language expert. "
+                "You will be given an English text and a machine-translated Runyoro-Rutooro draft. "
+                "Improve the draft for accuracy, natural flow, and correct grammar.\n"
+                f"Grammar rules:\n{_grammar_hint}\n\n"
+                "Rules:\n"
+                "- Keep the same meaning as the English source\n"
+                "- Fix grammar errors, noun class prefixes, concordial agreement\n"
+                "- Apply R/L rule: L only before/after e or i\n"
+                "- Apply apostrophe elision: na ente → n'ente\n"
+                "- Output ONLY the improved Runyoro-Rutooro text, nothing else\n"
+            )
+            _client = _OpenAI(base_url="https://router.huggingface.co/v1", api_key=_hf_token)
+            _resp = _client.chat.completions.create(
+                model=_hf_model,
+                messages=[
+                    {"role": "system", "content": _refine_prompt},
+                    {"role": "user", "content": (
+                        f"English source:\n{summary}\n\n"
+                        f"MT draft:\n{draft}\n\n"
+                        "Improved translation:"
+                    )},
+                ],
+                max_tokens=1024,
+                temperature=0.2,
+            )
+            refined = _resp.choices[0].message.content.strip()
+            if refined and len(refined) > 10:
+                refined = apply_gr4_rules(refined, direction="en->lun")
+                return refined
+        except Exception:
+            pass
+        return draft
+
+    summary_lunyoro_marian_refined = _qwen_refine(summary_lunyoro_marian)
+    summary_lunyoro_nllb_refined   = _qwen_refine(summary_lunyoro_nllb) if summary_lunyoro_nllb else summary_lunyoro_nllb
+    # Primary output: prefer NLLB-refined, fall back to Marian-refined
+    summary_lunyoro_best = summary_lunyoro_nllb_refined or summary_lunyoro_marian_refined
+
     save_history({
         "input": f"[DOC Summary] {file.filename}",
         "direction": "en→lun",
-        "translation": summary_lunyoro[:200] + "..." if len(summary_lunyoro) > 200 else summary_lunyoro,
-        "method": "extractive_summary",
+        "translation": summary_lunyoro_best[:200] + "..." if len(summary_lunyoro_best) > 200 else summary_lunyoro_best,
+        "method": "extractive_summary+qwen",
         "confidence": None,
         "timestamp": datetime.utcnow().isoformat(),
     })
@@ -536,9 +611,9 @@ async def summarize_pdf(file: UploadFile = File(...)):
         "total_sentences": total_sentences,
         "language_detected": "lunyoro" if is_lunyoro else "english",
         "summary": summary,
-        "summary_lunyoro": summary_lunyoro,
-        "summary_lunyoro_marian": summary_lunyoro_marian,
-        "summary_lunyoro_nllb": summary_lunyoro_nllb,
+        "summary_lunyoro": summary_lunyoro_best,
+        "summary_lunyoro_marian": summary_lunyoro_marian_refined,
+        "summary_lunyoro_nllb": summary_lunyoro_nllb_refined,
         "sentences_used": top_n,
     }
 
@@ -819,7 +894,47 @@ def get_language_rules():
         "ideophones":           IDEOPHONES,
         # Orthography
         "orthography_rules":    ORTHOGRAPHY_RULES,
+        # Grammar Rules 4 (new)
+        **_get_gr4_rules(),
     }
+
+
+def _get_gr4_rules() -> dict:
+    """Load Grammar Rules 4 data for the /language-rules endpoint."""
+    try:
+        from language_rules_gr4 import (
+            ENUMERATIVE_PRONOUNS, DEMONSTRATIVES_NEAR_FULL,
+            DEMONSTRATIVES_FAR_FULL, DEMONSTRATIVES_IN_MIND_FULL,
+            SUBJECT_RELATIVE_CONCORDS_FULL, OBJECT_RELATIVE_CONCORDS_FULL,
+            MODAL_TA_PATTERNS, DARA_PRONOUNS, DARA_NOUN_CLASSES,
+            COPULA_NI_PRONOUNS, COPULA_N_NEAR, COPULA_N_FAR, COPULA_RULES,
+            KA_EMPHATIC_PATTERNS, KA_PERMISSIVE_EXAMPLES,
+            KINSHIP_TERMS, VERB_NOUN_DERIVATION, VERB_NOUN_EXAMPLES,
+            GR4_GRAMMAR_CONTEXT,
+        )
+        return {
+            "enumerative_pronouns":         ENUMERATIVE_PRONOUNS,
+            "demonstratives_near":          {str(k): v for k, v in DEMONSTRATIVES_NEAR_FULL.items()},
+            "demonstratives_far":           {str(k): v for k, v in DEMONSTRATIVES_FAR_FULL.items()},
+            "demonstratives_in_mind":       {str(k): v for k, v in DEMONSTRATIVES_IN_MIND_FULL.items()},
+            "subject_relative_concords":    {str(k): v for k, v in SUBJECT_RELATIVE_CONCORDS_FULL.items()},
+            "object_relative_concords":     {str(k): v for k, v in OBJECT_RELATIVE_CONCORDS_FULL.items()},
+            "modal_ta_patterns":            MODAL_TA_PATTERNS,
+            "dara_pronouns":                DARA_PRONOUNS,
+            "dara_noun_classes":            {str(k): v for k, v in DARA_NOUN_CLASSES.items()},
+            "copula_ni_pronouns":           COPULA_NI_PRONOUNS,
+            "copula_n_near":                {str(k): v for k, v in COPULA_N_NEAR.items()},
+            "copula_n_far":                 {str(k): v for k, v in COPULA_N_FAR.items()},
+            "copula_rules":                 COPULA_RULES,
+            "ka_emphatic":                  KA_EMPHATIC_PATTERNS,
+            "ka_permissive":                KA_PERMISSIVE_EXAMPLES,
+            "kinship_terms":                KINSHIP_TERMS,
+            "verb_noun_derivation":         VERB_NOUN_DERIVATION,
+            "verb_noun_examples":           VERB_NOUN_EXAMPLES,
+            "gr4_grammar_context":          GR4_GRAMMAR_CONTEXT,
+        }
+    except Exception:
+        return {}
 
 
 class ApplyRuleRequest(BaseModel):

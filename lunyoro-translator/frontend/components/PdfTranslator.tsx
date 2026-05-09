@@ -115,14 +115,20 @@ export default function PdfTranslator() {
             <div className="bg-white border border-green-200 rounded-lg p-5 space-y-3">
               <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Runyoro / Rutooro Summary</p>
               <p className="text-sm text-gray-800 leading-relaxed">{summary.summary_lunyoro}</p>
-              {summary.summary_lunyoro_marian && summary.summary_lunyoro_nllb && (
-                <div className="pt-3 border-t border-gray-100 space-y-2">
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Model comparison</p>
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-700"><span className="font-semibold text-blue-600">MarianMT:</span> {summary.summary_lunyoro_marian}</p>
-                    <p className="text-xs text-gray-700"><span className="font-semibold text-purple-600">NLLB-200:</span> {summary.summary_lunyoro_nllb}</p>
+              {(summary.summary_lunyoro_marian || summary.summary_lunyoro_nllb) && (
+                <details className="pt-3 border-t border-gray-100">
+                  <summary className="text-xs text-gray-400 font-medium uppercase tracking-wide cursor-pointer select-none">
+                    Model comparison
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {summary.summary_lunyoro_marian && (
+                      <p className="text-xs text-gray-700"><span className="font-semibold text-blue-600">MarianMT:</span> {summary.summary_lunyoro_marian}</p>
+                    )}
+                    {summary.summary_lunyoro_nllb && (
+                      <p className="text-xs text-gray-700"><span className="font-semibold text-purple-600">NLLB-200:</span> {summary.summary_lunyoro_nllb}</p>
+                    )}
                   </div>
-                </div>
+                </details>
               )}
             </div>
           )}
