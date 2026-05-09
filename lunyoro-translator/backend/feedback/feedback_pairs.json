@@ -163,5 +163,104 @@
     "model_used": "marian",
     "ip": "10.16.29.229",
     "timestamp": "2026-05-08T13:43:32.487532"
+  },
+  {
+    "source_text": "Halo, where is my money",
+    "translation": "Haro, efeza zange zizizi nkaha",
+    "direction": "en→lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "both_models_wrong",
+    "model_used": "none",
+    "ip": "10.16.14.160",
+    "timestamp": "2026-05-08T17:52:49.788169"
+  },
+  {
+    "source_text": "Where are you leaving these days",
+    "translation": "Ogenda nkaha ebiro binu",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "nllb",
+    "ip": "10.16.42.153",
+    "timestamp": "2026-05-08T17:56:02.735635"
+  },
+  {
+    "source_text": "Where are you living these days",
+    "translation": "Oikaire nkaha ebiro binu",
+    "direction": "en→lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "nllb",
+    "ip": "10.16.14.160",
+    "timestamp": "2026-05-08T18:03:44.478632"
+  },
+  {
+    "source_text": "animals",
+    "translation": "enyamaiswa",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "different meaning",
+    "model_used": "",
+    "ip": "10.16.29.107",
+    "timestamp": "2026-05-08T18:04:21.624046"
+  },
+  {
+    "source_text": "The boy is running",
+    "translation": "Omwajo nairuka",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "ip": "10.16.29.107",
+    "timestamp": "2026-05-08T18:47:10.808521"
+  },
+  {
+    "source_text": "The boy is running",
+    "translation": "Omwajo nairuka",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "ip": "10.16.29.107",
+    "timestamp": "2026-05-08T18:48:47.961807"
+  },
+  {
+    "source_text": "What is agriculture in Rutooro",
+    "translation": "ebyebulimi omu Rutooro",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "nllb",
+    "ip": "10.16.14.160",
+    "timestamp": "2026-05-08T18:54:18.000158"
+  },
+  {
+    "source_text": "What is agriculture in Rutooro",
+    "translation": "ebyebulimi omu Rutooro",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "other: Ebyobulimi no Buliisa mu Rutooro kintuki",
+    "model_used": "nllb",
+    "ip": "10.16.42.153",
+    "timestamp": "2026-05-08T18:55:45.592361"
+  },
+  {
+    "source_text": "animals",
+    "translation": "ebisoro",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "different meaning",
+    "model_used": "nllb",
+    "ip": "10.16.42.153",
+    "timestamp": "2026-05-09T08:28:32.580418"
   }
 ]

@@ -102,6 +102,7 @@ def _postprocess_lunyoro(text: str) -> str:
       6. Semi-vowel substitution  (i→y, u→w at prefix boundaries)
       7. Particle elision         (na ente→n'ente, habwa okugonza→habw'okugonza)
       8. R/L rule                 (L→R except adjacent to e/i)
+      9. Grammar Rules 4          (copula, kinship, enumeratives, ka particle)
     """
     if not text:
         return text
@@ -122,6 +123,12 @@ def _postprocess_lunyoro(text: str) -> str:
         text = _apply_apostrophe(text)
     if _apply_rl:
         text = _apply_rl(text)
+    # Grammar Rules 4 corrections
+    try:
+        from language_rules_gr4 import apply_gr4_rules
+        text = apply_gr4_rules(text, direction="en->lun")
+    except Exception:
+        pass
     return text
 
 

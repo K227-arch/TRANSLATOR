@@ -1,6 +1,6 @@
 # AI Stick — Runyoro / Rutooro Translator
 
-**Version 2.2** - Document Editor Mobile Responsiveness
+**Version 2.5** - Dual-Model Qwen Refinement for Document Summarization
 
 A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - Fine-tuned MarianMT + NLLB-200 models
@@ -20,9 +20,18 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **Dual neural models:** MarianMT (primary) + NLLB-200 (comparison)
 - **HuggingFace Hub integration:** Models loaded automatically from HF Hub on first use and cached locally
 - **Context-aware:** Uses previous sentence for better coherence
-- **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation
+- **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation, Grammar Rules 4 (copula, kinship, enumeratives, ka particle)
 - **Fallback chain:** Neural MT → Semantic search → Dictionary lookup
 - **Spellcheck:** Real-time Lunyoro spellcheck with suggestions
+
+### Runyoro-Rutooro Writing Editor (`RunyoroEditor.tsx`)
+- **Contenteditable canvas:** Rich-text editor with caret preservation across spellcheck re-renders
+- **Real-time spellcheck:** Wavy underlines on misspelled words; hover tooltip with suggestions or ignore option; debounced 800ms after typing stops
+- **Grammar hints panel:** Six collapsible reference cards covering R/L Rule, Noun Classes, Verb Infinitives, Tense Markers, Apostrophe elision, and Long Vowels
+- **Formatting toolbar:** Bold, italic, underline, ordered/unordered lists, and left/center/right alignment via `execCommand`
+- **AI grammar review:** Sends editor text to `/chat` endpoint for Qwen-powered grammar feedback
+- **Save to file:** Downloads editor content as a `.txt` file with a datestamped filename
+- **Word count:** Live word count displayed in the editor footer
 
 ### Chat Assistant
 - **LLM-powered:** Qwen 2.5 7B via HuggingFace Router
@@ -168,6 +177,7 @@ lunyoro-translator/
 │   ├── main.py                      # FastAPI server
 │   ├── translate.py                 # Translation logic (MT + retrieval)
 │   ├── language_rules.py            # Runyoro grammar rules (3200+ lines)
+│   ├── language_rules_gr4.py        # Grammar Rules 4: copula, kinship, enumeratives, ka particle
 │   ├── build_index.py               # Build semantic search index from dictionary
 │   ├── clean_training_data.py       # Data cleaning script
 │   ├── back_translate.py            # Back-translation augmentation
@@ -198,6 +208,7 @@ lunyoro-translator/
 ├── frontend/
 │   ├── components/Translator.tsx    # Main translation UI
 │   ├── components/ChatPage.tsx      # Chat assistant UI
+│   ├── components/RunyoroEditor.tsx # Runyoro-Rutooro writing editor (spellcheck, grammar hints, AI review, formatting)
 │   ├── components/TopBar.tsx        # Top navigation bar
 │   ├── components/BottomNav.tsx     # Fixed bottom navigation bar (Home, Translate, Chat, Editor)
 │   └── app/                         # Next.js app router
@@ -266,7 +277,7 @@ python backend/export_analytics.py --csv --output reports/csv_export/
 - **Raw Feedback Data:** Complete feedback log with all fields
 
 ### Utilities
-- `POST /summarize-pdf` — Extract + translate + summarize documents
+- `POST /summarize-pdf` — Extract + translate + summarize documents. When a Lunyoro document is detected, grammar rules (nasal assimilation, particle elision, kinship correction, copula normalization) are applied to each sentence before translation. Qwen 2.5 7B (if `HF_TOKEN` is set) refines **both** the MarianMT and NLLB-200 drafts independently, with Grammar Rules 4 post-processing applied to each refined output. The best result (NLLB-refined preferred, Marian-refined as fallback) is returned as `summary_lunyoro`. All four variants are included in the response: `summary_lunyoro` (best), `summary_lunyoro_marian` (Marian-refined), `summary_lunyoro_nllb` (NLLB-refined). Falls back to the MT draft per model if Qwen is unavailable.
 - `GET /language-rules` — Full grammar rules JSON
 - `POST /language-rules/apply` — Apply specific grammar rule
 - `GET /history` — Translation history
@@ -302,8 +313,9 @@ Comprehensive Runyoro-Rutooro grammar implementation (3200+ lines):
 - **Pronominal system:** Subject/object concords, demonstratives, possessives
 - **Numbers & ordinals:** Cardinals 1-1M, ordinal formation rules
 - **Particles:** Genitive, copula, conditional, coordinating
+- **Grammar Rules 4** (`language_rules_gr4.py`): copula constructions, kinship terms, enumeratives, and the *ka* diminutive/adverbial particle — applied as a final post-processing pass on en→lun output
 
-See `backend/language_rules.py` for full implementation.
+See `backend/language_rules.py` and `backend/language_rules_gr4.py` for full implementation.
 
 ---
 
@@ -414,8 +426,19 @@ If you use this work, please cite:
 
 ## Version History
 
+### v2.5 - Dual-Model Qwen Refinement for Document Summarization (Current)
+- **`/summarize-pdf` improvement:** Qwen 2.5 7B (via HuggingFace Router) now refines the MarianMT and NLLB-200 summary drafts **independently** when `HF_TOKEN` is set. Each model's draft is sent to Qwen separately with the English source and grammar rules as context. Grammar Rules 4 post-processing is applied to each refined output. The response now includes `summary_lunyoro` (best output — NLLB-refined preferred), `summary_lunyoro_marian` (Marian-refined), and `summary_lunyoro_nllb` (NLLB-refined). Falls back silently to the respective MT draft per model if Qwen is unavailable or times out.
+
+### v2.4 - Grammar Pre-Processing for Document Summarization
+- **`/summarize-pdf` improvement:** When a Lunyoro document is detected, grammar rules (nasal assimilation, particle elision, kinship correction, copula normalization) are now applied to each sentence before Lunyoro→English translation, improving summary quality for Runyoro-Rutooro input documents
+
+### v2.3 - Grammar Rules 4 Post-Processing
+- **Grammar Rules 4** (`language_rules_gr4.py`) integrated as a final post-processing step in `translate.py` for en→lun output
+- Covers copula constructions, kinship term agreement, enumerative patterns, and the *ka* diminutive/adverbial particle
+- Applied after all existing rules (R/L, nasal assimilation, apostrophe elision) in the normalisation pipeline
+
 ### v2.2 - Document Editor Mobile Responsiveness (Current)
-- **Document Editor toolbar** — replaced custom design-system tokens with standard Tailwind classes; toolbar and sub-tabs are now horizontally scrollable on mobile (`overflow-x-auto`); spellcheck label hidden on small screens; padding and icon sizes adjusted for compact mobile layout
+- **Document Editor toolbar removed** — the formatting toolbar (bold, italic, underline, lists, alignment, spellcheck, save) has been removed from `DocumentEditor.tsx`. Formatting controls remain available in the dedicated `RunyoroEditor.tsx` component. Sub-tabs in `DocumentEditor` are horizontally scrollable on mobile (`overflow-x-auto`).
 
 ### v2.1 - Rebranding & UI Refresh
 - **App renamed** to "AI Stick — Runyoro / Rutooro Translator"
