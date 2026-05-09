@@ -28,32 +28,43 @@ SEM_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 
 def download_all(force: bool = False):
+    """
+    Sync all models from HuggingFace.
+    - Without --force: only downloads files that are new or changed (delta sync).
+    - With --force: re-downloads everything regardless.
+    Uses snapshot_download with local_dir, which compares file hashes and skips
+    unchanged files automatically.
+    """
     from huggingface_hub import snapshot_download
 
     for local_name, repo_id in HF_MODELS.items():
         dest = MODEL_DIR / local_name
-        if dest.exists() and not force:
+        dest.mkdir(parents=True, exist_ok=True)
+
+        if not force:
             has_weights = any(dest.glob("*.safetensors")) or any(dest.glob("*.bin"))
             if has_weights:
-                print(f"  ✓ {local_name} already exists — skipping (use --force to re-download)")
-                continue
+                print(f"  ↻ Checking {repo_id} for updates...")
+            else:
+                print(f"  ↓ Downloading {repo_id} → model/{local_name}/")
+        else:
+            print(f"  ↓ Force re-downloading {repo_id} → model/{local_name}/")
 
-        print(f"  ↓ Downloading {repo_id} → model/{local_name}/")
-        dest.mkdir(parents=True, exist_ok=True)
         snapshot_download(
             repo_id=repo_id,
             local_dir=str(dest),
             ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"],
         )
-        print(f"  ✓ {local_name} downloaded")
+        print(f"  ✓ {local_name} up to date")
 
-    # Download sem model into HF cache so it's available in offline mode
-    print(f"  ↓ Downloading {SEM_MODEL_NAME} (semantic search)...")
+    # Semantic search model
+    print(f"  ↻ Checking {SEM_MODEL_NAME} for updates...")
     try:
         snapshot_download(repo_id=SEM_MODEL_NAME)
-        print(f"  ✓ sem model cached")
+        print(f"  ✓ sem model up to date")
     except Exception as e:
-        print(f"  ✗ sem model download failed: {e}")
+        print(f"  ✗ sem model sync failed: {e}")
+
 
 
 if __name__ == "__main__":

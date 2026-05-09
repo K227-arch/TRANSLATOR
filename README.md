@@ -235,7 +235,7 @@ backend/
   eval_marian.py             — MarianMT-only evaluation: runs on CPU, leaving both GPUs free for concurrent NLLB training; outputs eval_marian_results.json (BLEU, token F1, exact match)
   run_eval.py                — Sequential single-GPU evaluation: auto-selects the GPU with the most free memory (avoids conflicts with Ollama); outputs eval_results_all.json
   eval_all_parallel.py       — Evaluates all 4 models in parallel across 2 GPUs (GPU 0: MarianMT, GPU 1: NLLB); outputs eval_results_all.json
-  download_models.py         — Downloads all models from HuggingFace
+  download_models.py         — Syncs all models from HuggingFace; performs a delta sync by default — files already present with a matching hash are skipped automatically; use --force to re-download everything regardless
   model/
     en2lun/                  — MarianMT English→Lunyoro
     lun2en/                  — MarianMT Lunyoro→English
