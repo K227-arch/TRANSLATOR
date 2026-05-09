@@ -39,10 +39,54 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 from sacrebleu.metrics import BLEU
+from torch.utils.data import WeightedRandomSampler
 
 BASE      = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE, "model")
 DATA_DIR  = os.path.join(BASE, "data", "training")
+GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
+
+
+# ── Weighted sampler for low-frequency pairs ──────────────────────────────────
+
+def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedRandomSampler:
+    """
+    Give rare/gr4 pairs a higher sampling weight so the model sees them
+    proportionally more per epoch without duplicating the dataset.
+
+    Strategy:
+      - Pairs that appear in gr4_pairs.csv get weight=upweight (default 4x)
+      - back_translated pairs get weight=2x
+      - All other pairs get weight=1.0
+    """
+    # Load gr4 pair keys
+    gr4_keys: set = set()
+    if os.path.exists(GR4_CSV):
+        try:
+            gr4_df = pd.read_csv(GR4_CSV)
+            for _, row in gr4_df.iterrows():
+                en  = str(row.get("english", "")).strip().lower()
+                lun = str(row.get("lunyoro", "")).strip().lower()
+                if en and lun:
+                    gr4_keys.add((en, lun))
+        except Exception:
+            pass
+
+    weights = []
+    for _, row in df.iterrows():
+        en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
+        lun = str(row.get("lunyoro", "")).strip().lower()
+        src = str(row.get("source", "")).lower()
+
+        if (en, lun) in gr4_keys:
+            weights.append(upweight)
+        elif "back_translation" in src:
+            weights.append(2.0)
+        else:
+            weights.append(1.0)
+
+    weights_tensor = torch.DoubleTensor(weights)
+    return WeightedRandomSampler(weights_tensor, num_samples=len(weights), replacement=True)
 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
@@ -221,9 +265,12 @@ def train_direction(direction: str, args):
                           subword_reg=args.subword_reg,
                           alpha=args.spm_alpha)
 
+    # Weighted sampler: gr4 pairs 4x, back-translated 2x, rest 1x
+    # shuffle=False when using sampler (sampler handles ordering)
+    sampler = build_weighted_sampler(train_df)
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size,
-        shuffle=True, collate_fn=_collate, num_workers=0,
+        sampler=sampler, collate_fn=_collate, num_workers=0,
     )
 
     # Optimizer and scheduler
@@ -301,15 +348,24 @@ def train_direction(direction: str, args):
     # Copy best checkpoint back to model dir
     if os.path.isdir(best_ckpt):
         import shutil
-        # Backup current model
+        # Backup current model (skip if backup already exists — avoids Windows permission errors)
         backup = model_dir + "_backup"
-        if os.path.isdir(backup):
-            shutil.rmtree(backup)
-        shutil.copytree(model_dir, backup)
-        # Copy best checkpoint files
+        if not os.path.isdir(backup):
+            try:
+                shutil.copytree(model_dir, backup, ignore=shutil.ignore_patterns("best_checkpoint"))
+            except Exception as e:
+                print(f"  Warning: could not create backup: {e}")
+        # Copy best checkpoint files into model dir
         for fname in os.listdir(best_ckpt):
-            shutil.copy(os.path.join(best_ckpt, fname), model_dir)
-        shutil.rmtree(best_ckpt)
+            try:
+                shutil.copy2(os.path.join(best_ckpt, fname), model_dir)
+            except Exception as e:
+                print(f"  Warning: could not copy {fname}: {e}")
+        # Remove best_checkpoint dir (ignore errors on Windows/OneDrive)
+        try:
+            shutil.rmtree(best_ckpt)
+        except Exception:
+            pass
         print(f"\n  Best model (BLEU={best_bleu:.2f}) saved to {model_dir}")
         print(f"  Previous model backed up to {backup}")
 

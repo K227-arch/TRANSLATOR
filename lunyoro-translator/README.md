@@ -114,9 +114,79 @@ python backend/train_marian.py --direction both --epochs 5 --resize-embeddings
 #   - Longer context window (prepends previous sentence)
 #   - Mixed precision (fp16) on GPU
 #   - BLEU-based checkpoint selection
+#   - Weighted sampler: gr4 pairs get 4x weight, back-translated pairs 2x
 ```
 
-### 6. Upload Models to HuggingFace Hub
+### 6. Fine-Tune NLLB-200 Models
+```bash
+python backend/train_nllb.py                          # both directions, 3 epochs
+python backend/train_nllb.py --direction en2lun       # one direction only
+python backend/train_nllb.py --epochs 5 --lr 2e-5
+python backend/train_nllb.py --fp16                   # mixed precision (GPU)
+```
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--direction` | `both` | `en2lun`, `lun2en`, or `both` |
+| `--epochs` | `3` | Number of training epochs |
+| `--batch-size` | `8` | Keep low (8–16) — NLLB is large |
+| `--lr` | `1e-5` | Learning rate (lower than MarianMT) |
+| `--max-length` | `256` | Max token length |
+| `--fp16` / `--no-fp16` | enabled | Mixed precision (GPU only) |
+
+**Notes:**
+- Always fine-tunes from the existing local checkpoint in `model/nllb_{direction}/` — never trains from scratch
+- Best checkpoint (by validation BLEU) is saved to `model/nllb_{direction}/best_checkpoint/` and promoted to the model root at the end
+- Requires `model/nllb_en2lun/` and/or `model/nllb_lun2en/` to exist — run `python download_models.py` first if needed
+- Uses a weighted sampler: Grammar Rules 4 pairs get 4× weight, back-translated pairs 2×, all others 1× (same strategy as `train_marian.py`)
+
+### 7. Grammar Rules 4 Full Pipeline (Automated)
+```bash
+python backend/gr4_full_pipeline.py
+# Complete automated pipeline for Grammar Rules 4 training data:
+#   1. Extract clean pairs from language_rules_gr4.py
+#   2. Back-translate for data augmentation
+#   3. Clean and deduplicate
+#   4. Merge into training data
+#   5. Rebuild semantic index
+#   6. Fine-tune MarianMT models (both directions, 5 epochs)
+#   7. Fine-tune NLLB-200 models (both directions, 5 epochs)
+# Estimated time: 1-3 hours (depending on hardware)
+```
+
+**Features:**
+- Fully automated end-to-end pipeline (runs non-interactively, no confirmation prompt)
+- Error handling with recovery options
+- Summary report of completed/failed steps
+- Orchestrates 7 pipeline steps sequentially
+
+**Manual alternative** (run steps individually):
+```bash
+# Step 1: Extract GR4 pairs
+python backend/extract_gr4_training_pairs.py
+
+# Step 2: Back-translate for augmentation
+python backend/back_translate.py --input data/cleaned/gr4_pairs.csv --output data/training/gr4_back_translated.csv
+
+# Step 3: Merge back-translations
+python backend/merge_back_translated.py --source data/training/gr4_back_translated.csv
+
+# Step 4: Clean training data
+python backend/clean_training_data.py
+
+# Step 5: Rebuild semantic index
+python backend/build_index.py
+
+# Step 6: Fine-tune MarianMT
+python backend/train_marian.py --direction both --epochs 5 --batch-size 32
+
+# Step 7: Fine-tune NLLB-200
+python backend/train_nllb.py --direction both --epochs 5 --batch-size 8
+```
+
+### 8. Upload Models to HuggingFace Hub
 ```bash
 # Upload all models
 python backend/upload_models_to_hf.py --token YOUR_HF_TOKEN
@@ -136,13 +206,13 @@ python backend/upload_models_to_hf.py --token YOUR_HF_TOKEN --username your-user
 - Supports selective model upload
 - Configurable username/organization
 
-### 7. Retrain from Human Feedback
+### 9. Retrain from Human Feedback
 ```bash
 python backend/retrain_from_feedback.py --epochs 5 --push
 # Exports thumbs-up pairs → merges into train.csv → fine-tunes → pushes to HF
 ```
 
-### 8. Automated Retraining (Background Service)
+### 10. Automated Retraining (Background Service)
 ```bash
 # Check current feedback stats
 python backend/auto_retrain.py --stats
@@ -183,6 +253,9 @@ lunyoro-translator/
 │   ├── back_translate.py            # Back-translation augmentation
 │   ├── retrain_tokenizer.py         # SentencePiece retraining
 │   ├── train_marian.py              # MarianMT fine-tuning
+│   ├── train_nllb.py                # NLLB-200 fine-tuning
+│   ├── extract_gr4_training_pairs.py # Extract GR4 training pairs
+│   ├── gr4_full_pipeline.py         # Complete GR4 training pipeline (automated)
 │   ├── upload_models_to_hf.py       # Upload models to HuggingFace Hub
 │   ├── feedback_store.py            # Human feedback storage + auto-export
 │   ├── retrain_from_feedback.py     # End-to-end feedback retraining

@@ -18,18 +18,19 @@ DATA_DIR = os.path.join(BASE, "data", "training")
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str,
-                        default=os.path.join(DATA_DIR, "back_translated.csv"))
+    parser.add_argument("--source", type=str,
+                        default=os.path.join(DATA_DIR, "back_translated.csv"),
+                        help="Source CSV with back-translated pairs to merge")
     parser.add_argument("--train", type=str,
                         default=os.path.join(DATA_DIR, "train.csv"))
     args = parser.parse_args()
 
-    if not os.path.exists(args.input):
-        print(f"Input not found: {args.input}")
+    if not os.path.exists(args.source):
+        print(f"Source not found: {args.source}")
         sys.exit(1)
 
     train = pd.read_csv(args.train)
-    synth = pd.read_csv(args.input)
+    synth = pd.read_csv(args.source)
 
     # Keep only english/lunyoro columns
     synth = synth[['english', 'lunyoro']].copy()

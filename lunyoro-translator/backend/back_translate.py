@@ -74,6 +74,9 @@ def sentence_bleu(hypothesis: str, reference: str) -> float:
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--input",          type=str,
+                        default=os.path.join(DATA_DIR, "train.csv"),
+                        help="Input CSV with english/lunyoro columns")
     parser.add_argument("--max",            type=int,   default=5000,
                         help="Max English sentences to back-translate")
     parser.add_argument("--bleu-threshold", type=float, default=0.25,
@@ -87,9 +90,9 @@ def main():
 
     print("=== Back-Translation Data Augmentation ===\n")
 
-    # Load source English sentences from train.csv (already cleaned)
-    train_path = os.path.join(DATA_DIR, "train.csv")
-    df = pd.read_csv(train_path)
+    # Load source sentences from input CSV
+    print(f"Loading from: {args.input}")
+    df = pd.read_csv(args.input)
 
     # Use English side — deduplicate, filter short/long
     english_sentences = (
