@@ -37,7 +37,9 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **LLM-powered:** Qwen 2.5 7B via HuggingFace Router
 - **Domain-aware:** Sector-specific vocabulary across 8 domains (Daily Life, Storytelling, Spirituality, Agriculture, Education, Culture, Health, All Sectors)
 - **Bilingual output:** Replies in English + Lunyoro (MarianMT + NLLB side-by-side)
-- **Grammar context:** Full Runyoro-Rutooro grammar rules in system prompt
+- **Grammar context:** First 1500 chars of Runyoro-Rutooro grammar rules injected into system prompt (trimmed for speed while retaining key rules)
+- **Concise replies:** System prompt instructs the model to reply in plain English prose, 2–3 sentences per point, under 120 words, with the grammar rule behind every example explained
+- **Corpus-grounded:** Up to 2 relevant sentence pairs from the training corpus are retrieved and included as examples
 - **Conversation mode:** Type in Runyoro-Rutooro for immersive practice
 - **Multi-line input:** Textarea with mic button for voice input (UI placeholder)
 
@@ -81,9 +83,14 @@ See **[TRAINING_GUIDE.md](TRAINING_GUIDE.md)** for full details.
 ### 1. Build Translation Index
 ```bash
 python backend/build_index.py
-# Builds semantic search index from cleaned dictionary data
-# Loads word_entries_clean.csv and rutooro_dictionary_clean.csv
-# Creates model/translation_index.pkl for retrieval fallback
+# Builds semantic search index from dictionary data + training corpus
+# Loads word_entries_clean.csv and rutooro_dictionary_clean.csv (dictionary entries)
+# Loads data/training/train.csv (sentence pairs for semantic search)
+# Encodes English sentences with all-MiniLM-L6-v2 into dense embeddings
+# Creates model/translation_index.pkl containing:
+#   - dictionary entries
+#   - english_sentences / lunyoro_sentences arrays
+#   - embeddings matrix for cosine-similarity retrieval
 ```
 
 ### 2. Clean Training Data
@@ -300,7 +307,7 @@ lunyoro-translator/
 - `POST /spellcheck` — Lunyoro spellcheck
 
 ### Chat
-- `POST /chat` — AI language assistant (Qwen 2.5 7B)
+- `POST /chat` — AI language assistant (Qwen 2.5 7B). Replies in English only, plain prose, under 120 words. System prompt includes the first 1500 chars of grammar rules and up to 2 corpus examples retrieved by semantic similarity. Rate-limited to 5 requests per 60 seconds per IP.
 
 ### Feedback
 - `POST /feedback` — Submit translation rating with optional error categorization and corrections
@@ -379,7 +386,7 @@ Comprehensive Runyoro-Rutooro grammar implementation (3200+ lines):
 
 - **R/L Rule:** L → R except adjacent to e/i
 - **Nasal assimilation:** nb→mb, np→mp, nr→nd, nl→nd
-- **Apostrophe elision:** na ente → n'ente, habwa okugonza → habw'okugonza
+- **Apostrophe elision:** na ente → n'ente, habwa okugonza → habw'okugonza; also corrects merged model outputs — both cases where the particle vowel is retained but not elided (e.g. `nomuntu` → `n'omuntu`) and cases where it is dropped entirely (e.g. `nente` → `n'ente`)
 - **Consonant+suffix mutations:** r/t/j + -ire → z/s/z + -ire
 - **Noun class system:** 15 classes with concordial agreement
 - **Verb conjugation:** 10+ tenses, derivative suffixes (causative, passive, etc.)
@@ -499,7 +506,10 @@ If you use this work, please cite:
 
 ## Version History
 
-### v2.5 - Dual-Model Qwen Refinement for Document Summarization (Current)
+### v2.6 - Particle Elision Correction Fix (Current)
+- **`language_rules.py` bugfix:** `_MERGED_ELISION` patterns for `no/zo/yo/wo + vowel-initial word` now correctly preserve the leading vowel in the replacement (e.g. `nomuntu` → `n'omuntu` instead of the previous incorrect `n'muntu`). The patterns are now word-specific rather than a generic vowel-class match, preventing false positives. Fully-merged forms where the particle vowel is dropped entirely (e.g. `nente` → `n'ente`, `zomuntu` → `z'omuntu`) are handled by a separate set of patterns covering common Runyoro-Rutooro nouns.
+
+### v2.5 - Dual-Model Qwen Refinement for Document Summarization
 - **`/summarize-pdf` improvement:** Qwen 2.5 7B (via HuggingFace Router) now refines the MarianMT and NLLB-200 summary drafts **independently** when `HF_TOKEN` is set. Each model's draft is sent to Qwen separately with the English source and grammar rules as context. Grammar Rules 4 post-processing is applied to each refined output. The response now includes `summary_lunyoro` (best output — NLLB-refined preferred), `summary_lunyoro_marian` (Marian-refined), and `summary_lunyoro_nllb` (NLLB-refined). Falls back silently to the respective MT draft per model if Qwen is unavailable or times out.
 
 ### v2.4 - Grammar Pre-Processing for Document Summarization

@@ -338,6 +338,7 @@ def apply_copula_to_text(text: str) -> str:
     """
     Correct common MT errors where copula ni is incorrectly split or omitted.
     e.g. 'ni omuntu' -> "n'omuntu", 'ni nyowe' -> 'niinyowe'
+    Also fixes merged forms: 'nomuntu' -> "n'omuntu"
     """
     result = _re.sub(r'\bni\s+([aeiou])', lambda m: "n'" + m.group(1), text, flags=_re.IGNORECASE)
     result = _re.sub(r'\bni\s+nyowe\b', 'niinyowe', result, flags=_re.IGNORECASE)
@@ -346,6 +347,9 @@ def apply_copula_to_text(text: str) -> str:
     result = _re.sub(r'\bni\s+itwe\b',  'niitwe',   result, flags=_re.IGNORECASE)
     result = _re.sub(r'\bni\s+inywe\b', 'niinywe',  result, flags=_re.IGNORECASE)
     result = _re.sub(r'\bni\s+bo\b',    'nubo',     result, flags=_re.IGNORECASE)
+    # Fix merged copula forms: nomuntu → n'omuntu, nomwana → n'omwana
+    result = _re.sub(r'\bno(muntu|mwana|mukazi|musaija|mugabo|muti|mbwa|nju|kitabo|mazzi|bantu|bana)\b',
+                     lambda m: "n'o" + m.group(1), result, flags=_re.IGNORECASE)
     return result
 
 
@@ -619,6 +623,7 @@ def apply_kinship_correction(text: str) -> str:
     """
     Correct common MT errors in kinship terms.
     e.g. 'ise wange' -> 'isange', 'nyina we' -> 'nyinawe'
+    Also fixes merged forms: 'isenyowe' -> 'isange', 'iseyowe' -> 'isange'
     """
     corrections = {
         r'\bise\s+wange\b':    'isange',
@@ -632,6 +637,14 @@ def apply_kinship_correction(text: str) -> str:
         r'\bisenkuru\s+wange\b': 'isenkurwange',
         r'\bisenkuru\s+wawe\b':  'isenkurwawe',
         r'\bisenkuru\s+waitu\b': 'isenkurwitwe',
+        # Merged/corrupted forms the model produces
+        r'\bisenyowe\b':  'isange',
+        r'\biseyowe\b':   'isange',
+        r'\bisewange\b':  'isange',
+        r'\bnyinawange\b': 'nyinange',
+        r'\bnyinayowe\b':  'nyinawe',
+        r'\btaata\s+wange\b': 'isange',
+        r'\btaata\s+wawe\b':  'isaawe',
     }
     result = text
     for pattern, repl in corrections.items():

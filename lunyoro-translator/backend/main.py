@@ -721,29 +721,30 @@ def chat(req: ChatRequest, request: Request):
     corpus_ctx   = corpus_context(msg)
     sector_label = SECTOR_LABELS.get(sector, "")
     dict_ctx     = dict_context(sector) if sector else ""
-    grammar_ctx  = _GRAMMAR_CONTEXT_CACHE or ""
+    # Keep only the first 1500 chars of grammar context — enough for rules, fast to process
+    grammar_ctx  = (_GRAMMAR_CONTEXT_CACHE or "")[:1500]
 
     system_prompt = (
-        "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda.\n"
-        "STRICT RULES — follow every one of these without exception:\n"
-        "1. Write your ENTIRE reply in English only. Do NOT include any Runyoro, Rutooro, or any other non-English words.\n"
-        "2. Do NOT include example phrases, greetings, or quotes in Runyoro/Rutooro — describe them in English instead.\n"
-        "3. Write in flowing prose paragraphs. Do NOT use numbered lists, bullet points, or headers.\n"
-        "4. Be detailed and informative. Aim for 3-5 solid paragraphs.\n"
-        "5. Do not mix languages. Every single word must be English.\n"
+        "You are a concise Runyoro-Rutooro language assistant for the Bunyoro-Kitara and Tooro kingdoms.\n"
+        "RULES:\n"
+        "1. Reply in English only — no Runyoro/Rutooro words in your answer.\n"
+        "2. Be SHORT and DIRECT: 2-3 sentences max per point. No padding.\n"
+        "3. Always explain the grammar rule behind any example (noun class, verb prefix, tense marker, etc.).\n"
+        "4. Stay context-aware: use the conversation history and corpus examples below.\n"
+        "5. No bullet lists, no headers — plain prose only.\n"
+        f"\nKey grammar rules:\n{grammar_ctx}\n"
     )
-    system_prompt += f"\n{grammar_ctx}\n"
     if corpus_ctx:
-        system_prompt += f"\nRelevant context:\n{corpus_ctx}\n"
+        system_prompt += f"\nRelevant corpus examples:\n{corpus_ctx}\n"
     if sector_label:
-        system_prompt += f"\nSector focus: {sector_label}\n"
+        system_prompt += f"Sector: {sector_label}\n"
     if dict_ctx:
-        system_prompt += f"Vocabulary reference:\n{dict_ctx}\n"
-    system_prompt += "\nRemember: reply in plain English prose only. No Runyoro words. No lists. No headers."
+        system_prompt += f"Vocabulary:\n{dict_ctx}\n"
+    system_prompt += "\nKeep your reply under 120 words. Be precise and grammar-focused."
 
     # ── Build message history for Ollama ─────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
-    for turn in (req.history or [])[-10:]:
+    for turn in (req.history or [])[-5:]:
         role    = turn.get("role", "")
         content = (turn.get("content") or "").strip()
         if role in ("user", "assistant") and content:
@@ -762,8 +763,8 @@ def chat(req: ChatRequest, request: Request):
         completion = _hf_client.chat.completions.create(
             model=_hf_model,
             messages=messages,
-            max_tokens=600,
-            temperature=0.7,
+            max_tokens=280,
+            temperature=0.4,
         )
         reply_en = completion.choices[0].message.content.strip()
     except Exception as e:

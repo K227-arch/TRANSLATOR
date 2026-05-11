@@ -820,11 +820,19 @@ _ELISION_PARTICLES = [
 
 # Merged forms the model sometimes outputs (no space between particle and word)
 # e.g. "nomukazi" → "n'omukazi", "nomwana" → "n'omwana"
+# Also handles fully-merged forms where the particle vowel is dropped entirely:
+# e.g. "nente" → "n'ente", "nomuntu" → "n'omuntu"
 _MERGED_ELISION = [
-    (r'\bno([aeiou])', r"n'\1"),   # no + vowel → n' + vowel (na omukazi merged)
-    (r'\bzo([aeiou])', r"z'\1"),   # zo + vowel → z' + vowel
-    (r'\byo([aeiou])', r"y'\1"),   # yo + vowel → y' + vowel
-    (r'\bwo([aeiou])', r"w'\1"),   # wo + vowel → w' + vowel
+    # Model outputs particle+vowel merged: no/zo/yo/wo + vowel-initial word
+    # Keep the full word including the leading vowel in the replacement
+    (r'\bno(muntu|mukazi|musaija|mugabo|mwana|muti|mbwa|mazzi|bantu|bana|nju|kitabo)\b', r"n'o\1"),
+    (r'\bzo(muntu|mukazi|mwana|bantu|bana|nte)\b', r"z'o\1"),
+    (r'\byo(muntu|mukazi|mwana)\b', r"y'o\1"),
+    (r'\bwo(muntu|mukazi|mwana)\b', r"w'o\1"),
+    # Fully merged (particle vowel dropped): n+word, z+word
+    (r'\bn(ente|omuntu|omwana|omukazi|amazzi|ebyokurya|enju|ekitabo|omuti|embwa|abantu|abana|omugabo|omusaija)\b', r"n'\1"),
+    (r'\bz(ente|omuntu|omwana|omukazi|amazzi|abantu)\b', r"z'\1"),
+    (r'\bk(ente|omuntu|omwana|amazzi)\b', r"k'\1"),
 ]
 
 _VOWELS = set("aeiouAEIOU")
@@ -1759,6 +1767,8 @@ def apply_particle_elision(text: str) -> str:
             _re.IGNORECASE
         )
         result = pattern.sub(elided, result)
+    # Also apply merged-form corrections (model output without spaces)
+    result = apply_apostrophe_elision(result)
     return result
 
 
