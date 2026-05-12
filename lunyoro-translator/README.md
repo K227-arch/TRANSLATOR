@@ -1,6 +1,6 @@
 # AI Stick — Runyoro / Rutooro Translator
 
-**Version 2.5** - Dual-Model Qwen Refinement for Document Summarization
+**Version 2.8** - Qwen Refinement for `/translate-reverse`
 
 A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - Fine-tuned MarianMT + NLLB-200 models
@@ -37,8 +37,8 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **LLM-powered:** Qwen 2.5 7B via HuggingFace Router
 - **Domain-aware:** Sector-specific vocabulary across 8 domains (Daily Life, Storytelling, Spirituality, Agriculture, Education, Culture, Health, All Sectors)
 - **Bilingual output:** Replies in English + Lunyoro (MarianMT + NLLB side-by-side)
-- **Grammar context:** First 1500 chars of Runyoro-Rutooro grammar rules injected into system prompt (trimmed for speed while retaining key rules)
-- **Concise replies:** System prompt instructs the model to reply in plain English prose, 2–3 sentences per point, under 120 words, with the grammar rule behind every example explained
+- **Grammar context:** First 3000 chars of Runyoro-Rutooro grammar rules injected into system prompt for richer rule coverage
+- **Detailed replies:** System prompt instructs the model to reply in plain English prose, 2–4 well-explained paragraphs, with the grammar rule behind every concept explained
 - **Corpus-grounded:** Up to 2 relevant sentence pairs from the training corpus are retrieved and included as examples
 - **Conversation mode:** Type in Runyoro-Rutooro for immersive practice
 - **Multi-line input:** Textarea with mic button for voice input (UI placeholder)
@@ -302,12 +302,14 @@ lunyoro-translator/
 
 ### Translation
 - `POST /translate` — English → Lunyoro
+  - Parameters: `text` (required), `context` (optional, previous sentence for coherence), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Qwen 2.5 7B pass to improve grammar, noun-class agreement, R/L rule, apostrophe elision, and kinship terms before returning the result)
 - `POST /translate-reverse` — Lunyoro → English
+  - Parameters: `text` (required), `context` (optional), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Qwen 2.5 7B pass to improve fluency, accuracy, and natural phrasing of the English output before returning the result)
 - `POST /lookup` — Dictionary word lookup
 - `POST /spellcheck` — Lunyoro spellcheck
 
 ### Chat
-- `POST /chat` — AI language assistant (Qwen 2.5 7B). Replies in English only, plain prose, under 120 words. System prompt includes the first 1500 chars of grammar rules and up to 2 corpus examples retrieved by semantic similarity. Rate-limited to 5 requests per 60 seconds per IP.
+- `POST /chat` — AI language assistant (Qwen 2.5 7B). Replies in English only, plain prose, 2–4 paragraphs. System prompt includes the first 3000 chars of grammar rules and up to 2 corpus examples retrieved by semantic similarity. Rate-limited to 5 requests per 60 seconds per IP.
 
 ### Feedback
 - `POST /feedback` — Submit translation rating with optional error categorization and corrections
@@ -506,7 +508,13 @@ If you use this work, please cite:
 
 ## Version History
 
-### v2.6 - Particle Elision Correction Fix (Current)
+### v2.8 - Qwen Refinement for `/translate-reverse` (Current)
+- **`/translate-reverse` improvement:** Added optional `refine: bool` parameter (default `false`). When `true` and `HF_TOKEN` is set, a Qwen 2.5 7B pass refines the lun→en MT draft for fluency, accuracy, and natural English phrasing before the response is returned. Falls back silently to the MT draft if Qwen is unavailable. The refined output is also recorded in translation history with a `+refined` method suffix.
+
+### v2.7 - Qwen Refinement for `/translate`
+- **`/translate` improvement:** Added optional `refine: bool` parameter (default `false`). When `true` and `HF_TOKEN` is set, a Qwen 2.5 7B pass refines the MT draft — fixing noun-class prefixes, concordial agreement, R/L rule, apostrophe elision, and kinship terms — before the response is returned. Grammar Rules 4 post-processing is applied on top of the LLM output. Falls back silently to the MT draft if Qwen is unavailable.
+
+### v2.6 - Particle Elision Correction Fix
 - **`language_rules.py` bugfix:** `_MERGED_ELISION` patterns for `no/zo/yo/wo + vowel-initial word` now correctly preserve the leading vowel in the replacement (e.g. `nomuntu` → `n'omuntu` instead of the previous incorrect `n'muntu`). The patterns are now word-specific rather than a generic vowel-class match, preventing false positives. Fully-merged forms where the particle vowel is dropped entirely (e.g. `nente` → `n'ente`, `zomuntu` → `z'omuntu`) are handled by a separate set of patterns covering common Runyoro-Rutooro nouns.
 
 ### v2.5 - Dual-Model Qwen Refinement for Document Summarization

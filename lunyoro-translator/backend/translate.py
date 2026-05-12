@@ -459,7 +459,7 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     lower = text.lower()
     for i, sent in enumerate(english_sentences):
         if sent.lower() == lower:
-            return {"translation": lunyoro_sentences[i], "method": "exact_match",
+            return {"translation": _postprocess_lunyoro(lunyoro_sentences[i]), "method": "exact_match",
                     "confidence": 1.0, "alternatives": []}
 
     q_emb   = _sem_model.encode(text, convert_to_numpy=True)
@@ -471,7 +471,7 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
                      "score": round(float(scores[i]), 3)} for i in top_idx[1:]]
 
     if best_score > 0.5:
-        return {"translation": lunyoro_sentences[best], "method": "semantic_match",
+        return {"translation": _postprocess_lunyoro(lunyoro_sentences[best]), "method": "semantic_match",
                 "confidence": round(best_score, 3),
                 "matched_english": english_sentences[best], "alternatives": alternatives}
 
@@ -558,7 +558,7 @@ def _dict_fallback(text, best_score, matched_english, alternatives, direction):
         from web_fallback import web_search_fallback
         web_result = web_search_fallback(text, "en→lun")
         if web_result:
-            return {"translation": web_result, "method": "web_fallback",
+            return {"translation": _postprocess_lunyoro(web_result), "method": "web_fallback",
                     "confidence": 0.4, "alternatives": alternatives}
 
     return {"translation": None, "method": "dictionary_fallback",

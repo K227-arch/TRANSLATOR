@@ -1,0 +1,9 @@
+﻿# Exclude development artifacts from OneDrive sync
+.next/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+model/
+*.pkl
+*.safetensors

@@ -138,6 +138,52 @@ def save_history(entry: dict):
 class TranslateRequest(BaseModel):
     text: str
     context: str = ""  # optional previous sentence for context-aware translation
+    refine: bool = False  # optional LLM refinement pass for higher quality
+
+
+def _qwen_refine_translation(source_en: str, draft_lun: str) -> str:
+    """
+    Run a Qwen LLM pass to refine an MT draft translation.
+    Only called when refine=True. Returns draft unchanged on failure.
+    """
+    try:
+        hf_token = os.getenv("HF_TOKEN", "")
+        hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        if not hf_token:
+            return draft_lun
+        from openai import OpenAI as _OAI
+        grammar_hint = (_GRAMMAR_CONTEXT_CACHE or "")[:1500]
+        prompt = (
+            "You are a Runyoro-Rutooro language expert. "
+            "Improve the machine-translated draft for accuracy and correct grammar.\n"
+            f"Grammar rules:\n{grammar_hint}\n\n"
+            "Rules:\n"
+            "- Fix noun class prefixes and concordial agreement\n"
+            "- Apply R/L rule: L only before/after e or i\n"
+            "- Apply apostrophe elision: na ente → n'ente, ni omuntu → n'omuntu\n"
+            "- Fix kinship terms: ise wange → isange, nyina wawe → nyinawe\n"
+            "- Output ONLY the corrected Runyoro-Rutooro text, nothing else\n"
+        )
+        client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+        resp = client.chat.completions.create(
+            model=hf_model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"English: {source_en}\nDraft: {draft_lun}\nRefined:"},
+            ],
+            max_tokens=256,
+            temperature=0.2,
+        )
+        refined = resp.choices[0].message.content.strip()
+        # Apply grammar rules on top of LLM output
+        try:
+            from language_rules_gr4 import apply_gr4_rules
+            refined = apply_gr4_rules(refined, direction="en->lun")
+        except Exception:
+            pass
+        return refined if refined and len(refined) > 3 else draft_lun
+    except Exception:
+        return draft_lun
 
 
 class WordLookupRequest(BaseModel):
@@ -160,11 +206,16 @@ def translate_text(req: TranslateRequest):
     if len(req.text) > 1000:
         raise HTTPException(status_code=400, detail="Text too long (max 1000 chars)")
     result = translate(req.text, context=req.context)
+    # Optional LLM refinement pass
+    if req.refine and result.get("translation"):
+        refined = _qwen_refine_translation(req.text, result["translation"])
+        result["translation_refined"] = refined
+        result["translation"] = refined  # use refined as primary
     save_history({
         "input": req.text,
         "direction": "en→lun",
         "translation": result.get("translation"),
-        "method": result.get("method"),
+        "method": result.get("method") + ("+refined" if req.refine else ""),
         "confidence": result.get("confidence"),
         "timestamp": datetime.utcnow().isoformat(),
     })
@@ -178,11 +229,38 @@ def translate_reverse(req: TranslateRequest):
     if len(req.text) > 1000:
         raise HTTPException(status_code=400, detail="Text too long (max 1000 chars)")
     result = translate_to_english(req.text, context=req.context)
+    # Optional LLM refinement pass for lun→en
+    if req.refine and result.get("translation"):
+        try:
+            hf_token = os.getenv("HF_TOKEN", "")
+            hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+            if hf_token:
+                from openai import OpenAI as _OAI
+                client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+                resp = client.chat.completions.create(
+                    model=hf_model,
+                    messages=[
+                        {"role": "system", "content": (
+                            "You are an expert translator from Runyoro-Rutooro to English. "
+                            "Improve the machine-translated English draft for fluency, accuracy and natural phrasing. "
+                            "Output ONLY the improved English text, nothing else."
+                        )},
+                        {"role": "user", "content": f"Runyoro source: {req.text}\nDraft: {result['translation']}\nRefined:"},
+                    ],
+                    max_tokens=256,
+                    temperature=0.2,
+                )
+                refined = resp.choices[0].message.content.strip()
+                if refined and len(refined) > 3:
+                    result["translation_refined"] = refined
+                    result["translation"] = refined
+        except Exception:
+            pass
     save_history({
         "input": req.text,
         "direction": "lun→en",
         "translation": result.get("translation"),
-        "method": result.get("method"),
+        "method": result.get("method") + ("+refined" if req.refine else ""),
         "confidence": result.get("confidence"),
         "timestamp": datetime.utcnow().isoformat(),
     })
@@ -721,30 +799,30 @@ def chat(req: ChatRequest, request: Request):
     corpus_ctx   = corpus_context(msg)
     sector_label = SECTOR_LABELS.get(sector, "")
     dict_ctx     = dict_context(sector) if sector else ""
-    # Keep only the first 1500 chars of grammar context — enough for rules, fast to process
-    grammar_ctx  = (_GRAMMAR_CONTEXT_CACHE or "")[:1500]
+    grammar_ctx  = (_GRAMMAR_CONTEXT_CACHE or "")[:3000]
 
     system_prompt = (
-        "You are a concise Runyoro-Rutooro language assistant for the Bunyoro-Kitara and Tooro kingdoms.\n"
+        "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda.\n"
         "RULES:\n"
-        "1. Reply in English only — no Runyoro/Rutooro words in your answer.\n"
-        "2. Be SHORT and DIRECT: 2-3 sentences max per point. No padding.\n"
-        "3. Always explain the grammar rule behind any example (noun class, verb prefix, tense marker, etc.).\n"
-        "4. Stay context-aware: use the conversation history and corpus examples below.\n"
-        "5. No bullet lists, no headers — plain prose only.\n"
-        f"\nKey grammar rules:\n{grammar_ctx}\n"
+        "1. Write your ENTIRE reply in English only. Do NOT include any Runyoro or Rutooro words.\n"
+        "2. Be informative and well-explained — aim for 2-4 solid paragraphs.\n"
+        "3. Always explain the grammar rule behind any concept (noun class, verb prefix, tense marker, concordial agreement, etc.).\n"
+        "4. Stay context-aware: use the conversation history and corpus examples provided.\n"
+        "5. Write in flowing prose. No bullet lists, no headers.\n"
+        "6. Do not mix languages. Every word must be English.\n"
+        f"\nGrammar rules reference:\n{grammar_ctx}\n"
     )
     if corpus_ctx:
-        system_prompt += f"\nRelevant corpus examples:\n{corpus_ctx}\n"
+        system_prompt += f"\nRelevant corpus examples for context:\n{corpus_ctx}\n"
     if sector_label:
-        system_prompt += f"Sector: {sector_label}\n"
+        system_prompt += f"\nSector focus: {sector_label}\n"
     if dict_ctx:
-        system_prompt += f"Vocabulary:\n{dict_ctx}\n"
-    system_prompt += "\nKeep your reply under 120 words. Be precise and grammar-focused."
+        system_prompt += f"Vocabulary reference:\n{dict_ctx}\n"
+    system_prompt += "\nRemember: reply in plain English prose only. Be thorough but avoid unnecessary padding."
 
     # ── Build message history for Ollama ─────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
-    for turn in (req.history or [])[-5:]:
+    for turn in (req.history or [])[-8:]:
         role    = turn.get("role", "")
         content = (turn.get("content") or "").strip()
         if role in ("user", "assistant") and content:
@@ -763,8 +841,8 @@ def chat(req: ChatRequest, request: Request):
         completion = _hf_client.chat.completions.create(
             model=_hf_model,
             messages=messages,
-            max_tokens=280,
-            temperature=0.4,
+            max_tokens=600,
+            temperature=0.6,
         )
         reply_en = completion.choices[0].message.content.strip()
     except Exception as e:

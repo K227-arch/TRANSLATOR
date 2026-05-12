@@ -1,4 +1,5 @@
 {
   "git.openRepositoryInParentFolders": "always",
-  "git.repositoryScanMaxDepth": 1
+  "git.repositoryScanMaxDepth": 1,
+  "kiroAgent.configureMCP": "Disabled"
 }
