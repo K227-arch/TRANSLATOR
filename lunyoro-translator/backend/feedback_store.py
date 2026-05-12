@@ -51,7 +51,7 @@ def auto_export_feedback():
         
         # Reorder columns
         column_order = [
-            'timestamp', 'direction', 'rating', 'model_used',
+            'timestamp', 'direction', 'rating', 'model_used', 'refined',
             'source_text', 'translation', 'correction',
             'error_type', 'ip'
         ]
@@ -118,6 +118,23 @@ def auto_export_feedback():
             df['date'] = pd.to_datetime(df['timestamp'], errors='coerce').dt.date
             daily = df.groupby('date').size().reset_index(name='Feedback Count')
             daily.to_excel(writer, sheet_name='Daily Activity', index=False)
+
+            # Sheet 6: Refined vs Unrefined
+            if 'refined' in df.columns:
+                refined_stats = []
+                for refined_val, label in [(True, 'Refined'), (False, 'Unrefined')]:
+                    subset = df[df['refined'] == refined_val]
+                    if len(subset) > 0:
+                        positive = len(subset[subset['rating'] > 0])
+                        refined_stats.append({
+                            'Type': label,
+                            'Total': len(subset),
+                            'Positive': positive,
+                            'Negative': len(subset[subset['rating'] < 0]),
+                            'Approval Rate (%)': round(100 * positive / len(subset), 1),
+                        })
+                if refined_stats:
+                    pd.DataFrame(refined_stats).to_excel(writer, sheet_name='Refined vs Unrefined', index=False)
         
     except Exception as e:
         # Silently fail - don't break feedback submission
@@ -262,6 +279,17 @@ def get_detailed_analytics() -> dict:
     # Correction rate (how often users provide corrections)
     corrections = sum(1 for e in entries if e.get("correction", "").strip())
     correction_rate = round(100 * corrections / len(entries), 1) if entries else 0
+
+    # Refined vs unrefined comparison
+    refined_entries   = [e for e in entries if e.get("refined") is True]
+    unrefined_entries = [e for e in entries if not e.get("refined")]
+    def _approval(lst):
+        if not lst: return 0
+        return round(100 * sum(1 for e in lst if e.get("rating", 0) > 0) / len(lst), 1)
+    refined_stats = {
+        "refined":   {"total": len(refined_entries),   "approval_rate": _approval(refined_entries)},
+        "unrefined": {"total": len(unrefined_entries), "approval_rate": _approval(unrefined_entries)},
+    }
     
     # Unique users
     unique_users = len(set(e.get("ip", "unknown") for e in entries))
@@ -298,6 +326,7 @@ def get_detailed_analytics() -> dict:
         "error_types": dict(error_types.most_common(10)),
         "direction_stats": direction_stats,
         "correction_rate": correction_rate,
+        "refined_stats": refined_stats,
         "unique_users": unique_users,
         "feedback_by_day": dict(sorted(feedback_by_day.items())[-30:]),  # Last 30 days
         "recent_feedback": recent_feedback,

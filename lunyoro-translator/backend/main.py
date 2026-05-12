@@ -307,6 +307,7 @@ class FeedbackRequest(BaseModel):
     correction: str = ""        # user-provided correct translation
     error_type: str = ""        # grammar, spelling, context, vocabulary, other
     model_used: str = ""        # "marian", "nllb", "both", "none"
+    refined: bool = False       # whether AI refinement was applied to this translation
 
 
 @app.post("/feedback")
@@ -326,6 +327,7 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "correction":  req.correction.strip(),
         "error_type":  req.error_type.strip(),
         "model_used":  req.model_used.strip(),
+        "refined":     req.refined,
         "ip":          request.client.host if request.client else "unknown",
     }
     save_feedback(entry)

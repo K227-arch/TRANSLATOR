@@ -86,7 +86,7 @@ export default function Translator() {
     try {
       await fetch(`${API}/feedback`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source_text: input.trim(), translation: translationToSend, direction, rating, correction: correction.trim(), error_type: errorTypeStr, model_used: modelUsed }),
+        body: JSON.stringify({ source_text: input.trim(), translation: translationToSend, direction, rating, correction: correction.trim(), error_type: errorTypeStr, model_used: modelUsed, refined: refine }),
       });
       if (!modelChoice) setShowCorrection(false);
     } catch { /* non-critical */ }
