@@ -313,7 +313,7 @@ lunyoro-translator/
 
 ### Feedback
 - `POST /feedback` — Submit translation rating with optional error categorization and corrections
-  - Parameters: `source_text`, `translation`, `direction`, `rating` (1/-1), `correction` (optional), `error_type` (optional - comma-separated list for multiple error types), `model_used` (optional - "marian", "nllb", "both", "none")
+  - Parameters: `source_text`, `translation`, `direction`, `rating` (1/-1), `correction` (optional), `error_type` (optional - comma-separated list for multiple error types), `model_used` (optional - "marian", "nllb", "both", "none"), `refined` (optional boolean - whether AI refinement was applied to the translation)
   - **Auto-export:** Automatically exports feedback to `backend/feedback/` folder after each submission
     - `all_feedback.csv` — Complete feedback log in CSV format
     - `feedback_analytics.xlsx` — Multi-sheet Excel workbook with analytics
@@ -341,12 +341,13 @@ python backend/export_analytics.py --csv --output reports/csv_export/
 
 **Auto-exported files** (in `backend/feedback/`):
 - `all_feedback.csv` — Raw feedback data with all fields
-- `feedback_analytics.xlsx` — Excel workbook with 5 sheets:
+- `feedback_analytics.xlsx` — Excel workbook with up to 6 sheets:
   - **All Feedback:** Complete feedback log with readable labels
   - **Summary:** Total feedback, approval rates, unique users
   - **Model Usage:** Usage statistics by model (MarianMT, NLLB-200, both, none)
   - **Error Types:** Breakdown of reported error categories
   - **Daily Activity:** Feedback timeline by date
+  - **Refined vs Unrefined:** Approval rates comparing AI-refined translations against unrefined MT output (only present when `refined` field is available in feedback data)
 - `approved_pairs.csv` — Approved (thumbs-up) translation pairs ready for retraining (exported via `/feedback/export` endpoint)
 
 **On-demand reports** (via `export_analytics.py`):
