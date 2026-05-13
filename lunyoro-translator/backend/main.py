@@ -115,6 +115,11 @@ def preload_model():
             full += get_gr4_grammar_context()
         except Exception:
             pass
+        try:
+            from language_rules_gr5 import get_gr5_grammar_context
+            full += get_gr5_grammar_context()
+        except Exception:
+            pass
         # Keep only the first 6000 chars to stay within Ollama's context window
         _GRAMMAR_CONTEXT_CACHE = full[:6000]
     except Exception:

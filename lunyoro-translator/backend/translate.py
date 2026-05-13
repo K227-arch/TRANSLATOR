@@ -129,6 +129,12 @@ def _postprocess_lunyoro(text: str) -> str:
         text = apply_gr4_rules(text, direction="en->lun")
     except Exception:
         pass
+    # Grammar Rules 5 corrections
+    try:
+        from language_rules_gr5 import apply_gr5_rules
+        text = apply_gr5_rules(text, direction="en->lun")
+    except Exception:
+        pass
     return text
 
 

@@ -100,6 +100,24 @@ python backend/clean_training_data.py
 # 80,733 → 66,834 clean pairs
 ```
 
+### 2b. Clean OCR Pairs
+```bash
+python backend/clean_ocr_pairs.py
+# Removes noisy/truncated rows from data/cleaned/ocr_pairs_extracted.csv
+# Filters out rows where:
+#   - English side starts with a lowercase letter (truncated left margin)
+#   - English side starts with truncation punctuation (', ", >, \, etc.)
+#   - Either side is empty or < 4 characters
+#   - English side contains grammar meta-notation (e.g., "e.g.", "formative", "tense prefix")
+#   - English side matches a page-header pattern (e.g. "Conditions expressed by verbs 279")
+#   - Either side contains LaTeX/notation artifacts (\varphi, c/.14, pl. nil, n. cl)
+#   - Lunyoro side starts with a grammar label (e.g. "ru ya:", "aba:", "na:")
+#   - Lunyoro side starts lowercase and contains an inline colon label with a capitalised continuation
+#     (e.g. "okuruga ... okuhikya: From morning till evening")
+#   - Lunyoro side matches a short label pattern like "in'ekindi:" (up to 15 chars ending in colon)
+# Backs up the original file to ocr_pairs_extracted.csv.bak before overwriting
+```
+
 ### 3. Back-Translation (Data Augmentation)
 ```bash
 python backend/back_translate.py --max 5000 --bleu-threshold 0.25
@@ -255,8 +273,10 @@ lunyoro-translator/
 │   ├── translate.py                 # Translation logic (MT + retrieval)
 │   ├── language_rules.py            # Runyoro grammar rules (3200+ lines)
 │   ├── language_rules_gr4.py        # Grammar Rules 4: copula, kinship, enumeratives, ka particle
+│   ├── language_rules_gr5.py        # Grammar Rules 5: locatives, demonstratives, noun classes 1a/2a/9a/10a, colours, augmentatives
 │   ├── build_index.py               # Build semantic search index from dictionary
 │   ├── clean_training_data.py       # Data cleaning script
+│   ├── clean_ocr_pairs.py           # Remove noisy/truncated rows from ocr_pairs_extracted.csv
 │   ├── back_translate.py            # Back-translation augmentation
 │   ├── retrain_tokenizer.py         # SentencePiece retraining
 │   ├── train_marian.py              # MarianMT fine-tuning
@@ -397,8 +417,9 @@ Comprehensive Runyoro-Rutooro grammar implementation (3200+ lines):
 - **Numbers & ordinals:** Cardinals 1-1M, ordinal formation rules
 - **Particles:** Genitive, copula, conditional, coordinating
 - **Grammar Rules 4** (`language_rules_gr4.py`): copula constructions, kinship terms, enumeratives, and the *ka* diminutive/adverbial particle — applied as a final post-processing pass on en→lun output
+- **Grammar Rules 5** (`language_rules_gr5.py`): locative adverbial prefixes (omu-/ha-/ku-/owa-/omba), locative demonstratives (munu/muli/hanu/hali/kunu/kuli), self-standing adverbials (-o of reference), adverbial suffixes (-mu/-ho/-yo), locative possessives, copula ni- + locatives, *dara* + locative, *ho* + enumerative roots, objectival concord, noun classes 1a/2a/9a/10a (names, foreign words, colours), negative nouns (omu-ta-), class 9 professional nouns, and augmentative/pejorative forms — wired into `translate.py` post-processing via `apply_gr5_rules()`
 
-See `backend/language_rules.py` and `backend/language_rules_gr4.py` for full implementation.
+See `backend/language_rules.py`, `backend/language_rules_gr4.py`, and `backend/language_rules_gr5.py` for full implementation.
 
 ---
 
@@ -509,7 +530,17 @@ If you use this work, please cite:
 
 ## Version History
 
-### v2.8 - Qwen Refinement for `/translate-reverse` (Current)
+### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives (Current)
+- **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix(verb, locative_prefix)` — appends the correct locative suffix (`-mu`, `-ho`, or `-yo`) to a verb based on its accompanying locative prefix (`omu-`/`omw-` → `-mu`, `ha-` → `-ho`, `owa-`/`omba`/`ku-` → `-yo`).
+- **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix_correction(text)` — regex-based post-processing pass that corrects common MT errors where adverbial suffixes are missing (e.g. `genda owaitu` → `gendayo owaitu`, `ikara hansi` → `ikaraho hansi`, `ikara omunsi` → `ikaramu omunsi`).
+- **`language_rules_gr5.py`:** Added `OBJECTIVAL_CONCORDS` — mapping of noun classes 1–15 to their objectival concord prefixes (e.g. class 3 → `gu`, class 7 → `ki`), used when the object is fronted in a reversed-object sentence.
+- **`language_rules_gr5.py`:** Implemented `get_objectival_concord(noun_class)` — returns the objectival concord string for a given noun class.
+- **`language_rules_gr5.py`:** Implemented `build_reversed_object_sentence(subject, subject_class, object_noun, object_class, verb_stem, tense_prefix)` — constructs a reversed-object sentence by combining the subject concord, objectival concord, verb stem, and perfect suffix (e.g. `build_reversed_object_sentence('omukazi', 1, 'omusiri', 3, 'lima', 'a')` → `'omusiri omukazi agulimire'`).
+- **`language_rules_gr5.py`:** Added `NEGATIVE_NOUNS` dictionary and `build_negative_noun(verb_stem)` — derives Class 1 negative nouns using the `omu-ta-` prefix pattern (e.g. `build_negative_noun('seka')` → `'omutaseka'`, meaning "one who does not laugh").
+- **`language_rules_gr5.py`:** Added `CLASS9_PROFESSIONAL_NOUNS` dictionary and `derive_class9_professional(verb_stem)` — derives Class 9 professional/habitual nouns using `en-` before consonants and `em-` before bilabials (e.g. `derive_class9_professional('lima')` → `'endima'`; `derive_class9_professional('baza')` → `'embaza'`).
+- **`language_rules_gr5.py`:** Added `AUGMENTATIVE_EXAMPLES` dictionary and `build_augmentative(base_noun, aug_class)` — builds augmentative/pejorative forms by substituting the noun class prefix: class `'5'` (eri-/i-) for magnitude/pejorative (e.g. `'omusaija'` → `'isaija'`), class `'7'` (eki-) for magnitude/affection/contempt (e.g. `'omusaija'` → `'ekisaija'`). Strips common class 1/3/5/7 prefixes before applying the substitution.
+
+### v2.8 - Qwen Refinement for `/translate-reverse`
 - **`/translate-reverse` improvement:** Added optional `refine: bool` parameter (default `false`). When `true` and `HF_TOKEN` is set, a Qwen 2.5 7B pass refines the lun→en MT draft for fluency, accuracy, and natural English phrasing before the response is returned. Falls back silently to the MT draft if Qwen is unavailable. The refined output is also recorded in translation history with a `+refined` method suffix.
 
 ### v2.7 - Qwen Refinement for `/translate`
