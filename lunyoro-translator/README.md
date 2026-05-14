@@ -17,7 +17,7 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 ## Features
 
 ### Translation
-- **Dual neural models:** MarianMT (primary) + NLLB-200 (comparison)
+- **Dual neural models:** NLLB-200 (primary for both directions) + MarianMT (fallback/comparison)
 - **HuggingFace Hub integration:** Models loaded automatically from HF Hub on first use and cached locally
 - **Context-aware:** Uses previous sentence for better coherence
 - **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation, Grammar Rules 4 (copula, kinship, enumeratives, ka particle)
@@ -138,6 +138,7 @@ python backend/train_marian.py --direction both --epochs 5 --resize-embeddings
 #   - Subword regularization (SPM sampling, alpha=0.1)
 #   - Longer context window (prepends previous sentence)
 #   - Mixed precision (fp16) on GPU
+#   - Multi-GPU training: automatically uses all available GPUs via DataParallel
 #   - BLEU-based checkpoint selection
 #   - Weighted sampler: gr4 pairs get 4x weight, back-translated pairs 2x
 ```
@@ -165,7 +166,37 @@ python backend/train_nllb.py --fp16                   # mixed precision (GPU)
 - Always fine-tunes from the existing local checkpoint in `model/nllb_{direction}/` — never trains from scratch
 - Best checkpoint (by validation BLEU) is saved to `model/nllb_{direction}/best_checkpoint/` and promoted to the model root at the end
 - Requires `model/nllb_en2lun/` and/or `model/nllb_lun2en/` to exist — run `python download_models.py` first if needed
-- Uses a weighted sampler: Grammar Rules 4 pairs get 4× weight, back-translated pairs 2×, all others 1× (same strategy as `train_marian.py`)
+- Uses a weighted sampler: Grammar Rules 4 and Grammar Rules 5 pairs get 4× weight, back-translated pairs 2×, all others 1× (same strategy as `train_marian.py`); seed vocabulary CSVs (medical, education, daily life, low-frequency, agriculture) are also loaded and deduplicated against the main training set
+- Multi-GPU training: automatically uses all available GPUs via `DataParallel` when more than one GPU is detected (prints device names at startup)
+
+### 6b. Run Full Training Pipeline (MarianMT + NLLB)
+```bash
+python backend/train_all.py                          # 3 epochs each, both directions
+python backend/train_all.py --epochs 5               # 5 epochs each
+python backend/train_all.py --marian-only            # skip NLLB
+python backend/train_all.py --nllb-only              # skip MarianMT
+python backend/train_all.py --no-push                # skip HuggingFace push
+python backend/train_all.py --direction en2lun       # one direction only
+```
+
+Runs `train_marian.py` and `train_nllb.py` sequentially, then pushes both models to HuggingFace automatically. Reads `HF_TOKEN` from the environment or from `backend/.env`.
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--epochs` | `3` | Number of training epochs for both models |
+| `--batch-marian` | `64` | Batch size for MarianMT |
+| `--batch-nllb` | `8` | Batch size for NLLB-200 |
+| `--direction` | `both` | `en2lun`, `lun2en`, or `both` |
+| `--marian-only` | — | Skip NLLB fine-tuning |
+| `--nllb-only` | — | Skip MarianMT fine-tuning |
+| `--no-push` | — | Skip HuggingFace push after training |
+
+**Notes:**
+- HF push is skipped automatically if any training step fails
+- If `HF_TOKEN` is not set and `--no-push` is not passed, a warning is printed and the push is skipped silently
+- Exit code is non-zero if any step fails
 
 ### 7. Grammar Rules 4 Full Pipeline (Automated)
 ```bash
@@ -211,6 +242,20 @@ python backend/train_marian.py --direction both --epochs 5 --batch-size 32
 python backend/train_nllb.py --direction both --epochs 5 --batch-size 8
 ```
 
+### 7b. Extract Grammar Rules 5 Training Pairs
+```bash
+python backend/extract_gr5_training_pairs.py
+# Extracts clean English <-> Runyoro-Rutooro training pairs from grammar rules 5.docx
+# (Chapters 5, 6, 7: locatives, sentences, noun classes 1a/2a/9a/10a)
+# Writes pairs to data/cleaned/gr5_pairs.csv
+# Merges 90% into train.csv and 10% into val.csv (skips duplicates)
+```
+
+**Coverage (~300 pairs across):**
+- Chapter 5: locative agreement, locative demonstratives, genitive locatives, locative possessives, adverbial suffixes (-mu/-ho/-yo), concord prefix ha-, hamu/handi, ho + enumerative roots, dara + locative, copula ni- + locatives
+- Chapter 6: sentence types, reversed-object sentences
+- Chapter 7: noun class examples (classes 1/2/1a/2a/9/9a/10a), colour names, augmentative/pejorative forms, negative nouns, class 9 professional nouns, twin names, kinship terms
+
 ### 8. Upload Models to HuggingFace Hub
 ```bash
 # Upload all models
@@ -253,6 +298,19 @@ python backend/auto_retrain.py --monitor --threshold 200
 python backend/auto_retrain.py --check --threshold 50
 ```
 
+### 11. Inspect Training Data Composition
+```bash
+python backend/check_weights.py
+# Prints a breakdown of training data by source:
+#   - Total pairs in train.csv
+#   - Domain-tagged pairs (e.g. [MEDICAL], [EDUCATION]) and their counts
+#   - Pair counts per seed vocabulary file (medical, education, daily_life, low_freq, agriculture)
+#   - gr4_pairs.csv and gr5_pairs.csv counts
+#   - back_translated.csv and gr4_back_translated.csv counts
+#   - english_nyoro_clean.csv (main corpus) count
+# Run this after any data pipeline step to verify the training set composition.
+```
+
 **Features:**
 - Monitors `feedback.jsonl` for approved pairs
 - Auto-cleans and validates feedback (length, repetition, language detection)
@@ -279,9 +337,11 @@ lunyoro-translator/
 │   ├── clean_ocr_pairs.py           # Remove noisy/truncated rows from ocr_pairs_extracted.csv
 │   ├── back_translate.py            # Back-translation augmentation
 │   ├── retrain_tokenizer.py         # SentencePiece retraining
+│   ├── train_all.py                 # Unified pipeline: MarianMT + NLLB sequentially, then HF push
 │   ├── train_marian.py              # MarianMT fine-tuning
 │   ├── train_nllb.py                # NLLB-200 fine-tuning
 │   ├── extract_gr4_training_pairs.py # Extract GR4 training pairs
+│   ├── extract_gr5_training_pairs.py # Extract GR5 training pairs (locatives, sentences, noun classes)
 │   ├── gr4_full_pipeline.py         # Complete GR4 training pipeline (automated)
 │   ├── upload_models_to_hf.py       # Upload models to HuggingFace Hub
 │   ├── feedback_store.py            # Human feedback storage + auto-export
@@ -289,6 +349,7 @@ lunyoro-translator/
 │   ├── auto_retrain.py              # Automated retraining service
 │   ├── view_analytics.py            # View feedback analytics in terminal
 │   ├── export_analytics.py          # Export analytics to Excel/CSV
+│   ├── check_weights.py             # Inspect training data composition (pair counts by source)
 │   ├── feedback/                    # Auto-exported feedback files
 │   │   ├── all_feedback.csv         # Raw feedback data (auto-updated)
 │   │   └── feedback_analytics.xlsx  # Multi-sheet analytics (auto-updated)
@@ -531,6 +592,7 @@ If you use this work, please cite:
 ## Version History
 
 ### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives (Current)
+- **`train_nllb.py`:** Added multi-GPU support via `torch.nn.DataParallel` — when more than one CUDA GPU is available, the NLLB model is automatically wrapped and training is distributed across all GPUs. Device names are printed at startup. Mirrors the existing multi-GPU behaviour in `train_marian.py`.
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix(verb, locative_prefix)` — appends the correct locative suffix (`-mu`, `-ho`, or `-yo`) to a verb based on its accompanying locative prefix (`omu-`/`omw-` → `-mu`, `ha-` → `-ho`, `owa-`/`omba`/`ku-` → `-yo`).
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix_correction(text)` — regex-based post-processing pass that corrects common MT errors where adverbial suffixes are missing (e.g. `genda owaitu` → `gendayo owaitu`, `ikara hansi` → `ikaraho hansi`, `ikara omunsi` → `ikaramu omunsi`).
 - **`language_rules_gr5.py`:** Added `OBJECTIVAL_CONCORDS` — mapping of noun classes 1–15 to their objectival concord prefixes (e.g. class 3 → `gu`, class 7 → `ki`), used when the object is fronted in a reversed-object sentence.
@@ -539,6 +601,7 @@ If you use this work, please cite:
 - **`language_rules_gr5.py`:** Added `NEGATIVE_NOUNS` dictionary and `build_negative_noun(verb_stem)` — derives Class 1 negative nouns using the `omu-ta-` prefix pattern (e.g. `build_negative_noun('seka')` → `'omutaseka'`, meaning "one who does not laugh").
 - **`language_rules_gr5.py`:** Added `CLASS9_PROFESSIONAL_NOUNS` dictionary and `derive_class9_professional(verb_stem)` — derives Class 9 professional/habitual nouns using `en-` before consonants and `em-` before bilabials (e.g. `derive_class9_professional('lima')` → `'endima'`; `derive_class9_professional('baza')` → `'embaza'`).
 - **`language_rules_gr5.py`:** Added `AUGMENTATIVE_EXAMPLES` dictionary and `build_augmentative(base_noun, aug_class)` — builds augmentative/pejorative forms by substituting the noun class prefix: class `'5'` (eri-/i-) for magnitude/pejorative (e.g. `'omusaija'` → `'isaija'`), class `'7'` (eki-) for magnitude/affection/contempt (e.g. `'omusaija'` → `'ekisaija'`). Strips common class 1/3/5/7 prefixes before applying the substitution.
+- **`extract_gr5_training_pairs.py`:** New script that extracts ~300 clean English ↔ Runyoro-Rutooro training pairs from grammar rules 5.docx (Chapters 5–7). Covers locative agreement, locative demonstratives, genitive/possessive locatives, adverbial suffixes (-mu/-ho/-yo), ho + enumerative roots, dara + locative, copula ni- + locatives, reversed-object sentences, noun class examples (1a/2a/9a/10a), colour names, augmentative/pejorative forms, negative nouns, class 9 professional nouns, twin names, and kinship terms. Writes to `data/cleaned/gr5_pairs.csv` and merges into `train.csv`/`val.csv` (90/10 split, deduplication-safe).
 
 ### v2.8 - Qwen Refinement for `/translate-reverse`
 - **`/translate-reverse` improvement:** Added optional `refine: bool` parameter (default `false`). When `true` and `HF_TOKEN` is set, a Qwen 2.5 7B pass refines the lun→en MT draft for fluency, accuracy, and natural English phrasing before the response is returned. Falls back silently to the MT draft if Qwen is unavailable. The refined output is also recorded in translation history with a `+refined` method suffix.

@@ -878,7 +878,7 @@ def chat(req: ChatRequest, request: Request):
                 "reply_marian": None, "reply_nllb": None}
 
     return {
-        "reply":         marian_out or nllb_out,  # MarianMT is primary
+        "reply":         nllb_out or marian_out,  # NLLB is primary
         "reply_marian":  marian_out,
         "reply_nllb":    nllb_out,
     }

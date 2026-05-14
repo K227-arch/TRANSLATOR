@@ -449,7 +449,7 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
 
     if marian or nllb:
         return {
-            "translation":        marian or nllb,  # MarianMT is primary
+            "translation":        nllb or marian,  # NLLB is primary
             "translation_nllb":   nllb,
             "translation_marian": marian,
             "method":             "neural_mt",
@@ -501,7 +501,7 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
 
     if marian or nllb:
         return {
-            "translation":        marian or nllb,  # MarianMT is primary for lun→en
+            "translation":        nllb or marian,  # NLLB is primary for lun→en
             "translation_nllb":   nllb,
             "translation_marian": marian,
             "method":             "neural_mt",

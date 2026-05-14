@@ -29,33 +29,56 @@ BASE      = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE, "model")
 DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
+GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
+
+SEED_CSVS = [
+    os.path.join(BASE, "data", "raw", "medical_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "education_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "daily_life_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "low_freq_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "agriculture_seed_vocabulary.csv"),
+]
 
 NLLB_LANG_EN  = "eng_Latn"
 NLLB_LANG_LUN = "run_Latn"
 
 
+def _load_pair_keys(csv_path: str) -> set:
+    keys = set()
+    if not os.path.exists(csv_path):
+        return keys
+    try:
+        df = pd.read_csv(csv_path)
+        for _, row in df.iterrows():
+            en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
+            lun = str(row.get("lunyoro", "")).strip().lower()
+            if en and lun:
+                keys.add((en, lun))
+    except Exception:
+        pass
+    return keys
+
+
 # ── Weighted sampler (same logic as train_marian.py) ─────────────────────────
 
 def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedRandomSampler:
-    gr4_keys: set = set()
-    if os.path.exists(GR4_CSV):
-        try:
-            gr4_df = pd.read_csv(GR4_CSV)
-            for _, row in gr4_df.iterrows():
-                en  = str(row.get("english", "")).strip().lower()
-                lun = str(row.get("lunyoro", "")).strip().lower()
-                if en and lun:
-                    gr4_keys.add((en, lun))
-        except Exception:
-            pass
+    gr4_keys  = _load_pair_keys(GR4_CSV)
+    gr5_keys  = _load_pair_keys(GR5_CSV)
+    grammar_keys = gr4_keys | gr5_keys
+
+    seed_keys: set = set()
+    for csv_path in SEED_CSVS:
+        seed_keys |= _load_pair_keys(csv_path)
 
     weights = []
     for _, row in df.iterrows():
         en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
         lun = str(row.get("lunyoro", "")).strip().lower()
         src = str(row.get("source", "")).lower()
-        if (en, lun) in gr4_keys:
-            weights.append(upweight)
+        if (en, lun) in seed_keys:
+            weights.append(8.0)
+        elif (en, lun) in grammar_keys:
+            weights.append(6.0)
         elif "back_translation" in src:
             weights.append(2.0)
         else:
@@ -171,6 +194,12 @@ def train_direction(direction: str, args):
     model.to(device)
     print(f"  Device: {device}")
 
+    # Use all available GPUs via DataParallel
+    n_gpus = torch.cuda.device_count()
+    if n_gpus > 1:
+        print(f"  Using {n_gpus} GPUs: {[torch.cuda.get_device_name(i) for i in range(n_gpus)]}")
+        model = torch.nn.DataParallel(model)
+
     src_lang = NLLB_LANG_EN  if direction == "en2lun" else NLLB_LANG_LUN
     tgt_lang = NLLB_LANG_LUN if direction == "en2lun" else NLLB_LANG_EN
 
@@ -221,6 +250,7 @@ def train_direction(direction: str, args):
                 with torch.cuda.amp.autocast():
                     outputs = model(**batch)
                     loss = outputs.loss
+                    if hasattr(loss, 'mean'): loss = loss.mean()
                 scaler.scale(loss).backward()
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -229,6 +259,7 @@ def train_direction(direction: str, args):
             else:
                 outputs = model(**batch)
                 loss = outputs.loss
+                if hasattr(loss, 'mean'): loss = loss.mean()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
@@ -244,8 +275,9 @@ def train_direction(direction: str, args):
         avg_loss = total_loss / max(steps, 1)
 
         # Evaluate
+        raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
         bleu = evaluate_bleu(
-            model, tokenizer, val_df, direction, device,
+            raw_model, tokenizer, val_df, direction, device,
             src_lang, tgt_lang, max_length=args.max_length,
         )
         print(f"  Epoch {epoch}/{args.epochs} — loss={avg_loss:.4f}  BLEU={bleu:.2f}")
@@ -255,7 +287,7 @@ def train_direction(direction: str, args):
             best_bleu = bleu
             if os.path.exists(best_ckpt):
                 shutil.rmtree(best_ckpt)
-            model.save_pretrained(best_ckpt)
+            raw_model.save_pretrained(best_ckpt)
             tokenizer.save_pretrained(best_ckpt)
             print(f"  ✓ New best BLEU={bleu:.2f} — saved to {best_ckpt}")
 
@@ -269,7 +301,8 @@ def train_direction(direction: str, args):
         print(f"  ✓ nllb_{direction} updated")
     else:
         print("  No best checkpoint found — saving final model")
-        model.save_pretrained(model_path)
+        raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        raw_model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
 
     print(f"\n  nllb_{direction} fine-tuning complete. Best BLEU: {best_bleu:.2f}")

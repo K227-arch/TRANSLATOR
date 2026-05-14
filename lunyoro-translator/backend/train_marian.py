@@ -45,32 +45,62 @@ BASE      = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE, "model")
 DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
+GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
+
+# Seed vocabulary files — these are the highest-priority pairs
+SEED_CSVS = [
+    os.path.join(BASE, "data", "raw", "medical_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "education_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "daily_life_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "low_freq_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "agriculture_seed_vocabulary.csv"),
+]
 
 
 # ── Weighted sampler for low-frequency pairs ──────────────────────────────────
 
+def _load_pair_keys(csv_path: str) -> set:
+    """Load (english, lunyoro) key pairs from a CSV file."""
+    keys = set()
+    if not os.path.exists(csv_path):
+        return keys
+    try:
+        df = pd.read_csv(csv_path)
+        for _, row in df.iterrows():
+            en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
+            lun = str(row.get("lunyoro", "")).strip().lower()
+            if en and lun:
+                keys.add((en, lun))
+    except Exception:
+        pass
+    return keys
+
+
 def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedRandomSampler:
     """
-    Give rare/gr4 pairs a higher sampling weight so the model sees them
+    Give rare/priority pairs a higher sampling weight so the model sees them
     proportionally more per epoch without duplicating the dataset.
 
-    Strategy:
-      - Pairs that appear in gr4_pairs.csv get weight=upweight (default 4x)
-      - back_translated pairs get weight=2x
-      - All other pairs get weight=1.0
+    Weights:
+      - Seed vocabulary pairs (medical/education/daily/agri/low_freq): 8x
+        These are the most important — direct translations from domain experts.
+      - gr4 + gr5 grammar pairs: 6x
+        Grammar rules must be reinforced strongly.
+      - back_translated pairs: 2x
+        Synthetic data, useful but lower priority.
+      - All other pairs: 1.0
     """
-    # Load gr4 pair keys
-    gr4_keys: set = set()
-    if os.path.exists(GR4_CSV):
-        try:
-            gr4_df = pd.read_csv(GR4_CSV)
-            for _, row in gr4_df.iterrows():
-                en  = str(row.get("english", "")).strip().lower()
-                lun = str(row.get("lunyoro", "")).strip().lower()
-                if en and lun:
-                    gr4_keys.add((en, lun))
-        except Exception:
-            pass
+    # Load priority pair keys
+    gr4_keys  = _load_pair_keys(GR4_CSV)
+    gr5_keys  = _load_pair_keys(GR5_CSV)
+    grammar_keys = gr4_keys | gr5_keys
+
+    seed_keys: set = set()
+    for csv_path in SEED_CSVS:
+        seed_keys |= _load_pair_keys(csv_path)
+
+    print(f"  [sampler] seed={len(seed_keys)} grammar={len(grammar_keys)} "
+          f"back_trans detected by source column")
 
     weights = []
     for _, row in df.iterrows():
@@ -78,10 +108,12 @@ def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedR
         lun = str(row.get("lunyoro", "")).strip().lower()
         src = str(row.get("source", "")).lower()
 
-        if (en, lun) in gr4_keys:
-            weights.append(upweight)
+        if (en, lun) in seed_keys:
+            weights.append(8.0)          # seed vocabulary — highest priority
+        elif (en, lun) in grammar_keys:
+            weights.append(6.0)          # gr4 + gr5 grammar rules
         elif "back_translation" in src:
-            weights.append(2.0)
+            weights.append(2.0)          # synthetic back-translated
         else:
             weights.append(1.0)
 
@@ -247,6 +279,12 @@ def train_direction(direction: str, args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
 
+    # Use all available GPUs via DataParallel
+    n_gpus = torch.cuda.device_count()
+    if n_gpus > 1:
+        print(f"  Using {n_gpus} GPUs: {[torch.cuda.get_device_name(i) for i in range(n_gpus)]}")
+        model = torch.nn.DataParallel(model)
+
     # Enable gradient checkpointing to save memory
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
@@ -310,6 +348,7 @@ def train_direction(direction: str, args):
                 with torch.cuda.amp.autocast():
                     outputs = model(**batch)
                     loss = outputs.loss
+                    if hasattr(loss, 'mean'): loss = loss.mean()
                 scaler.scale(loss).backward()
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -318,6 +357,7 @@ def train_direction(direction: str, args):
             else:
                 outputs = model(**batch)
                 loss = outputs.loss
+                if hasattr(loss, 'mean'): loss = loss.mean()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
@@ -335,13 +375,14 @@ def train_direction(direction: str, args):
         print(f"\n  Epoch {epoch} complete — avg loss: {avg_loss:.4f}")
 
         # Evaluate BLEU
-        bleu_score = evaluate_bleu(model, tokenizer, val_df, direction, device)
+        raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        bleu_score = evaluate_bleu(raw_model, tokenizer, val_df, direction, device)
         print(f"  Validation BLEU: {bleu_score:.2f}")
 
         # Save best checkpoint
         if bleu_score > best_bleu:
             best_bleu = bleu_score
-            model.save_pretrained(best_ckpt)
+            raw_model.save_pretrained(best_ckpt)
             tokenizer.save_pretrained(best_ckpt)
             print(f"  ✓ New best BLEU={best_bleu:.2f} — saved to {best_ckpt}")
 
