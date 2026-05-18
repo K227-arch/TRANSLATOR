@@ -135,7 +135,36 @@ def _postprocess_lunyoro(text: str) -> str:
         text = apply_gr5_rules(text, direction="en->lun")
     except Exception:
         pass
+    # Dialect normalisation: Rutooro → Runyoro standard forms
+    text = _normalise_dialect(text)
     return text
+
+
+# Rutooro → Runyoro dialect mappings (case-insensitive word substitutions)
+_DIALECT_MAP = [
+    # Days of the week
+    (r'\bkiro\s+kinu\b',        'leero'),           # today
+    (r'\bkiro\s+ekindi\b',      'leero'),
+    (r'\bkyakabizi\b',          "n'Orwokasatu"),     # Tuesday
+    (r'\bkya\s+kabizi\b',       "n'Orwokasatu"),
+    (r'\bkya\s+kasatu\b',       "n'Orwokasatu"),
+    (r'\bkya\s+kana\b',         "n'Orwokana"),       # Thursday
+    (r'\bkya\s+kataano\b',      "n'Orwokataano"),    # Friday
+    (r'\bkya\s+mukaaga\b',      "n'Orwomukaaga"),    # Saturday
+    (r'\bkya\s+sande\b',        "n'Orwosande"),      # Sunday
+    (r'\bkya\s+banza\b',        "n'Orwobanza"),      # Monday
+    # Common Rutooro→Runyoro word swaps
+    (r'\bkiro\b',               'leero'),            # today (standalone)
+    (r'\bkinu\s+kizi\b',        'kinu'),             # this (demonstrative cleanup)
+]
+
+def _normalise_dialect(text: str) -> str:
+    """Normalise Rutooro dialect forms to standard Runyoro forms."""
+    import re
+    result = text
+    for pattern, replacement in _DIALECT_MAP:
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    return result
 
 
 def _preprocess_lunyoro_input(text: str) -> str:
