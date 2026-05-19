@@ -490,6 +490,13 @@ def auto_retrain_status():
         return {"error": str(e)}
 
 
+@app.get("/feedback/dump")
+def feedback_dump():
+    """Return all raw feedback entries as JSON — used for local sync."""
+    from feedback_store import load_all_feedback
+    return {"entries": load_all_feedback()}
+
+
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
 
 
