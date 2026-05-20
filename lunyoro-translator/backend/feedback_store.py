@@ -19,13 +19,65 @@ FEEDBACK_EXPORT_DIR = BASE / "feedback"
 _lock = threading.Lock()
 
 
+def restore_from_github():
+    """
+    On container startup, pull all previously synced entries from GitHub
+    into feedback.jsonl so no history is lost across restarts.
+    Only adds entries not already present (deduplicates by timestamp+source).
+    """
+    try:
+        from github_feedback_sync import fetch_all_feedback_from_github
+        remote_entries = fetch_all_feedback_from_github()
+        if not remote_entries:
+            return
+
+        # Load what's already in the local file
+        existing = load_all_feedback()
+        existing_keys = {
+            (e.get("source_text", "").strip().lower(),
+             e.get("translation", "").strip().lower(),
+             (e.get("timestamp") or "")[:16])
+            for e in existing
+        }
+
+        new_entries = []
+        for e in remote_entries:
+            key = (
+                e.get("source_text", "").strip().lower(),
+                e.get("translation", "").strip().lower(),
+                (e.get("timestamp") or "")[:16],
+            )
+            if key[0] and key not in existing_keys:
+                new_entries.append(e)
+                existing_keys.add(key)
+
+        if new_entries:
+            with _lock:
+                with open(FEEDBACK_FILE, "a", encoding="utf-8") as f:
+                    for e in new_entries:
+                        f.write(json.dumps(e, ensure_ascii=False) + "\n")
+            print(f"[feedback_store] Restored {len(new_entries)} entries from GitHub "
+                  f"(total now: {len(existing) + len(new_entries)})")
+        else:
+            print(f"[feedback_store] GitHub restore: already up to date ({len(existing)} entries)")
+    except Exception as ex:
+        print(f"[feedback_store] GitHub restore failed (non-fatal): {ex}")
+
+
 def save_feedback(entry: dict):
-    """Append a feedback entry to the JSONL store and export to files (thread-safe)."""
+    """Append a feedback entry to the JSONL store, sync to GitHub, and export (thread-safe)."""
     entry.setdefault("timestamp", datetime.utcnow().isoformat())
     with _lock:
         with open(FEEDBACK_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    
+
+    # Sync to GitHub immediately so entry survives container restarts
+    try:
+        from github_feedback_sync import push_feedback_to_github
+        threading.Thread(target=push_feedback_to_github, args=(entry,), daemon=True).start()
+    except Exception:
+        pass
+
     # Auto-export to Excel/CSV after each feedback (async)
     try:
         threading.Thread(target=auto_export_feedback, daemon=True).start()

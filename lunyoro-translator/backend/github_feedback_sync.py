@@ -21,7 +21,8 @@ import urllib.error
 from datetime import datetime
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-GITHUB_FILE_PATH = "lunyoro-translator/backend/feedback/feedback_pairs.json"
+GITHUB_FILE_PATH      = "lunyoro-translator/backend/feedback/feedback_pairs.json"
+GITHUB_JSONL_PATH     = "lunyoro-translator/backend/feedback/feedback_all.jsonl"
 GITHUB_BRANCH = "main"
 
 GITHUB_REPOS = [
@@ -92,20 +93,80 @@ def _put_file(repo: str, entries: list, sha: str | None, message: str):
     return _api_request(url, method="PUT", data=data)
 
 
+def _get_raw_file(repo: str, path: str) -> tuple[str, str | None]:
+    """Fetch a raw text file from GitHub. Returns (content_str, sha)."""
+    url = f"https://api.github.com/repos/{repo}/contents/{path}?ref={GITHUB_BRANCH}"
+    result = _api_request(url)
+    if not result:
+        return "", None
+    try:
+        content = base64.b64decode(result["content"]).decode("utf-8")
+        return content, result["sha"]
+    except Exception as e:
+        print(f"[github_sync] Parse error for {repo}/{path}: {e}")
+        return "", result.get("sha")
+
+
+def _put_raw_file(repo: str, path: str, content_str: str, sha: str | None, message: str):
+    """Commit a raw text file to GitHub."""
+    content = base64.b64encode(content_str.encode("utf-8")).decode("utf-8")
+    url = f"https://api.github.com/repos/{repo}/contents/{path}"
+    data = {"message": message, "content": content, "branch": GITHUB_BRANCH}
+    if sha:
+        data["sha"] = sha
+    return _api_request(url, method="PUT", data=data)
+
+
 def sync_entry_to_repo(repo: str, entry: dict):
-    """Fetch, append, and push one entry to a single repo (thread-safe per repo)."""
+    """
+    Fetch, append, and push one entry to a single repo (thread-safe per repo).
+    Updates both:
+      - feedback_pairs.json  (JSON array — used by restore_from_github)
+      - feedback_all.jsonl   (JSONL — full raw log, one entry per line)
+    """
     with _lock:
-        entries, sha = _get_file(repo)
-        entries.append(entry)
         ts = entry.get("timestamp", datetime.utcnow().isoformat())[:10]
-        result = _put_file(
-            repo, entries, sha,
-            message=f"feedback: add entry {ts} (total: {len(entries)})"
+
+        # ── 1. Update feedback_pairs.json (JSON array) ────────────────────────
+        entries, sha_json = _get_file(repo)
+        # Deduplicate: don't add if same source+translation+timestamp already present
+        key = (
+            entry.get("source_text", "").strip().lower(),
+            entry.get("translation", "").strip().lower(),
+            entry.get("timestamp", "")[:16],
         )
-        if result:
-            print(f"[github_sync] ✓ {repo} — {len(entries)} entries")
-        else:
-            print(f"[github_sync] ✗ Failed to sync to {repo}")
+        existing_keys = {
+            (e.get("source_text", "").strip().lower(),
+             e.get("translation", "").strip().lower(),
+             (e.get("timestamp") or "")[:16])
+            for e in entries
+        }
+        if key not in existing_keys:
+            entries.append(entry)
+            result = _put_file(
+                repo, entries, sha_json,
+                message=f"feedback: add entry {ts} (total: {len(entries)})"
+            )
+            if result:
+                print(f"[github_sync] feedback_pairs.json ✓ {repo} — {len(entries)} entries")
+            else:
+                print(f"[github_sync] feedback_pairs.json ✗ Failed for {repo}")
+
+        # ── 2. Append to feedback_all.jsonl (raw JSONL log) ───────────────────
+        jsonl_content, sha_jsonl = _get_raw_file(repo, GITHUB_JSONL_PATH)
+        # Only append if this exact line isn't already there
+        new_line = json.dumps(entry, ensure_ascii=False)
+        if new_line not in jsonl_content:
+            updated_jsonl = (jsonl_content.rstrip("\n") + "\n" + new_line + "\n").lstrip("\n")
+            line_count = len([l for l in updated_jsonl.splitlines() if l.strip()])
+            result = _put_raw_file(
+                repo, GITHUB_JSONL_PATH, updated_jsonl, sha_jsonl,
+                message=f"feedback: append to jsonl {ts} ({line_count} lines)"
+            )
+            if result:
+                print(f"[github_sync] feedback_all.jsonl  ✓ {repo} — {line_count} lines")
+            else:
+                print(f"[github_sync] feedback_all.jsonl  ✗ Failed for {repo}")
 
 
 def push_feedback_to_github(entry: dict):
@@ -127,10 +188,31 @@ def push_feedback_to_github(entry: dict):
 
 def fetch_all_feedback_from_github() -> list:
     """
-    Fetch the full feedback_pairs.json from GitHub (primary repo).
-    Used by auto_retrain to get all collected feedback.
+    Fetch the full feedback history from GitHub.
+    Prefers feedback_all.jsonl (complete raw log) over feedback_pairs.json.
+    Used by restore_from_github() on container startup.
     """
     if not GITHUB_TOKEN:
         return []
-    entries, _ = _get_file(GITHUB_REPOS[0])
+
+    repo = GITHUB_REPOS[0]
+
+    # Try JSONL first — it's the most complete
+    jsonl_content, _ = _get_raw_file(repo, GITHUB_JSONL_PATH)
+    if jsonl_content.strip():
+        entries = []
+        for line in jsonl_content.splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+        if entries:
+            print(f"[github_sync] Loaded {len(entries)} entries from feedback_all.jsonl")
+            return entries
+
+    # Fallback to JSON array
+    entries, _ = _get_file(repo)
+    print(f"[github_sync] Loaded {len(entries)} entries from feedback_pairs.json (fallback)")
     return entries
