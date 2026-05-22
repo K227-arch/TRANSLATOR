@@ -42,3 +42,4 @@
 {"source_text": "the cat is big", "translation": "enJangu ikoto", "direction": "en->lun", "rating": 1, "correction": "", "error_type": "", "model_used": "", "refined": false, "ip": "10.16.25.130", "timestamp": "2026-05-22T12:52:00.234681"}
 {"source_text": "the goat is big", "translation": "embuzi enkazi", "direction": "en->lun", "rating": 1, "correction": "", "error_type": "", "model_used": "", "refined": false, "ip": "10.20.32.255", "timestamp": "2026-05-22T17:57:02.562431"}
 {"source_text": "the goat is big", "translation": "embuzi enkazi", "direction": "en->lun", "rating": 1, "correction": "", "error_type": "", "model_used": "nllb", "refined": false, "ip": "10.20.3.113", "timestamp": "2026-05-22T17:57:07.242170"}
+{"source_text": "the goat is big", "translation": "embuzi enkazi", "direction": "en->lun", "rating": 1, "correction": "", "error_type": "", "model_used": "nllb", "refined": false, "ip": "10.20.25.44", "timestamp": "2026-05-22T17:57:19.243485"}
