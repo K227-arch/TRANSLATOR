@@ -394,5 +394,17 @@
     "model_used": "nllb",
     "ip": "10.16.42.153",
     "timestamp": "2026-05-09T08:28:32.580418"
+  },
+  {
+    "source_text": "Where are you going?",
+    "translation": "Ogenda nkaha?",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.20.32.255",
+    "timestamp": "2026-05-22T08:23:34.655427"
   }
 ]
