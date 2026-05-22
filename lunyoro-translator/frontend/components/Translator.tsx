@@ -230,6 +230,11 @@ export default function Translator() {
       const data = await res.json();
       if (preferredModel && data.translation_marian && data.translation_nllb)
         data.translation = preferredModel === "marian" ? data.translation_marian : data.translation_nllb;
+      // If NLLB returned the source text unchanged (passthrough), fall back to MarianMT
+      if (data.translation_nllb && data.translation_nllb.trim().toLowerCase() === text.trim().toLowerCase()) {
+        data.translation_nllb = data.translation_marian;
+        if (!preferredModel || preferredModel === "nllb") data.translation = data.translation_marian;
+      }
       setResult(data); resetFeedback();
     } catch { setError("Could not connect to the translation server."); }
     finally { setLoading(false); setRefining(false); }
