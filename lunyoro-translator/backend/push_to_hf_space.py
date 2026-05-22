@@ -42,6 +42,9 @@ SKIP_PATTERNS = {
     "model", "data/training", "data/cleaned",
     "data/OCR", ".dockerignore",
     "push_to_hf_space.py",
+    "venv", ".git", "feedback",
+    "bleu_results.json", "run_bleu_eval.py", "run_bleu_via_api.py",
+    "evaluate_current_models.py",
 }
 
 def should_skip(path: Path) -> bool:

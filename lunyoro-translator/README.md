@@ -618,6 +618,19 @@ python backend/push_to_hf_space.py
 # Pushes to: keithtwesigye-runyoro-translator-api.hf.space
 ```
 
+Uploads all backend source files to the HuggingFace Space. The following are intentionally excluded from the upload:
+
+| Excluded | Reason |
+|----------|--------|
+| `model/` | Model weights are loaded from HF Hub at runtime |
+| `data/training/`, `data/cleaned/`, `data/OCR/` | Training data — not needed at inference time |
+| `feedback/` | Local feedback logs — not part of the deployed service |
+| `venv/`, `.git/` | Local environment and version control artifacts |
+| `bleu_results.json` | Local evaluation output |
+| `run_bleu_eval.py`, `run_bleu_via_api.py`, `evaluate_current_models.py` | Evaluation scripts — not needed in the Space |
+| `push_to_hf_space.py` | The deploy script itself |
+| `__pycache__/`, `.env`, `history.json`, `.dockerignore` | Build artifacts and local config |
+
 ### Vercel (Frontend)
 ```bash
 cd frontend
