@@ -1,6 +1,6 @@
 # AI Stick — Runyoro / Rutooro Translator
 
-**Version 2.8** - Qwen Refinement for `/translate-reverse`
+**Version 2.9.1** - SQS Weight Re-Normalisation for Partial Benchmark Scoring
 
 A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - Fine-tuned MarianMT + NLLB-200 models
@@ -51,6 +51,7 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **Corrections:** Submit better translations with optional error details
 - **Separate feedback flows:** Primary quality feedback and model comparison feedback tracked independently
 - **Continuous learning:** Approved pairs feed back into training
+- **Benchmark Scoring Panel:** Collapsible panel for detailed 8-dimension scoring (Meaning Fidelity, Grammar & Syntax, Tense & Aspect, Vocabulary Choice, Context Awareness, Fluency & Naturalness, Orthography & Spelling, Cultural & Idiomatic). Each dimension is scored 0–5 via toggle buttons; dimensions can be left blank to skip. A live **SQS** (Sentence Quality Score, 0–100) preview updates as scores are entered, with a colour-coded quality band label. On submission the final SQS is displayed inline.
 
 ---
 
@@ -298,7 +299,83 @@ python backend/auto_retrain.py --monitor --threshold 200
 python backend/auto_retrain.py --check --threshold 50
 ```
 
-### 11. Inspect Training Data Composition
+### 11. Evaluate Current Model BLEU Scores
+```bash
+python backend/evaluate_current_models.py
+# Evaluates all 4 translation models on the test set and reports BLEU scores:
+#   - MarianMT en2lun
+#   - MarianMT lun2en
+#   - NLLB-200 en2lun
+#   - NLLB-200 lun2en
+# Uses up to 500 samples from data/training/test.csv per model
+# Prints per-model BLEU scores, averages by model type and direction
+# Saves results to backend/evaluation_results.csv
+```
+
+**Features:**
+- Loads each model via the same `translate.py` helpers used in production
+- Skips models that cannot be loaded (prints a warning and continues)
+- Outputs a summary table with BLEU averages grouped by model type (MarianMT / NLLB-200) and direction (en2lun / lun2en)
+- Results are saved to `evaluation_results.csv` for tracking over time
+
+### 12. Evaluate BLEU Scores via Live API
+```bash
+python backend/run_bleu_eval.py
+# Evaluates all 4 translation models by calling the live API and reports BLEU scores:
+#   - MarianMT en2lun
+#   - MarianMT lun2en
+#   - NLLB-200 en2lun
+#   - NLLB-200 lun2en
+# Samples up to 200 pairs (evenly strided) from data/training/test.csv
+# Saves results to backend/bleu_results.json
+
+python backend/run_bleu_eval.py --samples 500 --api http://localhost:8000
+```
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--samples` | `200` | Number of test pairs to evaluate |
+| `--api` | `https://keithtwesigye-runyoro-translator-api.hf.space` | Backend API base URL |
+
+**Notes:**
+- Unlike `evaluate_current_models.py` (which loads models locally), this script calls the running API — useful for evaluating the deployed service without needing local model weights
+- Requires `sacrebleu` (auto-installed if missing)
+- Failed API calls are retried once before being counted as errors
+- Progress is logged every 10 samples
+- Results are printed as a summary table and saved to `backend/bleu_results.json`
+
+### 12b. Evaluate BLEU Scores via Live API (Random Sample)
+```bash
+python backend/run_bleu_via_api.py
+# Alternative BLEU evaluation script — uses random sampling instead of evenly-strided selection
+# Evaluates all 4 translation models against the live HF Space API:
+#   - MarianMT en2lun
+#   - MarianMT lun2en
+#   - NLLB-200 en2lun
+#   - NLLB-200 lun2en
+# Randomly samples up to 200 pairs (random_state=42) from data/training/test.csv
+# Saves results to backend/bleu_results.json
+
+python backend/run_bleu_via_api.py --samples 500
+```
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--samples` | `200` | Number of test pairs to evaluate |
+
+**Notes:**
+- No local model weights needed — calls the deployed HF Space API directly
+- API base URL is read from the `NEXT_PUBLIC_API_URL` environment variable (falls back to `https://keithtwesigye-runyoro-translator-api.hf.space`)
+- Uses random sampling (`random_state=42`) rather than evenly-strided selection, giving a different statistical view of model performance
+- Prints a formatted summary table (BLEU, brevity penalty, 1–4-gram precisions) and 5 sample translations per model
+- Progress is logged every 25 samples; a 50 ms delay between requests avoids overloading the API
+- Results are saved to `backend/bleu_results.json`
+
+### 13. Inspect Training Data Composition
 ```bash
 python backend/check_weights.py
 # Prints a breakdown of training data by source:
@@ -344,11 +421,14 @@ lunyoro-translator/
 │   ├── extract_gr5_training_pairs.py # Extract GR5 training pairs (locatives, sentences, noun classes)
 │   ├── gr4_full_pipeline.py         # Complete GR4 training pipeline (automated)
 │   ├── upload_models_to_hf.py       # Upload models to HuggingFace Hub
-│   ├── feedback_store.py            # Human feedback storage + auto-export
+│   ├── feedback_store.py            # Human feedback storage + auto-export; BENCHMARK_WEIGHTS, BENCHMARK_LABELS, compute_sqs()
 │   ├── retrain_from_feedback.py     # End-to-end feedback retraining
 │   ├── auto_retrain.py              # Automated retraining service
 │   ├── view_analytics.py            # View feedback analytics in terminal
 │   ├── export_analytics.py          # Export analytics to Excel/CSV
+│   ├── evaluate_current_models.py   # Evaluate BLEU scores for all 4 models on the test set (local models)
+│   ├── run_bleu_eval.py             # Evaluate BLEU scores for all 4 models via the live API (evenly-strided)
+│   ├── run_bleu_via_api.py          # Evaluate BLEU scores for all 4 models via the live API (random sample)
 │   ├── check_weights.py             # Inspect training data composition (pair counts by source)
 │   ├── feedback/                    # Auto-exported feedback files
 │   │   ├── all_feedback.csv         # Raw feedback data (auto-updated)
@@ -395,6 +475,26 @@ lunyoro-translator/
 ### Feedback
 - `POST /feedback` — Submit translation rating with optional error categorization and corrections
   - Parameters: `source_text`, `translation`, `direction`, `rating` (1/-1), `correction` (optional), `error_type` (optional - comma-separated list for multiple error types), `model_used` (optional - "marian", "nllb", "both", "none"), `refined` (optional boolean - whether AI refinement was applied to the translation)
+  - **Benchmark scores** (optional, each 0–5, from the Runyoro-Rutooro LLM Benchmarking Form):
+
+    | Field | Dimension | Weight |
+    |-------|-----------|--------|
+    | `score_mng` | Meaning Fidelity | 25% |
+    | `score_grm` | Grammar & Syntax | 15% |
+    | `score_tns` | Tense & Aspect | 12% |
+    | `score_vcb` | Vocabulary Choice | 12% |
+    | `score_ctx` | Context Awareness | 10% |
+    | `score_flu` | Fluency & Naturalness | 10% |
+    | `score_ort` | Orthography & Spelling | 8% |
+    | `score_cul` | Cultural & Idiomatic | 8% |
+
+    When any dimension score is provided, the server computes a **SQS** (Sentence Quality Score, 0–100) and returns it as `sqs` in the response. The formula is:
+
+    ```
+    SQS = Σ(score × weight) / Σ(weight of scored dims) × 100 / 5
+    ```
+
+    Weights are re-normalised to the subset of dimensions that were actually scored, so partial submissions (e.g. only `score_mng` and `score_grm`) produce a valid 0–100 result without penalising omitted dimensions.
   - **Auto-export:** Automatically exports feedback to `backend/feedback/` folder after each submission
     - `all_feedback.csv` — Complete feedback log in CSV format
     - `feedback_analytics.xlsx` — Multi-sheet Excel workbook with analytics
@@ -591,7 +691,11 @@ If you use this work, please cite:
 
 ## Version History
 
-### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives (Current)
+### v2.9.1 - SQS Weight Re-Normalisation for Partial Benchmark Scoring (Current)
+- **`feedback_store.py`:** Added `BENCHMARK_WEIGHTS` and `BENCHMARK_LABELS` constants defining the eight scoring dimensions and their percentage weights (Meaning Fidelity 25%, Grammar & Syntax 15%, Tense & Aspect 12%, Vocabulary Choice 12%, Context Awareness 10%, Fluency & Naturalness 10%, Orthography & Spelling 8%, Cultural & Idiomatic 8%).
+- **`feedback_store.py`:** Implemented `compute_sqs(dim_scores)` — computes the Sentence Quality Score (SQS, 0–100) using the formula `Σ(score × weight) / Σ(weight of scored dims) × 100 / 5`. Weights are re-normalised to the subset of dimensions that were actually scored, so partial submissions produce a valid result without penalising omitted dimensions. Returns `None` if no dimensions were scored.
+
+### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives
 - **`train_nllb.py`:** Added multi-GPU support via `torch.nn.DataParallel` — when more than one CUDA GPU is available, the NLLB model is automatically wrapped and training is distributed across all GPUs. Device names are printed at startup. Mirrors the existing multi-GPU behaviour in `train_marian.py`.
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix(verb, locative_prefix)` — appends the correct locative suffix (`-mu`, `-ho`, or `-yo`) to a verb based on its accompanying locative prefix (`omu-`/`omw-` → `-mu`, `ha-` → `-ho`, `owa-`/`omba`/`ku-` → `-yo`).
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix_correction(text)` — regex-based post-processing pass that corrects common MT errors where adverbial suffixes are missing (e.g. `genda owaitu` → `gendayo owaitu`, `ikara hansi` → `ikaraho hansi`, `ikara omunsi` → `ikaramu omunsi`).

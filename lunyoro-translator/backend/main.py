@@ -323,6 +323,19 @@ class FeedbackRequest(BaseModel):
     model_used: str = ""        # "marian", "nllb", "both", "none"
     refined: bool = False       # whether AI refinement was applied to this translation
 
+    # ── Benchmark dimensions (from Runyooro-Rutooro LLM Benchmarking Form) ──
+    # Each scored 0–5 by the evaluator; None means not scored (casual feedback)
+    score_mng: int | None = None   # Meaning Fidelity        (weight 25%)
+    score_grm: int | None = None   # Grammar & Syntax        (weight 15%)
+    score_tns: int | None = None   # Tense & Aspect          (weight 12%)
+    score_vcb: int | None = None   # Vocabulary Choice       (weight 12%)
+    score_ort: int | None = None   # Orthography & Spelling  (weight  8%)
+    score_ctx: int | None = None   # Context Awareness       (weight 10%)
+    score_flu: int | None = None   # Fluency & Naturalness   (weight 10%)
+    score_cul: int | None = None   # Cultural & Idiomatic    (weight  8%)
+    # Computed SQS (0–100) — calculated server-side if any dimension scores present
+    sqs: float | None = None
+
 
 @app.post("/feedback")
 def submit_feedback(req: FeedbackRequest, request: Request):
@@ -332,7 +345,17 @@ def submit_feedback(req: FeedbackRequest, request: Request):
     if req.rating not in (-1, 0, 1):
         raise HTTPException(status_code=400, detail="rating must be -1, 0, or 1")
 
-    from feedback_store import save_feedback
+    from feedback_store import save_feedback, compute_sqs
+
+    # Compute SQS if any dimension scores were provided
+    dim_scores = {
+        "score_mng": req.score_mng, "score_grm": req.score_grm,
+        "score_tns": req.score_tns, "score_vcb": req.score_vcb,
+        "score_ort": req.score_ort, "score_ctx": req.score_ctx,
+        "score_flu": req.score_flu, "score_cul": req.score_cul,
+    }
+    sqs = compute_sqs(dim_scores) if any(v is not None for v in dim_scores.values()) else None
+
     entry = {
         "source_text": req.source_text.strip(),
         "translation": req.translation.strip(),
@@ -343,6 +366,9 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "model_used":  req.model_used.strip(),
         "refined":     req.refined,
         "ip":          request.client.host if request.client else "unknown",
+        # Benchmark dimension scores (None if not provided)
+        **{k: v for k, v in dim_scores.items() if v is not None},
+        **({"sqs": round(sqs, 1)} if sqs is not None else {}),
     }
     save_feedback(entry)
     
@@ -362,6 +388,7 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "rating": req.rating,
         "correction_received": bool(req.correction.strip()),
         "error_type": req.error_type or None,
+        "sqs": round(sqs, 1) if sqs is not None else None,
     }
 
 

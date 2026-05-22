@@ -38,6 +38,42 @@ export default function Translator() {
   const [refine, setRefine]                       = useState(false);
   const [refining, setRefining]                   = useState(false);
 
+  // ── Benchmark dimension scores (0–5, null = not scored) ──────────────────
+  type DimKey = "score_mng"|"score_grm"|"score_tns"|"score_vcb"|"score_ort"|"score_ctx"|"score_flu"|"score_cul";
+  const DIMS: { key: DimKey; code: string; label: string; weight: number; tooltip: string }[] = [
+    { key:"score_mng", code:"MNG", label:"Meaning",    weight:25, tooltip:"Does the translation preserve the full meaning?" },
+    { key:"score_grm", code:"GRM", label:"Grammar",    weight:15, tooltip:"Noun class concord, word order, subject-verb agreement" },
+    { key:"score_tns", code:"TNS", label:"Tense",      weight:12, tooltip:"Correct tense & aspect markers (past, present, future, habitual)" },
+    { key:"score_vcb", code:"VCB", label:"Vocabulary", weight:12, tooltip:"Right word choice, register, no unnecessary loanwords" },
+    { key:"score_ort", code:"ORT", label:"Spelling",   weight: 8, tooltip:"Correct orthography, double vowels, prenasalised consonants" },
+    { key:"score_ctx", code:"CTX", label:"Context",    weight:10, tooltip:"Pronouns, deixis, cultural references handled correctly" },
+    { key:"score_flu", code:"FLU", label:"Fluency",    weight:10, tooltip:"Reads naturally — not stilted or mechanical" },
+    { key:"score_cul", code:"CUL", label:"Cultural",   weight: 8, tooltip:"Proverbs, honorifics, kinship terms culturally appropriate" },
+  ];
+  const [showBenchmark, setShowBenchmark]   = useState(false);
+  const [dimScores, setDimScores]           = useState<Record<DimKey, number | null>>({
+    score_mng:null, score_grm:null, score_tns:null, score_vcb:null,
+    score_ort:null, score_ctx:null, score_flu:null, score_cul:null,
+  });
+  const [benchmarkSent, setBenchmarkSent]   = useState(false);
+  const [sqsResult, setSqsResult]           = useState<number | null>(null);
+
+  function computeLocalSqs(): number | null {
+    const scored = DIMS.filter(d => dimScores[d.key] !== null);
+    if (!scored.length) return null;
+    const totalW = scored.reduce((s, d) => s + d.weight, 0);
+    const weighted = scored.reduce((s, d) => s + (dimScores[d.key]! * d.weight), 0);
+    return Math.round((weighted / totalW) * 100 / 5 * 10) / 10;
+  }
+
+  function sqsBand(sqs: number) {
+    if (sqs >= 90) return { label: "Excellent", color: "text-emerald-600" };
+    if (sqs >= 75) return { label: "Good",      color: "text-teal-600" };
+    if (sqs >= 60) return { label: "Usable",    color: "text-yellow-600" };
+    if (sqs >= 40) return { label: "Poor",      color: "text-orange-500" };
+    return              { label: "Unusable",    color: "text-red-600" };
+  }
+
   const editorRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
@@ -49,7 +85,11 @@ export default function Translator() {
 
   function resetFeedback() {
     setFeedbackRating(null); setFeedbackSent(false); setModelFeedbackSent(false);
-    setShowCorrection(false); setCorrection(""); setErrorTypes([]); setOtherNote(""); setSelectedModel(null);
+    setShowCorrection(false); setCorrection(""); setErrorTypes([]); setOtherNote("");
+    setSelectedModel(null); setShowBenchmark(false); setBenchmarkSent(false);
+    setSqsResult(null);
+    setDimScores({ score_mng:null, score_grm:null, score_tns:null, score_vcb:null,
+                   score_ort:null, score_ctx:null, score_flu:null, score_cul:null });
   }
 
   function handleInputChange(val: string) {
@@ -89,6 +129,30 @@ export default function Translator() {
         body: JSON.stringify({ source_text: input.trim(), translation: translationToSend, direction, rating, correction: correction.trim(), error_type: errorTypeStr, model_used: modelUsed, refined: refine }),
       });
       if (!modelChoice) setShowCorrection(false);
+    } catch { /* non-critical */ }
+  }
+
+  async function submitBenchmark() {
+    if (!result?.translation || !input.trim()) return;
+    const sqs = computeLocalSqs();
+    setSqsResult(sqs);
+    setBenchmarkSent(true);
+    try {
+      await fetch(`${API}/feedback`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_text: input.trim(),
+          translation: result.translation,
+          direction,
+          rating: sqs !== null ? (sqs >= 60 ? 1 : -1) : 0,
+          correction: correction.trim(),
+          error_type: errorTypes.join(", "),
+          model_used: preferredModel || "",
+          refined: refine,
+          ...Object.fromEntries(DIMS.map(d => [d.key, dimScores[d.key]])),
+          sqs,
+        }),
+      });
     } catch { /* non-critical */ }
   }
 
@@ -291,6 +355,92 @@ export default function Translator() {
                 </div>
               )}
               {modelFeedbackSent && <p className="text-xs text-teal-600 font-semibold">Model preference saved!</p>}
+
+              {/* ── Benchmark Scoring Panel ─────────────────────────────── */}
+              {!benchmarkSent && (
+                <div className="pt-2 border-t border-gray-100">
+                  <button
+                    onClick={() => setShowBenchmark(b => !b)}
+                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">
+                      {showBenchmark ? "expand_less" : "expand_more"}
+                    </span>
+                    {showBenchmark ? "Hide" : "Rate this translation in detail (8 dimensions)"}
+                  </button>
+
+                  {showBenchmark && (
+                    <div className="mt-3 bg-indigo-50 rounded-xl border border-indigo-100 p-3 space-y-3">
+                      <p className="text-xs text-indigo-700 font-semibold">
+                        Score each dimension 0–5 &nbsp;·&nbsp; Leave blank to skip
+                      </p>
+                      <div className="space-y-2">
+                        {DIMS.map(dim => (
+                          <div key={dim.key} className="flex items-center gap-2">
+                            <div className="w-20 flex-shrink-0">
+                              <span
+                                className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide cursor-help"
+                                title={dim.tooltip}
+                              >
+                                {dim.code}
+                              </span>
+                              <span className="text-[10px] text-gray-500 block leading-tight">{dim.label}</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {[0,1,2,3,4,5].map(n => (
+                                <button
+                                  key={n}
+                                  onClick={() => setDimScores(s => ({ ...s, [dim.key]: s[dim.key] === n ? null : n }))}
+                                  className={`w-7 h-7 rounded-full text-xs font-bold border transition-all ${
+                                    dimScores[dim.key] === n
+                                      ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                                      : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
+                                  }`}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-gray-400 ml-1">{dim.weight}%</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Live SQS preview */}
+                      {(() => {
+                        const sqs = computeLocalSqs();
+                        if (sqs === null) return null;
+                        const band = sqsBand(sqs);
+                        return (
+                          <div className="flex items-center gap-2 pt-1 border-t border-indigo-100">
+                            <span className="text-xs text-gray-500">SQS:</span>
+                            <span className={`text-sm font-bold ${band.color}`}>{sqs}/100</span>
+                            <span className={`text-xs font-semibold ${band.color}`}>— {band.label}</span>
+                          </div>
+                        );
+                      })()}
+
+                      <button
+                        onClick={submitBenchmark}
+                        disabled={DIMS.every(d => dimScores[d.key] === null)}
+                        className="w-full bg-indigo-600 text-white py-2 rounded-full text-xs font-semibold hover:bg-indigo-700 disabled:opacity-40 transition-all"
+                      >
+                        Submit Benchmark Score
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {benchmarkSent && sqsResult !== null && (
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-indigo-700 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                    Benchmark saved &nbsp;·&nbsp;
+                    <span className={sqsBand(sqsResult).color}>SQS {sqsResult}/100 — {sqsBand(sqsResult).label}</span>
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
