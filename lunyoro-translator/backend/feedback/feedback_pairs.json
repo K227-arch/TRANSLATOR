@@ -430,5 +430,17 @@
     "refined": false,
     "ip": "10.16.20.36",
     "timestamp": "2026-05-22T12:17:46.731461"
+  },
+  {
+    "source_text": "the goat is very big",
+    "translation": "embuzi enkazi",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "grammar",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.34.163",
+    "timestamp": "2026-05-22T12:18:06.771876"
   }
 ]
