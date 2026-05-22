@@ -478,5 +478,17 @@
     "refined": false,
     "ip": "10.20.25.44",
     "timestamp": "2026-05-22T17:59:16.433751"
+  },
+  {
+    "source_text": "with a cow",
+    "translation": "n'ente",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "n'ente",
+    "error_type": "vocabulary",
+    "model_used": "marian",
+    "refined": false,
+    "ip": "10.16.20.36",
+    "timestamp": "2026-05-22T22:37:52.146653"
   }
 ]
