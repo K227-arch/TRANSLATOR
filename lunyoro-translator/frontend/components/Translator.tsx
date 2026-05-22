@@ -269,7 +269,7 @@ export default function Translator() {
               {result.translation_marian && result.translation_nllb && !modelFeedbackSent && (
                 <div className="pt-2 border-t border-gray-100 space-y-2">
                   <p className="text-xs text-gray-500 font-semibold">Which model translation is better?</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {([
                       { id: "marian" as const, label: "MarianMT", text: result.translation_marian },
                       { id: "nllb" as const, label: "NLLB-200", text: result.translation_nllb },
@@ -281,7 +281,7 @@ export default function Translator() {
                           <input type="radio" name="model_choice" checked={selectedModel === id} onChange={() => setSelectedModel(id)} className="mt-0.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-indigo-900 mb-0.5">{label}</p>
-                            <p className="text-xs text-gray-500 line-clamp-2">{text}</p>
+                            <p className="text-xs text-gray-500 break-words">{text}</p>
                           </div>
                         </div>
                       </div>

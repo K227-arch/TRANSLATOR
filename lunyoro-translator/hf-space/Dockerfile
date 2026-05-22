@@ -29,7 +29,7 @@ ENV CORS_ORIGINS=https://frontend-six-phi-25.vercel.app,http://localhost:3002
 
 # Download all 5 models on cold start (skips any already present),
 # then switch to offline mode and start the server
-CMD ["sh", "-c", "python download_models.py && \
+CMD ["sh", "-c", "python download_models.py --force && \
     export TRANSFORMERS_OFFLINE=1 && \
     export HF_DATASETS_OFFLINE=1 && \
     export HF_HUB_OFFLINE=1 && \

@@ -99,6 +99,15 @@ _GRAMMAR_CONTEXT_CACHE: str | None = None
 def preload_model():
     """Load retrieval index and all neural MT models at startup."""
     global _GRAMMAR_CONTEXT_CACHE
+
+    # Restore feedback history from GitHub before serving any requests.
+    # This ensures feedback.jsonl is never empty after a container restart.
+    try:
+        from feedback_store import restore_from_github
+        restore_from_github()
+    except Exception as _e:
+        print(f"[startup] feedback restore skipped: {_e}")
+
     get_index_and_model()
     from translate import _load_mt, _load_nllb
     _load_mt("en2lun")
@@ -488,6 +497,13 @@ def auto_retrain_status():
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/feedback/dump")
+def feedback_dump():
+    """Return all raw feedback entries as JSON — used for local sync."""
+    from feedback_store import load_all_feedback
+    return {"entries": load_all_feedback()}
 
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}

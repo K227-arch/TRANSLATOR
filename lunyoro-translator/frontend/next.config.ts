@@ -22,7 +22,6 @@ const isDocker = process.env.DOCKER_BUILD === "1";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  turbopack: {},
   ...(isDocker && { output: "standalone" }),
 };
 
