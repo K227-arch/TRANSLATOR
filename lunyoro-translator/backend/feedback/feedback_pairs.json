@@ -490,5 +490,26 @@
     "refined": false,
     "ip": "10.16.20.36",
     "timestamp": "2026-05-22T22:37:52.146653"
+  },
+  {
+    "source_text": "I didn't see you at the party yesterday evening",
+    "translation": "tinkakuroraga habugenyi ijo nyenkyakara",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.20.36",
+    "score_mng": 3,
+    "score_grm": 4,
+    "score_tns": 2,
+    "score_vcb": 2,
+    "score_ort": 3,
+    "score_ctx": 4,
+    "score_flu": 2,
+    "score_cul": 2,
+    "sqs": 56.6,
+    "timestamp": "2026-05-23T04:23:34.420830"
   }
 ]
