@@ -556,5 +556,17 @@
     "refined": false,
     "ip": "10.16.20.36",
     "timestamp": "2026-05-23T04:36:43.868125"
+  },
+  {
+    "source_text": "where are you going?",
+    "translation": "Ogenda nkaha?",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.20.36",
+    "timestamp": "2026-05-25T17:50:29.185071"
   }
 ]
