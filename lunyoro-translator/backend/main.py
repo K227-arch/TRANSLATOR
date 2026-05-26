@@ -321,7 +321,18 @@ class FeedbackRequest(BaseModel):
     correction: str = ""        # user-provided correct translation
     error_type: str = ""        # grammar, spelling, context, vocabulary, other
     model_used: str = ""        # "marian", "nllb", "both", "none"
-    refined: bool = False       # whether AI refinement was applied to this translation
+    refined: bool = False       # whether AI refinement was applied
+    domain: str = ""            # domain/category of the translation
+    # ── Benchmark dimension scores (0–5, null if not scored) ──────────────────
+    score_mng: float | None = None   # Meaning Fidelity      (weight 25%)
+    score_grm: float | None = None   # Grammar & Syntax      (weight 15%)
+    score_tns: float | None = None   # Tense & Aspect        (weight 12%)
+    score_vcb: float | None = None   # Vocabulary Choice     (weight 12%)
+    score_ort: float | None = None   # Orthography/Spelling  (weight  8%)
+    score_ctx: float | None = None   # Context Awareness     (weight 10%)
+    score_flu: float | None = None   # Fluency & Naturalness (weight 10%)
+    score_cul: float | None = None   # Cultural Appropriateness (weight 8%)
+    sqs: float | None = None         # Sentence Quality Score (0–100)
 
 
 @app.post("/feedback")
@@ -342,6 +353,17 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "error_type":  req.error_type.strip(),
         "model_used":  req.model_used.strip(),
         "refined":     req.refined,
+        "domain":      req.domain.strip(),
+        # Benchmark dimension scores
+        "score_mng":   req.score_mng,
+        "score_grm":   req.score_grm,
+        "score_tns":   req.score_tns,
+        "score_vcb":   req.score_vcb,
+        "score_ort":   req.score_ort,
+        "score_ctx":   req.score_ctx,
+        "score_flu":   req.score_flu,
+        "score_cul":   req.score_cul,
+        "sqs":         req.sqs,
         "ip":          request.client.host if request.client else "unknown",
     }
     save_feedback(entry)
@@ -362,6 +384,8 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "rating": req.rating,
         "correction_received": bool(req.correction.strip()),
         "error_type": req.error_type or None,
+        "benchmark_received": req.sqs is not None,
+        "sqs": req.sqs,
     }
 
 

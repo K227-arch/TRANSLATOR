@@ -103,9 +103,12 @@ def auto_export_feedback():
         
         # Reorder columns
         column_order = [
-            'timestamp', 'direction', 'rating', 'model_used', 'refined',
+            'timestamp', 'direction', 'rating', 'model_used', 'refined', 'domain',
             'source_text', 'translation', 'correction',
-            'error_type', 'ip'
+            'error_type', 'sqs',
+            'score_mng', 'score_grm', 'score_tns', 'score_vcb',
+            'score_ort', 'score_ctx', 'score_flu', 'score_cul',
+            'ip'
         ]
         column_order = [col for col in column_order if col in df.columns]
         df = df[column_order]
@@ -187,6 +190,51 @@ def auto_export_feedback():
                         })
                 if refined_stats:
                     pd.DataFrame(refined_stats).to_excel(writer, sheet_name='Refined vs Unrefined', index=False)
+
+            # Sheet 7: Benchmark Scores (entries with SQS data)
+            dim_cols = ['score_mng','score_grm','score_tns','score_vcb',
+                        'score_ort','score_ctx','score_flu','score_cul','sqs']
+            bench_cols = [c for c in dim_cols if c in df.columns]
+            if bench_cols:
+                bench_df = df[df['sqs'].notna()].copy() if 'sqs' in df.columns else pd.DataFrame()
+                if len(bench_df) > 0:
+                    bench_out = bench_df[
+                        ['timestamp','direction','source_text','translation',
+                         'model_used','domain'] + bench_cols
+                    ].copy()
+                    # Add SQS band label
+                    def sqs_band(s):
+                        if s is None or (hasattr(s, '__float__') and s != s): return ''
+                        s = float(s)
+                        if s >= 90: return 'Excellent'
+                        if s >= 75: return 'Good'
+                        if s >= 60: return 'Usable'
+                        if s >= 40: return 'Poor'
+                        return 'Unusable'
+                    bench_out['sqs_band'] = bench_out['sqs'].apply(sqs_band)
+                    bench_out.to_excel(writer, sheet_name='Benchmark Scores', index=False)
+
+                    # Dimension averages summary
+                    dim_avgs = []
+                    dim_weights = {'score_mng':25,'score_grm':15,'score_tns':12,'score_vcb':12,
+                                   'score_ort':8,'score_ctx':10,'score_flu':10,'score_cul':8}
+                    dim_labels  = {'score_mng':'Meaning','score_grm':'Grammar','score_tns':'Tense',
+                                   'score_vcb':'Vocabulary','score_ort':'Spelling',
+                                   'score_ctx':'Context','score_flu':'Fluency','score_cul':'Cultural'}
+                    for col in [c for c in dim_cols if c != 'sqs' and c in bench_df.columns]:
+                        vals = bench_df[col].dropna()
+                        if len(vals):
+                            avg = round(vals.mean(), 2)
+                            dim_avgs.append({
+                                'Dimension': dim_labels.get(col, col),
+                                'Code': col.replace('score_','').upper(),
+                                'Weight (%)': dim_weights.get(col, 0),
+                                'Avg Score (0-5)': avg,
+                                'Weighted Contribution': round(avg * dim_weights.get(col, 0) / 5, 2),
+                                'N': len(vals),
+                            })
+                    if dim_avgs:
+                        pd.DataFrame(dim_avgs).to_excel(writer, sheet_name='Benchmark Averages', index=False)
         
     except Exception as e:
         # Silently fail - don't break feedback submission
