@@ -59,6 +59,12 @@ _apply_cons_suffix = None
 _apply_reflexive  = None
 _apply_init_vowel = None
 
+# ── Grammar Pipeline / Rule Engine (optional enhancements) ──
+# These provide rule orchestration, statistics, and selective application
+# Usage: from language_rules import GrammarPipeline, RuleEngine
+#        pipeline = GrammarPipeline(strictness="high")
+#        result = pipeline.fix(text)
+
 def _load_rules():
     global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni, _apply_apostrophe, \
            _apply_semi_vowel, _apply_cons_suffix, _apply_reflexive, _apply_init_vowel
@@ -87,6 +93,12 @@ def _load_rules():
     except Exception as e:
         print(f"[translate] language_rules not available: {e}")
     _rules_loaded = True
+    # Optional: Load GrammarPipeline for statistics-enabled processing
+    # try:
+    #     from language_rules import GrammarPipeline
+    #     _grammar_pipeline = GrammarPipeline(strictness="high")
+    # except Exception:
+    #     _grammar_pipeline = None
 
 
 def _postprocess_lunyoro(text: str) -> str:

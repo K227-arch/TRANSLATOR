@@ -823,6 +823,8 @@ def chat(req: ChatRequest, request: Request):
     sector_label = SECTOR_LABELS.get(sector, "")
     dict_ctx     = dict_context(sector) if sector else ""
     grammar_ctx  = (_GRAMMAR_CONTEXT_CACHE or "")[:3000]
+    # Build few-shot examples from corpus pairs for OOV handling
+    few_shot_examples = get_few_shot_examples(corpus_ctx.split("\n") if corpus_ctx else [], sector)
 
     system_prompt = (
         "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda.\n"
@@ -833,9 +835,13 @@ def chat(req: ChatRequest, request: Request):
         "4. Stay context-aware: use the conversation history and corpus examples provided.\n"
         "5. Write in flowing prose. No bullet lists, no headers.\n"
         "6. Do not mix languages. Every word must be English.\n"
+        "7. For novel constructions not in the corpus, use the few-shot examples as a guide.\n"
+        "8. Apply grammar rules systematically: orthographic → morphological → semantic corrections.\n"
         f"\nGrammar rules reference:\n{grammar_ctx}\n"
     )
-    if corpus_ctx:
+    if few_shot_examples:
+        system_prompt += f"\nFew-shot examples for out-of-vocabulary handling:\n{few_shot_examples}\n"
+    if corpus_ctx and few_shot_examples not in system_prompt:
         system_prompt += f"\nRelevant corpus examples for context:\n{corpus_ctx}\n"
     if sector_label:
         system_prompt += f"\nSector focus: {sector_label}\n"

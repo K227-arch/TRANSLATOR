@@ -35,7 +35,7 @@ def download_all(force: bool = False):
         if dest.exists() and not force:
             has_weights = any(dest.glob("*.safetensors")) or any(dest.glob("*.bin"))
             if has_weights:
-                print(f"  ✓ {local_name} already exists — skipping (use --force to re-download)")
+                print(f"  [OK] {local_name} already exists - skipping (use --force to re-download)")
                 continue
 
         print(f"  ↓ Downloading {repo_id} → model/{local_name}/")
@@ -45,15 +45,15 @@ def download_all(force: bool = False):
             local_dir=str(dest),
             ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"],
         )
-        print(f"  ✓ {local_name} downloaded")
+        print(f"  [OK] {local_name} downloaded")
 
     # Download sem model into HF cache so it's available in offline mode
     print(f"  ↓ Downloading {SEM_MODEL_NAME} (semantic search)...")
     try:
         snapshot_download(repo_id=SEM_MODEL_NAME)
-        print(f"  ✓ sem model cached")
+        print(f"  [OK] sem model cached")
     except Exception as e:
-        print(f"  ✗ sem model download failed: {e}")
+        print(f"  [FAIL] sem model download failed: {e}")
 
 
 if __name__ == "__main__":
