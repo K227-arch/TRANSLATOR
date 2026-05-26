@@ -120,6 +120,34 @@ def auto_export_feedback():
         # Export to CSV
         csv_path = FEEDBACK_EXPORT_DIR / "all_feedback.csv"
         df.to_csv(csv_path, index=False, encoding='utf-8')
+
+        # Export benchmark entries as separate CSV + JSON
+        dim_cols = ['score_mng','score_grm','score_tns','score_vcb',
+                    'score_ort','score_ctx','score_flu','score_cul','sqs']
+        bench_cols_present = [c for c in dim_cols if c in df.columns]
+        if bench_cols_present and 'sqs' in df.columns:
+            bench_df = df[df['sqs'].notna()].copy()
+            if len(bench_df) > 0:
+                # Benchmark CSV
+                bench_csv_cols = ['timestamp','direction','source_text','translation',
+                                  'model_used','domain','rating'] + bench_cols_present + ['sqs_band']
+                def _sqs_band(s):
+                    try:
+                        s = float(s)
+                        if s >= 90: return 'Excellent'
+                        if s >= 75: return 'Good'
+                        if s >= 60: return 'Usable'
+                        if s >= 40: return 'Poor'
+                        return 'Unusable'
+                    except: return ''
+                bench_df['sqs_band'] = bench_df['sqs'].apply(_sqs_band)
+                bench_csv_cols = [c for c in bench_csv_cols if c in bench_df.columns]
+                bench_df[bench_csv_cols].to_csv(
+                    FEEDBACK_EXPORT_DIR / "benchmark_scores.csv", index=False, encoding='utf-8')
+                # Benchmark JSON
+                bench_records = bench_df[bench_csv_cols].to_dict(orient='records')
+                with open(FEEDBACK_EXPORT_DIR / "benchmark_scores.json", 'w', encoding='utf-8') as f:
+                    json.dump(bench_records, f, ensure_ascii=False, indent=2)
         
         # Export to Excel with multiple sheets
         excel_path = FEEDBACK_EXPORT_DIR / "feedback_analytics.xlsx"
