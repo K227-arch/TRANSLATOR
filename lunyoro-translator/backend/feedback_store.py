@@ -78,6 +78,17 @@ def save_feedback(entry: dict):
     except Exception:
         pass
 
+    # If this is a benchmark entry, also sync benchmark files to GitHub
+    if entry.get("sqs") is not None:
+        try:
+            from github_feedback_sync import push_benchmark_files_to_github
+            all_entries = load_all_feedback()
+            threading.Thread(
+                target=push_benchmark_files_to_github, args=(all_entries,), daemon=True
+            ).start()
+        except Exception:
+            pass
+
     # Auto-export to Excel/CSV after each feedback (async)
     try:
         threading.Thread(target=auto_export_feedback, daemon=True).start()
