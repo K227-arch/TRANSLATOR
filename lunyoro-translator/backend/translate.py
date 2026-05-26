@@ -467,6 +467,19 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
 
     # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and nllb_result:
+        # Detect if NLLB output is English (passthrough) — reject it
+        # Heuristic: if output has >60% common English words, it's a passthrough
+        import re as _re3
+        common_en = {"the","a","an","is","are","was","were","be","been","have","has",
+                     "had","do","does","did","will","would","could","should","may",
+                     "might","shall","can","to","of","in","on","at","for","with",
+                     "and","or","but","not","this","that","it","he","she","they",
+                     "we","you","i","my","your","his","her","their","its","our"}
+        words = _re3.findall(r'[a-z]+', nllb_result.lower())
+        if words:
+            en_ratio = sum(1 for w in words if w in common_en) / len(words)
+            if en_ratio > 0.5:
+                return None  # NLLB returned English — discard, fall back to MarianMT
         nllb_result = _postprocess_lunyoro(nllb_result)
 
     return nllb_result
@@ -490,10 +503,11 @@ def _is_notation_garbage(text: str) -> bool:
     for pat in notation_patterns:
         if re.search(pat, t, re.IGNORECASE):
             return True
-    # Also reject if >50% of tokens are abbreviations/punctuation with no real words
-    real_words = re.findall(r'[a-zA-Z]{4,}', t)
-    tokens = t.split()
-    if tokens and len(real_words) / len(tokens) < 0.3:
+    # Reject if output is just punctuation/numbers with no letters at all
+    if not re.search(r'[a-zA-Z]', t):
+        return True
+    # Reject if output is extremely short (1-2 chars) — likely a tokenizer artifact
+    if len(t.strip()) < 3:
         return True
     return False
 
