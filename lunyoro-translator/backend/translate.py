@@ -326,9 +326,18 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
     result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
     # Strip any domain tags the model may have reproduced from training data
-    # e.g. "[GENERAL]", "[GENerAL]", "[MEDICAL]" etc.
     import re as _re2
     result = _re2.sub(r'^\s*\[[A-Za-z _]+\]\s*', '', result).strip()
+
+    # Strip source-copy artifact: model sometimes appends the English source
+    if text and len(text) > 8 and direction == "en2lun":
+        src_lower = text.lower().strip()
+        out_lower = result.lower()
+        idx = out_lower.find(src_lower[:20])
+        if idx > 5:
+            result = result[:idx].strip().rstrip('?.,;: ')
+        # Also strip trailing English sentences
+        result = _re2.sub(r'\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$', '', result).strip()
 
     # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and result:
@@ -437,6 +446,24 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     # Strip any domain tags the model may have reproduced from training data
     import re as _re2
     nllb_result = _re2.sub(r'^\s*\[[A-Za-z _]+\]\s*', '', nllb_result).strip()
+
+    # Strip source-copy artifact: NLLB sometimes appends the English source
+    # after the Lunyoro translation, e.g. "Bantu baingaha leero? How many people..."
+    # Detect by finding the original English text appearing in the output
+    if text and len(text) > 8:
+        # Check if the source text (or a close variant) appears in the output
+        src_lower = text.lower().strip()
+        out_lower = nllb_result.lower()
+        idx = out_lower.find(src_lower[:20])  # match on first 20 chars of source
+        if idx > 5:  # found source text after some Lunyoro content
+            nllb_result = nllb_result[:idx].strip().rstrip('?.,;: ')
+
+    # Also strip trailing English sentences (Latin script words after Lunyoro)
+    # Pattern: Lunyoro text followed by a sentence that looks like English
+    nllb_result = _re2.sub(
+        r'\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$',
+        '', nllb_result
+    ).strip()
 
     # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and nllb_result:
