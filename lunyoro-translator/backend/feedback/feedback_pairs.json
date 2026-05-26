@@ -590,5 +590,27 @@
     "sqs": null,
     "ip": "10.16.5.171",
     "timestamp": "2026-05-26T18:47:36.949468"
+  },
+  {
+    "source_text": "Every dog has its day",
+    "translation": "Buli embwa egira ekiro kyayo",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "domain": "everyday_conversation",
+    "score_mng": 4.0,
+    "score_grm": 5.0,
+    "score_tns": 5.0,
+    "score_vcb": 5.0,
+    "score_ort": 4.0,
+    "score_ctx": 5.0,
+    "score_flu": 5.0,
+    "score_cul": 4.0,
+    "sqs": 91.8,
+    "ip": "10.16.25.130",
+    "timestamp": "2026-05-26T18:48:26.469297"
   }
 ]
