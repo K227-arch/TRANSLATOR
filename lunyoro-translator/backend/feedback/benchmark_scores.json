@@ -105,5 +105,27 @@
     "sqs": 87.4,
     "ip": "10.16.47.7",
     "timestamp": "2026-05-28T08:51:12.373705"
+  },
+  {
+    "source_text": "The rain was too much, it had hailstones and caused floods",
+    "translation": "Enjura egwire muno, omwijurraine gukaleeta n'emiyaga",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "Enjura ekaba nyingi muno, ekabamu orubale Kandi ekaleta amaizi okusandara",
+    "error_type": "spelling, different meaning, context",
+    "model_used": "marian",
+    "refined": false,
+    "domain": "",
+    "score_mng": 3.0,
+    "score_grm": 4.0,
+    "score_tns": 2.0,
+    "score_vcb": 2.0,
+    "score_ort": 2.0,
+    "score_ctx": 2.0,
+    "score_flu": 2.0,
+    "score_cul": 2.0,
+    "sqs": 51.0,
+    "ip": "10.16.40.242",
+    "timestamp": "2026-05-28T09:02:18.179607"
   }
 ]
