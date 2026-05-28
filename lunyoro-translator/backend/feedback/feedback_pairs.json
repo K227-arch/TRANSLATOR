@@ -744,5 +744,27 @@
     "sqs": null,
     "ip": "10.16.3.80",
     "timestamp": "2026-05-28T08:50:21.901517"
+  },
+  {
+    "source_text": "Come and we dance together till the visitors come",
+    "translation": "Ija tuzina hamu kuhikya abagenyi niija",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "Ija tuzine hamu kuhikya abagenyi baizire",
+    "error_type": "spelling",
+    "model_used": "marian",
+    "refined": false,
+    "domain": "",
+    "score_mng": 4.0,
+    "score_grm": 5.0,
+    "score_tns": 5.0,
+    "score_vcb": 4.0,
+    "score_ort": 4.0,
+    "score_ctx": 5.0,
+    "score_flu": 4.0,
+    "score_cul": 4.0,
+    "sqs": 87.4,
+    "ip": "10.16.47.7",
+    "timestamp": "2026-05-28T08:51:12.373705"
   }
 ]
