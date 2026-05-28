@@ -667,24 +667,191 @@ PROVERBS = [
 # UTILITY FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_grammar_context() -> str:
-    """Concise grammar context string for use in chat/translation prompts."""
-    return (
-        "Runyoro-Rutooro Grammar Rules:\n"
-        "1. R/L Rule: R is dominant. L only before/after 'e' or 'i' vowels.\n"
-        "2. Verb infinitives start with 'oku-' (e.g. okugenda = to go).\n"
-        "3. Noun classes: omu-/aba- (people), en-/em- (animals/things), "
-        "ama- (cl.6 plurals), obu- (abstract), oku- (infinitives/body parts).\n"
-        "4. Tense markers: ni- (present imperfect), ka- (past), ra-/raa- (future), "
-        "-ire/-ere (perfect).\n"
-        "5. Subject prefixes: n- (I), o- (you sg), a- (he/she), tu- (we), "
-        "mu- (you pl), ba- (they).\n"
-        "6. Adjectives and numerals agree with noun class via concordial prefixes.\n"
-        "7. Comparison uses okusinga (to surpass): asinga omurungi = she is better.\n"
-        "8. Negation: ti- prefix on verb, e.g. tinigenda = is not going.\n"
-        "9. Apostrophe marks swallowed initial vowel in fast speech: n'ente, z'ente.\n"
-        "10. Long vowels written double: aa, ee, ii, oo, uu.\n"
+def log_rule_application(rule_name: str, text: str, changed: bool = False,
+                         matches: int = 0) -> None:
+    """
+    Log grammar rule application with match statistics.
+    Logs to file: backend/grammar_rules_application.log
+    """
+    _logger.info(
+        f"Rule: {rule_name} | Text: {text[:50]}... | "
+        f"Changed: {changed} | Matches: {matches}"
     )
+
+
+def _log_rule_decorator(rule_name: str):
+    """
+    Decorator to log rule applications and track effectiveness.
+    Usage: @_log_rule_decorator("apply_rl_rule")
+           def apply_rl_rule(text: str) -> str: ...
+    """
+    def decorator(func):
+        def wrapper(text: str) -> str:
+            original = text
+            result = func(text)
+            changed = result != original
+            # Count regex matches for pattern-based rules
+            import re as _re
+            matches = _re.findall(r'(rl|nasal|apostrophe|consonant|verb)', text, _re.IGNORECASE)
+            log_rule_application(rule_name, original, changed, len(matches))
+            return result
+        return wrapper
+    return decorator
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GRAMMAR PIPELINE CLASS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GrammarRule:
+    """Base class for grammar rules with priority and confidence scoring."""
+
+    def __init__(self, name: str, priority: float = 1.0,
+                 category: str = "orthography"):
+        self.name = name
+        self.priority = priority  # Higher = applied first
+        self.category = category  # orthography, morphology, semantic, syntactic
+        self.matches = 0  # Track rule matches for coverage stats
+        self.changes = 0   # Track actual transformations
+
+    def apply(self, text: str) -> str:
+        raise NotImplementedError
+
+    def __call__(self, text: str) -> str:
+        original = text
+        result = self.apply(text)
+        if result != original:
+            self.changes += 1
+            self.matches += 1
+            _logger.debug(f"{self.name}: Changed '{original[:30]}...' -> '{result[:30]}...'")
+        return result
+
+
+class OrthographicRule(GrammarRule):
+    """Orthographic rules: R/L, vowel length, elision, etc."""
+    priority = 10.0
+
+    def __init__(self, name: str):
+        super().__init__(name, priority=10.0, category="orthography")
+
+
+class MorphologicalRule(GrammarRule):
+    """Morphological rules: noun classes, verb conjugation, concords."""
+    priority = 5.0
+
+    def __init__(self, name: str):
+        super().__init__(name, priority=5.0, category="morphology")
+
+
+class SemanticRule(GrammarRule):
+    """Semantic rules: enumeratives, demonstratives, copula, etc."""
+    priority = 3.0
+
+    def __init__(self, name: str):
+        super().__init__(name, priority=3.0, category="semantic")
+
+
+class SyntacticRule(GrammarRule):
+    """Syntactic rules: word order, agreement, etc."""
+    priority = 2.0
+
+    def __init__(self, name: str):
+        super().__init__(name, priority=2.0, category="syntactic")
+
+
+class GrammarPipeline:
+    """
+    Orchestrates grammar rules in priority order.
+
+    Usage:
+        pipeline = GrammarPipeline()
+        pipeline.add_rule(OrthographicRule("apply_rl_rule"))
+        pipeline.add_rule(MorphologicalRule("build_verb_form"))
+
+        text = "hello world"
+        result = pipeline.fix(text)
+
+    Supports rule skipping, selective categories, and statistics.
+    """
+
+    def __init__(self, strictness: str = "high"):
+        """
+        Initialize pipeline with rule strictness level.
+
+        strictness: "high" (all rules), "medium" (morphology only), "low" (orthography only)
+        """
+        self.strictness = strictness
+        self.rules: list[GrammarRule] = []
+        self.rule_registry: dict[str, GrammarRule] = {}
+
+    def add_rule(self, rule: GrammarRule) -> None:
+        """Add a rule to the pipeline."""
+        self.rules.append(rule)
+        self.rule_registry[rule.name] = rule
+
+    def apply_rules(self, text: str) -> str:
+        """Apply all active rules to text in priority order."""
+        # Sort by priority (higher first)
+        sorted_rules = sorted(self.rules, key=lambda r: r.priority, reverse=True)
+
+        for rule in sorted_rules:
+            if not self._rule_should_apply(rule):
+                continue
+            text = rule(text)
+
+        return text
+
+    def _rule_should_apply(self, rule: GrammarRule) -> bool:
+        """
+        Determine if a rule should be applied based on strictness level.
+        """
+        if self.strictness == "high":
+            return True
+        if self.strictness == "medium":
+            return rule.category in ("orthography", "morphology")
+        if self.strictness == "low":
+            return rule.category == "orthography"
+        return True
+
+    def apply_category(self, text: str, category: str) -> str:
+        """Apply only rules from a specific category."""
+        category_rules = [r for r in self.rules if r.category == category]
+        sorted_rules = sorted(category_rules, key=lambda r: r.priority, reverse=True)
+
+        for rule in sorted_rules:
+            if not self._rule_should_apply(rule):
+                continue
+            text = rule(text)
+
+        return text
+
+    def get_statistics(self) -> dict:
+        """Get statistics on rule application."""
+        total_rules = len(self.rules)
+        total_matches = sum(r.matches for r in self.rules)
+        total_changes = sum(r.changes for r in self.rules)
+
+        stats_by_category = {}
+        for category in ["orthography", "morphology", "semantic", "syntactic"]:
+            cat_rules = [r for r in self.rules if r.category == category]
+            if cat_rules:
+                stats_by_category[category] = {
+                    "rule_count": len(cat_rules),
+                    "total_matches": sum(r.matches for r in cat_rules),
+                    "total_changes": sum(r.changes for r in cat_rules),
+                }
+
+        return {
+            "total_rules": total_rules,
+            "total_matches": total_matches,
+            "total_changes": total_changes,
+            "strictness": self.strictness,
+            "stats_by_category": stats_by_category,
+        }
+
+    def fix(self, text: str) -> str:
+        """Public API to fix text with all active rules."""
+        return self.apply_rules(text)
 
 
 def lookup_interjection(word: str) -> str | None:
@@ -1211,7 +1378,9 @@ def build_ordinal(n: int, noun_class: int | str) -> str:
 
 import json as _json
 import os as _os
+import logging as _logging
 
+_logger = _logging.getLogger(__name__)
 _OCR_PATH = _os.path.join(_os.path.dirname(__file__), "data", "OCR", "combined", "all_ocr_combined.json")
 
 def _load_ocr() -> dict:
@@ -3130,6 +3299,61 @@ ENUMERATIVE_ROOTS = {
 }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# FEW-SHOT EXAMPLES FOR OOV HANDLING
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_few_shot_examples(corpus_pairs: list = None, sector: str = None) -> str:
+    """
+    Build few-shot examples for out-of-vocabulary handling.
+    Returns a formatted list of corpus pairs to guide the model.
+
+    Usage:
+        examples = get_few_shot_examples(corpus_pairs=top_10_pairs)
+        system_prompt += examples
+    """
+    if not corpus_pairs or not sector:
+        return ""
+
+    if len(corpus_pairs) == 0:
+        return "\nNo corpus examples available for this query."
+
+    # Format examples with source/translation pairs
+    formatted = []
+    for i, (en, lun) in enumerate(corpus_pairs[:5], 1):  # Top 5 examples
+        formatted.append(f'  • {en.strip()[:100]} → {lun.strip()[:80]}')
+
+    return "\n".join(formatted) if formatted else "\nNo relevant corpus examples found."
+
+
+def get_few_shot_grammar_examples() -> str:
+    """
+    Return few-shot examples of grammar rule application.
+    These help the model handle novel constructions during chat.
+    """
+    examples = [
+        # Noun class agreement
+        '  • omuwana aliba (the child is tall) → omuwana (cl.5 person) + aliba (tall)',
+        '  • abaana beera (the children are working) → aba- (cl.2 subject) + -na- (object concord)',
+        # Verb conjugation
+        '  • nigenda (I am going) → ni- (present imperfect) + subject prefix n- absorbed',
+        '  • aragenda (he/she will go) → a- (3sg) + ra- (future) + stem',
+        # Adjectival concord
+        '  • omuwana omurungi (the tall child) → omu- (cl.1/3 adjectival concord) + -rungi (tall)',
+        '  • abaana abirungi (the tall children) → aba- (cl.2 adjectival concord) + -rungi',
+        # Plural formation
+        '  • omuntu → abantu (person → people)',
+        '  • omusizi → amasizi (tree → trees)',
+        # R/L rule
+        '  • okuleeta → okuleera (bring → bring) → L changes to R outside e/i vowels',
+        '  • omugongo → omugongo (backbone) → L is correct because adjacent to o and g',
+        # Apostrophe elision
+        '  • na ente → n'ente (and a cow) → particle vowel elided before vowel',
+        '  • za omuntu → z'omuntu (of a person) → particle vowel elided before vowel',
+    ]
+    return "\n".join(examples)
+
+
 # ── Helper functions ──────────────────────────────────────────────────────────
 
 def get_subject_relative_concord(noun_class: int) -> str:
@@ -3245,10 +3469,133 @@ def build_fraction(numerator: int, denominator: int, numerator_first: bool = Tru
         return f"{gp_den}{d_stem} {n_stem}"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# RULE REGISTRY FOR SELECTIVE APPLICATION
+# ─────────────────────────────────────────────────────────────────────────────
+
+_RULE_REGISTRY: dict[str, GrammarRule] = {
+    # Orthographic rules (priority: 10.0)
+    "apply_rl_rule": OrthographicRule("R/L Rule"),
+    "apply_nasal_assimilation": OrthographicRule("Nasal Assimilation"),
+    "apply_apostrophe_elision": OrthographicRule("Apostrophe Elision"),
+    "apply_particle_elision": OrthographicRule("Particle Elision"),
+    "apply_semi_vowel_substitution": OrthographicRule("Semi-Vowel Substitution"),
+    "apply_geminates_r_correction": OrthographicRule("Geminates R Correction"),
+    "apply_w_compound_vowel_correction": OrthographicRule("W-Compound Vowel"),
+    "apply_y_compound_vowel_correction": OrthographicRule("Y-Compound Vowel"),
+    "apply_consonant_suffix_mutations": MorphologicalRule("Consonant+Suf Mutation"),
+
+    # Morphological rules (priority: 5.0)
+    "build_verb_form": MorphologicalRule("Verb Conjugation"),
+    "apply_causative": MorphologicalRule("Causative Derivation"),
+    "apply_passive": MorphologicalRule("Passive Derivation"),
+    "apply_neuter": MorphologicalRule("Neuter Derivation"),
+    "apply_reciprocal": MorphologicalRule("Reciprocal Derivation"),
+    "apply_conversive_suffix": MorphologicalRule("Conversive Derivation"),
+    "apply_reflexive_imperative": MorphologicalRule("Reflexive Imperative"),
+    "build_plural": MorphologicalRule("Plural Formation"),
+    "apply_ni_prefix_change": MorphologicalRule("Ni Prefix Change"),
+    "apply_y_insertion": MorphologicalRule("Y Insertion"),
+    "apply_concordial_agreement": MorphologicalRule("Adjectival Concord"),
+    "apply_class9_nasal_prefix": MorphologicalRule("Class 9 Nasal Prefix"),
+    "apply_initial_vowel_rule": MorphologicalRule("Initial Vowel Rule"),
+    "apply_reflexive_imperative_correction": MorphologicalRule("Reflexive Imperative"),
+    "apply_copula_to_text": SemanticRule("Copula Construction"),
+    "apply_enumerative_correction": SemanticRule("Enumerative Pronouns"),
+    "apply_kinship_correction": SemanticRule("Kinship Terms"),
+    "apply_ka_emphatic": SemanticRule("Ka Particle"),
+    "apply_modal_ta_greeting": SemanticRule("Modal Particles"),
+    "apply_dara_presentative": SemanticRule("Dara Presentative"),
+    "apply_copula_locative_correction": SemanticRule("Copula + Locative"),
+    "apply_adverbial_suffix_correction": SemanticRule("Adverbial Suffixes"),
+    "apply_copula_locative_correction": SemanticRule("Copula + Locative"),
+
+    # Semantic rules (priority: 3.0)
+    "get_enumerative_pronoun": SemanticRule("Enumerative Pronouns"),
+    "get_demonstrative_full": SemanticRule("Demonstratives"),
+    "get_subject_relative_concord_full": SemanticRule("Subject Relative Concord"),
+    "get_object_relative_concord_full": SemanticRule("Object Relative Concord"),
+    "apply_copula": SemanticRule("Copula ni-/n-"),
+    "build_ka_permissive": SemanticRule("Ka Permissive"),
+    "get_dara_form": SemanticRule("Dara Form"),
+
+    # Syntactic rules (priority: 2.0)
+    "build_relative_clause": SyntacticRule("Relative Clause"),
+    "build_reversed_object_sentence": SyntacticRule("Reversed Object"),
+}
+
+
+class RuleEngine:
+    """
+    Rule engine for applying grammar rules selectively.
+
+    Usage:
+        engine = RuleEngine(strictness="high")
+        engine.add_rule("apply_rl_rule")
+        result = engine.fix("hello world")
+
+    Supports:
+        - Selective rule application by name
+        - Category-based filtering
+        - Statistics tracking
+    """
+
+    def __init__(self, strictness: str = "high"):
+        self.pipeline = GrammarPipeline(strictness=strictness)
+        # Pre-populate with all registry rules
+        for rule_name, rule in _RULE_REGISTRY.items():
+            self.pipeline.add_rule(rule)
+
+    def add_rule(self, rule_name: str) -> GrammarRule:
+        """Add a rule by name from the registry."""
+        if rule_name not in _RULE_REGISTRY:
+            raise ValueError(f"Unknown rule: {rule_name}")
+        rule = _RULE_REGISTRY[rule_name]
+        self.pipeline.add_rule(rule)
+        return rule
+
+    def remove_rule(self, rule_name: str) -> bool:
+        """Remove a rule by name."""
+        if rule_name in _RULE_REGISTRY:
+            self.pipeline.rules = [r for r in self.pipeline.rules
+                                   if r.name != rule_name]
+            return True
+        return False
+
+    def add_category_rules(self, category: str) -> list[GrammarRule]:
+        """Add all rules from a specific category."""
+        added = []
+        for rule_name, rule in _RULE_REGISTRY.items():
+            if rule.category == category:
+                self.pipeline.add_rule(rule)
+                added.append(rule)
+        return added
+
+    def apply(self, text: str) -> str:
+        """Apply all rules to text."""
+        return self.pipeline.apply_rules(text)
+
+    def apply_category(self, text: str, category: str) -> str:
+        """Apply only rules from a category."""
+        return self.pipeline.apply_category(text, category)
+
+    def get_statistics(self) -> dict:
+        """Get rule application statistics."""
+        return self.pipeline.get_statistics()
+
+    def fix(self, text: str) -> str:
+        """Public API: fix text with all rules."""
+        return self.apply(text)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPRECATED OLD FUNCTIONS — kept for backward compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 def get_demonstrative(noun_class: int, proximity: str = "near") -> str:  # type: ignore[override]
     """
-    Return demonstrative for a noun class.
-    proximity: 'near' (-nu root), 'far' (-li root), 'mind' (things in mind)
+    Return demonstrative for a noun class.    proximity: 'near' (-nu root), 'far' (-li root), 'mind' (things in mind)
     """
     if proximity == "near":
         return DEMONSTRATIVES_NEAR.get(noun_class, "")

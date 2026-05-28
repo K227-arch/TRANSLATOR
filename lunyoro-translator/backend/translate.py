@@ -59,6 +59,12 @@ _apply_cons_suffix = None
 _apply_reflexive  = None
 _apply_init_vowel = None
 
+# ── Grammar Pipeline / Rule Engine (optional enhancements) ──
+# These provide rule orchestration, statistics, and selective application
+# Usage: from language_rules import GrammarPipeline, RuleEngine
+#        pipeline = GrammarPipeline(strictness="high")
+#        result = pipeline.fix(text)
+
 def _load_rules():
     global _rules_loaded, _apply_rl, _apply_nasal, _apply_ni, _apply_apostrophe, \
            _apply_semi_vowel, _apply_cons_suffix, _apply_reflexive, _apply_init_vowel
@@ -87,6 +93,12 @@ def _load_rules():
     except Exception as e:
         print(f"[translate] language_rules not available: {e}")
     _rules_loaded = True
+    # Optional: Load GrammarPipeline for statistics-enabled processing
+    # try:
+    #     from language_rules import GrammarPipeline
+    #     _grammar_pipeline = GrammarPipeline(strictness="high")
+    # except Exception:
+    #     _grammar_pipeline = None
 
 
 def _postprocess_lunyoro(text: str) -> str:
@@ -314,9 +326,18 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
     result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
     # Strip any domain tags the model may have reproduced from training data
-    # e.g. "[GENERAL]", "[GENerAL]", "[MEDICAL]" etc.
     import re as _re2
     result = _re2.sub(r'^\s*\[[A-Za-z _]+\]\s*', '', result).strip()
+
+    # Strip source-copy artifact: model sometimes appends the English source
+    if text and len(text) > 8 and direction == "en2lun":
+        src_lower = text.lower().strip()
+        out_lower = result.lower()
+        idx = out_lower.find(src_lower[:20])
+        if idx > 5:
+            result = result[:idx].strip().rstrip('?.,;: ')
+        # Also strip trailing English sentences
+        result = _re2.sub(r'\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$', '', result).strip()
 
     # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and result:
@@ -432,8 +453,39 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         return None  # fall back to MarianMT
     nllb_result = _re2.sub(r'^\s*\[[A-Za-z _]+\]\s*', '', nllb_result).strip()
 
+    # Strip source-copy artifact: NLLB sometimes appends the English source
+    # after the Lunyoro translation, e.g. "Bantu baingaha leero? How many people..."
+    # Detect by finding the original English text appearing in the output
+    if text and len(text) > 8:
+        # Check if the source text (or a close variant) appears in the output
+        src_lower = text.lower().strip()
+        out_lower = nllb_result.lower()
+        idx = out_lower.find(src_lower[:20])  # match on first 20 chars of source
+        if idx > 5:  # found source text after some Lunyoro content
+            nllb_result = nllb_result[:idx].strip().rstrip('?.,;: ')
+
+    # Also strip trailing English sentences (Latin script words after Lunyoro)
+    # Pattern: Lunyoro text followed by a sentence that looks like English
+    nllb_result = _re2.sub(
+        r'\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$',
+        '', nllb_result
+    ).strip()
+
     # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and nllb_result:
+        # Detect if NLLB output is English (passthrough) — reject it
+        # Heuristic: if output has >60% common English words, it's a passthrough
+        import re as _re3
+        common_en = {"the","a","an","is","are","was","were","be","been","have","has",
+                     "had","do","does","did","will","would","could","should","may",
+                     "might","shall","can","to","of","in","on","at","for","with",
+                     "and","or","but","not","this","that","it","he","she","they",
+                     "we","you","i","my","your","his","her","their","its","our"}
+        words = _re3.findall(r'[a-z]+', nllb_result.lower())
+        if words:
+            en_ratio = sum(1 for w in words if w in common_en) / len(words)
+            if en_ratio > 0.5:
+                return None  # NLLB returned English — discard, fall back to MarianMT
         nllb_result = _postprocess_lunyoro(nllb_result)
 
     return nllb_result
@@ -457,10 +509,11 @@ def _is_notation_garbage(text: str) -> bool:
     for pat in notation_patterns:
         if re.search(pat, t, re.IGNORECASE):
             return True
-    # Also reject if >50% of tokens are abbreviations/punctuation with no real words
-    real_words = re.findall(r'[a-zA-Z]{4,}', t)
-    tokens = t.split()
-    if tokens and len(real_words) / len(tokens) < 0.3:
+    # Reject if output is just punctuation/numbers with no letters at all
+    if not re.search(r'[a-zA-Z]', t):
+        return True
+    # Reject if output is extremely short (1-2 chars) — likely a tokenizer artifact
+    if len(t.strip()) < 3:
         return True
     return False
 

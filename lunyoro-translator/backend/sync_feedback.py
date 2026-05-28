@@ -211,6 +211,30 @@ def main():
     # 3. Fetch from live Space (dump endpoint)
     space_entries, space_total = fetch_space_entries()
 
+    # 3b. Pull benchmark files from GitHub
+    print("\nPulling benchmark files from GitHub...")
+    for repo in GITHUB_REPOS[:1]:  # primary repo only
+        for fname, gh_path in [
+            ("benchmark_scores.csv",  "lunyoro-translator/backend/feedback/benchmark_scores.csv"),
+            ("benchmark_scores.json", "lunyoro-translator/backend/feedback/benchmark_scores.json"),
+        ]:
+            url = f"https://api.github.com/repos/{repo}/contents/{gh_path}?ref=main"
+            req = urllib.request.Request(url, headers={
+                "Authorization": f"token {github_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "runyoro-translator",
+            })
+            try:
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    data = json.loads(r.read())
+                raw = base64.b64decode(data["content"]).decode("utf-8")
+                local_path = FEEDBACK_DIR / fname
+                local_path.write_text(raw, encoding="utf-8")
+                lines = len([l for l in raw.splitlines() if l.strip()])
+                print(f"  Pulled {fname}: {lines} entries")
+            except Exception as e:
+                print(f"  {fname}: not found on GitHub yet ({e})")
+
     # 4. Merge all sources — deduplicate by (source_text, translation, timestamp[:16])
     seen: set = set()
     merged: list = []

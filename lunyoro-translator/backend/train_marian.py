@@ -47,7 +47,7 @@ DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
 GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
 
-# Seed vocabulary files — these are the highest-priority pairs
+# Seed vocabulary files - these are the highest-priority pairs
 SEED_CSVS = [
     os.path.join(BASE, "data", "raw", "medical_seed_vocabulary.csv"),
     os.path.join(BASE, "data", "raw", "education_seed_vocabulary.csv"),
@@ -83,7 +83,7 @@ def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedR
 
     Weights:
       - Seed vocabulary pairs (medical/education/daily/agri/low_freq): 8x
-        These are the most important — direct translations from domain experts.
+        These are the most important - direct translations from domain experts.
       - gr4 + gr5 grammar pairs: 6x
         Grammar rules must be reinforced strongly.
       - back_translated pairs: 2x
@@ -109,7 +109,7 @@ def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedR
         src = str(row.get("source", "")).lower()
 
         if (en, lun) in seed_keys:
-            weights.append(8.0)          # seed vocabulary — highest priority
+            weights.append(8.0)          # seed vocabulary - highest priority
         elif (en, lun) in grammar_keys:
             weights.append(6.0)          # gr4 + gr5 grammar rules
         elif "back_translation" in src:
@@ -372,7 +372,7 @@ def train_direction(direction: str, args):
                       f"loss={avg:.4f}")
 
         avg_loss = total_loss / steps
-        print(f"\n  Epoch {epoch} complete — avg loss: {avg_loss:.4f}")
+        print(f"\n  Epoch {epoch} complete - avg loss: {avg_loss:.4f}")
 
         # Evaluate BLEU
         raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
@@ -384,12 +384,12 @@ def train_direction(direction: str, args):
             best_bleu = bleu_score
             raw_model.save_pretrained(best_ckpt)
             tokenizer.save_pretrained(best_ckpt)
-            print(f"  ✓ New best BLEU={best_bleu:.2f} — saved to {best_ckpt}")
+            print(f"  [OK] New best BLEU={best_bleu:.2f} - saved to {best_ckpt}")
 
     # Copy best checkpoint back to model dir
     if os.path.isdir(best_ckpt):
         import shutil
-        # Backup current model (skip if backup already exists — avoids Windows permission errors)
+        # Backup current model (skip if backup already exists - avoids Windows permission errors)
         backup = model_dir + "_backup"
         if not os.path.isdir(backup):
             try:

@@ -27,9 +27,9 @@ ENV HF_HUB_OFFLINE=0
 ENV DOWNLOAD_MODELS_ON_START=1
 ENV CORS_ORIGINS=https://frontend-six-phi-25.vercel.app,http://localhost:3002
 
-# Download all 5 models on cold start (skips any already present),
+# Download models on cold start (skips any already cached — no --force),
 # then switch to offline mode and start the server
-CMD ["sh", "-c", "python download_models.py --force && \
+CMD ["sh", "-c", "python download_models.py && \
     export TRANSFORMERS_OFFLINE=1 && \
     export HF_DATASETS_OFFLINE=1 && \
     export HF_HUB_OFFLINE=1 && \

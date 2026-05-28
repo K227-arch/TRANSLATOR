@@ -23,6 +23,8 @@ from datetime import datetime
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GITHUB_FILE_PATH      = "lunyoro-translator/backend/feedback/feedback_pairs.json"
 GITHUB_JSONL_PATH     = "lunyoro-translator/backend/feedback/feedback_all.jsonl"
+GITHUB_BENCH_CSV_PATH = "lunyoro-translator/backend/feedback/benchmark_scores.csv"
+GITHUB_BENCH_JSON_PATH= "lunyoro-translator/backend/feedback/benchmark_scores.json"
 GITHUB_BRANCH = "main"
 
 GITHUB_REPOS = [
@@ -167,6 +169,63 @@ def sync_entry_to_repo(repo: str, entry: dict):
                 print(f"[github_sync] feedback_all.jsonl  ✓ {repo} — {line_count} lines")
             else:
                 print(f"[github_sync] feedback_all.jsonl  ✗ Failed for {repo}")
+
+
+def push_benchmark_files_to_github(entries: list):
+    """
+    Push benchmark_scores.csv and benchmark_scores.json to GitHub.
+    Called after a benchmark entry is saved. Non-blocking.
+    Only pushes entries that have SQS scores.
+    """
+    if not GITHUB_TOKEN:
+        return
+
+    bench_entries = [e for e in entries if e.get("sqs") is not None]
+    if not bench_entries:
+        return
+
+    # Build CSV content
+    dim_keys = ['score_mng','score_grm','score_tns','score_vcb',
+                'score_ort','score_ctx','score_flu','score_cul','sqs']
+    headers = ['timestamp','direction','source_text','translation',
+               'model_used','domain','rating'] + dim_keys + ['sqs_band']
+
+    def sqs_band(s):
+        try:
+            s = float(s)
+            if s >= 90: return 'Excellent'
+            if s >= 75: return 'Good'
+            if s >= 60: return 'Usable'
+            if s >= 40: return 'Poor'
+            return 'Unusable'
+        except: return ''
+
+    csv_lines = [','.join(headers)]
+    for e in bench_entries:
+        row = []
+        for h in headers:
+            if h == 'sqs_band':
+                row.append(sqs_band(e.get('sqs')))
+            else:
+                val = str(e.get(h, '') or '').replace(',', ';').replace('\n', ' ')
+                row.append(val)
+        csv_lines.append(','.join(row))
+    csv_content = '\n'.join(csv_lines) + '\n'
+
+    # Build JSON content
+    json_content = json.dumps(bench_entries, ensure_ascii=False, indent=2)
+
+    ts = datetime.utcnow().strftime('%Y-%m-%d')
+    for repo in GITHUB_REPOS:
+        def _push(r=repo):
+            _, sha_csv  = _get_raw_file(r, GITHUB_BENCH_CSV_PATH)
+            _, sha_json = _get_raw_file(r, GITHUB_BENCH_JSON_PATH)
+            _put_raw_file(r, GITHUB_BENCH_CSV_PATH,  csv_content,  sha_csv,
+                          f"feedback: update benchmark_scores.csv {ts} ({len(bench_entries)} entries)")
+            _put_raw_file(r, GITHUB_BENCH_JSON_PATH, json_content, sha_json,
+                          f"feedback: update benchmark_scores.json {ts} ({len(bench_entries)} entries)")
+            print(f"[github_sync] benchmark files synced to {r}")
+        threading.Thread(target=_push, daemon=True).start()
 
 
 def push_feedback_to_github(entry: dict):
