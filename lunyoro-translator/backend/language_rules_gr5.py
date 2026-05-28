@@ -638,6 +638,119 @@ def apply_gr5_rules(text: str, direction: str = "en->lun") -> str:
     result = text
     result = apply_copula_locative_correction(result)   # 6. copula + locatives
     result = apply_adverbial_suffix_correction(result)  # 4. adverbial suffixes
+    result = apply_dara_locative_correction(result)     # 7. dara + locative
+    result = apply_ho_enumerative_correction(result)    # 8. ho + enumerative
+    result = apply_colour_name_correction(result)       # 11. colour names
+    result = apply_locative_possessive_correction(result) # 5. locative possessives
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NEW CORRECTION FUNCTIONS — wiring dead-code rule groups into the pipeline
+# ─────────────────────────────────────────────────────────────────────────────
+
+def apply_dara_locative_correction(text: str) -> str:
+    """
+    Correct MT errors where 'dara' is split from its locative adverbial.
+    e.g. 'dara ho' -> 'daraho', 'dara hanu' -> 'darahanu'
+    """
+    corrections = {
+        r'\bdara\s+ho\b':   'daraho',
+        r'\bdara\s+munu\b': 'daramunu',
+        r'\bdara\s+hanu\b': 'darahanu',
+        r'\bdara\s+hali\b': 'darahali',
+        r'\bdara\s+kunu\b': 'darakunu',
+        r'\bdara\s+mwo\b':  'daramwo',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def apply_ho_enumerative_correction(text: str) -> str:
+    """
+    Correct MT errors where ho + enumerative roots are split or misspelled.
+    e.g. 'ho ona' -> 'hoona', 'ho nka' -> 'honka'
+    Also normalise common misspellings from MT output.
+    """
+    corrections = {
+        r'\bho\s+ona\b':    'hoona',
+        r'\bho\s+nka\b':    'honka',
+        r'\bho\s+mbi\b':    'hombi',
+        r'\bho\s+onyini\b': 'hoonyini',
+        # MT sometimes outputs 'hona' instead of 'hoona'
+        r'\bhona\b(?!\s+(?:omu|ha|ku|owa))': 'hoona',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def apply_colour_name_correction(text: str) -> str:
+    """
+    Replace English colour words that slip through MT with Runyoro-Rutooro equivalents.
+    Also correct common MT misspellings of colour names.
+    """
+    # English colour words that MT sometimes leaves untranslated
+    en_to_lun = {
+        r'\bgreen\b':       'kinyansi',
+        r'\byellow\b':      'kyenju',
+        r'\bwhite\b':       'kyeru',
+        r'\bblack\b':       'kikara',
+        r'\bbrown\b':       'kitaka',
+        r'\bred\b':         'kigaaja',
+        r'\bgrey\b':        'kibuubi',
+        r'\bgray\b':        'kibuubi',
+        r'\bblue\b':        'bbururu',
+        r'\bpurple\b':      'kihuukya',
+    }
+    # Common MT misspellings of colour names
+    misspellings = {
+        r'\bkinyasi\b':   'kinyansi',
+        r'\bkijuba\b':    'kijubwa',
+        r'\bkijubba\b':   'kijubwa',
+        r'\bkyeeru\b':    'kyeru',
+        r'\bkikarra\b':   'kikara',
+        r'\bkigaja\b':    'kigaaja',
+        r'\bkibuubu\b':   'kibuubi',
+        r'\bkyenyu\b':    'kyenju',
+        r'\bbburu\b':     'bbururu',
+    }
+    result = text
+    for pattern, repl in {**en_to_lun, **misspellings}.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def apply_locative_possessive_correction(text: str) -> str:
+    """
+    Correct MT errors in locative possessives.
+    e.g. 'omu wange' -> 'omwange', 'owa itu' -> 'owaitu'
+    Also fix common MT misspellings.
+    """
+    corrections = {
+        # omwa- possessives (split forms)
+        r'\bomwa\s+nge\b':  'omwange',
+        r'\bomwa\s+we\b':   'omwawe',
+        r'\bomwa\s+itu\b':  'omwaitu',
+        r'\bomwa\s+nyu\b':  'omwanyu',
+        r'\bomwa\s+bu\b':   'omwabu',
+        # owa- possessives (split forms)
+        r'\bowa\s+nge\b':   'owange',
+        r'\bowa\s+awe\b':   'owaawe',
+        r'\bowa\s+itu\b':   'owaitu',
+        r'\bowa\s+anyu\b':  'owaanyu',
+        r'\bowa\s+abu\b':   'owaabu',
+        # Common misspellings
+        r'\bomwange\b':     'omwange',   # already correct, keep
+        r'\bowaawe\b':      'owaawe',    # already correct, keep
+        r'\bowaitu\b':      'owaitu',    # already correct, keep
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
     return result
 
 
