@@ -612,5 +612,27 @@
     "sqs": 91.8,
     "ip": "10.16.25.130",
     "timestamp": "2026-05-26T18:48:26.469297"
+  },
+  {
+    "source_text": "Did the police arrest the bus driver",
+    "translation": "Abapolisi bakakwata omujaasi webbasi",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "both_models_wrong",
+    "model_used": "none",
+    "refined": false,
+    "domain": "",
+    "score_mng": null,
+    "score_grm": null,
+    "score_tns": null,
+    "score_vcb": null,
+    "score_ort": null,
+    "score_ctx": null,
+    "score_flu": null,
+    "score_cul": null,
+    "sqs": null,
+    "ip": "10.16.37.205",
+    "timestamp": "2026-05-28T07:14:17.736676"
   }
 ]
