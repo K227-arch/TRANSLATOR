@@ -834,5 +834,17 @@
     "refined": false,
     "ip": "10.16.40.242",
     "timestamp": "2026-05-29T11:22:09.036419"
+  },
+  {
+    "source_text": "each dog has its own day",
+    "translation": "buli embwa iba ne leero kyayo",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.47.7",
+    "timestamp": "2026-05-29T15:37:16.559776"
   }
 ]
