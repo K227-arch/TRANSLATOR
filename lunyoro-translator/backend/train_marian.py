@@ -46,6 +46,7 @@ MODEL_DIR = os.path.join(BASE, "model")
 DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
 GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
+GR5_UNC_CSV = os.path.join(BASE, "data", "cleaned", "gr5_uncovered_pairs.csv")
 
 # Seed vocabulary files - these are the highest-priority pairs
 SEED_CSVS = [
@@ -76,24 +77,26 @@ def _load_pair_keys(csv_path: str) -> set:
     return keys
 
 
-def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedRandomSampler:
+def build_weighted_sampler(df: pd.DataFrame, direction: str = "en2lun") -> WeightedRandomSampler:
     """
-    Give rare/priority pairs a higher sampling weight so the model sees them
-    proportionally more per epoch without duplicating the dataset.
+    Direction-aware weighted sampler.
 
-    Weights:
-      - Seed vocabulary pairs (medical/education/daily/agri/low_freq): 8x
-        These are the most important - direct translations from domain experts.
-      - gr4 + gr5 grammar pairs: 6x
-        Grammar rules must be reinforced strongly.
-      - back_translated pairs: 2x
-        Synthetic data, useful but lower priority.
-      - All other pairs: 1.0
+    Base weights:
+      seed vocabulary pairs:        8x  (domain expert translations)
+      gr4 + gr5 grammar pairs:      6x  (grammar rules must be reinforced)
+      back_translated pairs:        2x  (synthetic, lower priority)
+      all other pairs:              1x
+
+    Direction-specific boosts (FIX for lun2en BLEU gap):
+      lun2en + lun_words >= 5:      3x  (sentence-level pairs are gold)
+      lun2en + lun_words >= 3:      1.5x
+      lun2en + lun_words <= 2:      0.3x (dictionary entries hurt lun2en BLEU)
+      en2lun + en_words >= 8:       1.5x (longer English = more morphology to learn)
     """
-    # Load priority pair keys
     gr4_keys  = _load_pair_keys(GR4_CSV)
     gr5_keys  = _load_pair_keys(GR5_CSV)
-    grammar_keys = gr4_keys | gr5_keys
+    gr5u_keys = _load_pair_keys(GR5_UNC_CSV)
+    grammar_keys = gr4_keys | gr5_keys | gr5u_keys
 
     seed_keys: set = set()
     for csv_path in SEED_CSVS:
@@ -109,13 +112,28 @@ def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedR
         src = str(row.get("source", "")).lower()
 
         if (en, lun) in seed_keys:
-            weights.append(8.0)          # seed vocabulary - highest priority
+            w = 8.0
         elif (en, lun) in grammar_keys:
-            weights.append(6.0)          # gr4 + gr5 grammar rules
+            w = 6.0
         elif "back_translation" in src:
-            weights.append(2.0)          # synthetic back-translated
+            w = 2.0
         else:
-            weights.append(1.0)
+            w = 1.0
+
+        lun_words = len(lun.split())
+        en_words  = len(en.split())
+
+        if direction == "lun2en":
+            if lun_words >= 5:
+                w *= 3.0
+            elif lun_words >= 3:
+                w *= 1.5
+            elif lun_words <= 2:
+                w *= 0.3
+        elif direction == "en2lun" and en_words >= 8:
+            w *= 1.5
+
+        weights.append(w)
 
     weights_tensor = torch.DoubleTensor(weights)
     return WeightedRandomSampler(weights_tensor, num_samples=len(weights), replacement=True)
@@ -260,6 +278,14 @@ def train_direction(direction: str, args):
     # Load data
     train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
     val_df   = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
+
+    # Filter short Lunyoro entries for lun2en (same fix as train_nllb.py)
+    if direction == "lun2en" and args.min_lun_words > 0:
+        before = len(train_df)
+        train_df = train_df[train_df["lunyoro"].astype(str).str.split().str.len() >= args.min_lun_words]
+        print(f"  [filter] lun2en: kept {len(train_df):,}/{before:,} pairs "
+              f"(lun_words >= {args.min_lun_words})")
+
     print(f"  Train: {len(train_df):,}  Val: {len(val_df):,}")
 
     # Load tokenizer and model
@@ -303,9 +329,9 @@ def train_direction(direction: str, args):
                           subword_reg=args.subword_reg,
                           alpha=args.spm_alpha)
 
-    # Weighted sampler: gr4 pairs 4x, back-translated 2x, rest 1x
+    # Weighted sampler: direction-aware (lun2en boosts sentence-level pairs)
     # shuffle=False when using sampler (sampler handles ordering)
-    sampler = build_weighted_sampler(train_df)
+    sampler = build_weighted_sampler(train_df, direction=direction)
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size,
         sampler=sampler, collate_fn=_collate, num_workers=0,
@@ -415,11 +441,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--direction",    type=str, default="both",
                         choices=["en2lun", "lun2en", "both"])
-    parser.add_argument("--epochs",       type=int,   default=5)
+    parser.add_argument("--epochs",       type=int,   default=7,
+                        help="More epochs needed for MarianMT to reach 70 BLEU (was 5)")
     parser.add_argument("--batch-size",   type=int,   default=32)
-    parser.add_argument("--lr",           type=float, default=5e-5)
+    parser.add_argument("--lr",           type=float, default=3e-5,
+                        help="Slightly lower LR for better convergence (was 5e-5)")
     parser.add_argument("--max-length",   type=int,   default=256,
                         help="Max token length (use 384 for longer context)")
+    parser.add_argument("--min-lun-words", type=int,  default=3,
+                        help="Filter pairs where Lunyoro has fewer than N words "
+                             "(lun2en only). Removes dictionary entries that hurt BLEU. "
+                             "Default 3. Set 0 to disable.")
     parser.add_argument("--context-window", action="store_true", default=True,
                         help="Prepend previous sentence as context")
     parser.add_argument("--no-context-window", dest="context_window",

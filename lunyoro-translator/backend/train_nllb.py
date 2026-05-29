@@ -30,6 +30,7 @@ MODEL_DIR = os.path.join(BASE, "model")
 DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
 GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
+GR5_UNC_CSV = os.path.join(BASE, "data", "cleaned", "gr5_uncovered_pairs.csv")
 
 SEED_CSVS = [
     os.path.join(BASE, "data", "raw", "medical_seed_vocabulary.csv"),
@@ -61,10 +62,11 @@ def _load_pair_keys(csv_path: str) -> set:
 
 # ── Weighted sampler (same logic as train_marian.py) ─────────────────────────
 
-def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedRandomSampler:
+def build_weighted_sampler(df: pd.DataFrame, direction: str = "en2lun") -> WeightedRandomSampler:
     gr4_keys  = _load_pair_keys(GR4_CSV)
     gr5_keys  = _load_pair_keys(GR5_CSV)
-    grammar_keys = gr4_keys | gr5_keys
+    gr5u_keys = _load_pair_keys(GR5_UNC_CSV)
+    grammar_keys = gr4_keys | gr5_keys | gr5u_keys
 
     seed_keys: set = set()
     for csv_path in SEED_CSVS:
@@ -75,14 +77,37 @@ def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedR
         en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
         lun = str(row.get("lunyoro", "")).strip().lower()
         src = str(row.get("source", "")).lower()
+
+        # Base weight by source type
         if (en, lun) in seed_keys:
-            weights.append(8.0)
+            w = 8.0
         elif (en, lun) in grammar_keys:
-            weights.append(6.0)
+            w = 6.0
         elif "back_translation" in src:
-            weights.append(2.0)
+            w = 2.0
         else:
-            weights.append(1.0)
+            w = 1.0
+
+        # FIX 1: Boost sentence-level pairs for lun2en direction.
+        # Short Lunyoro entries (<=2 words) are dictionary entries that hurt
+        # lun2en BLEU — they force the model to expand 1 word into a full
+        # English definition. Downweight them for lun2en, boost long ones.
+        lun_words = len(lun.split())
+        en_words  = len(en.split())
+        if direction == "lun2en":
+            if lun_words >= 5:
+                w *= 3.0   # strong boost: real sentences are gold for lun2en
+            elif lun_words >= 3:
+                w *= 1.5   # moderate boost
+            elif lun_words <= 2:
+                w *= 0.3   # downweight: dictionary entries hurt lun2en BLEU
+
+        # FIX 2: For en2lun, boost pairs where English is longer (more
+        # morphological content to learn to compress into Lunyoro).
+        if direction == "en2lun" and en_words >= 8:
+            w *= 1.5
+
+        weights.append(w)
 
     weights_tensor = torch.DoubleTensor(weights)
     return WeightedRandomSampler(weights_tensor, num_samples=len(weights), replacement=True)
@@ -183,6 +208,17 @@ def train_direction(direction: str, args):
     # Load data
     train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
     val_df   = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
+
+    # FIX 3: Filter short Lunyoro entries for lun2en training.
+    # Dictionary-style pairs (lun<=2 words) force the model to expand a single
+    # Lunyoro word into a full English definition — this tanks lun2en BLEU.
+    # For en2lun we keep all pairs (short Lunyoro targets are valid).
+    if direction == "lun2en" and args.min_lun_words > 0:
+        before = len(train_df)
+        train_df = train_df[train_df["lunyoro"].astype(str).str.split().str.len() >= args.min_lun_words]
+        print(f"  [filter] lun2en: kept {len(train_df):,}/{before:,} pairs "
+              f"(lun_words >= {args.min_lun_words})")
+
     print(f"  Train: {len(train_df):,}  Val: {len(val_df):,}")
 
     # Load tokenizer and model from local path (fine-tune, not from scratch)
@@ -210,8 +246,8 @@ def train_direction(direction: str, args):
         return collate_fn(batch, tokenizer, src_lang, tgt_lang,
                           max_length=args.max_length)
 
-    # Weighted sampler: gr4 pairs 4x, back-translated 2x, rest 1x
-    sampler = build_weighted_sampler(train_df)
+    # Weighted sampler: direction-aware (lun2en boosts sentence-level pairs)
+    sampler = build_weighted_sampler(train_df, direction=direction)
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size,
         sampler=sampler, collate_fn=_collate, num_workers=0,
@@ -316,12 +352,17 @@ def main():
     )
     parser.add_argument("--direction", type=str, default="both",
                         choices=["en2lun", "lun2en", "both"])
-    parser.add_argument("--epochs",     type=int,   default=3)
+    parser.add_argument("--epochs",     type=int,   default=5,
+                        help="More epochs needed to reach 70 BLEU (was 3)")
     parser.add_argument("--batch-size", type=int,   default=8,
                         help="Keep low (8-16) — NLLB is large")
-    parser.add_argument("--lr",         type=float, default=1e-5,
-                        help="Lower LR than MarianMT (default 1e-5)")
+    parser.add_argument("--lr",         type=float, default=8e-6,
+                        help="Slightly lower LR for stability (was 1e-5)")
     parser.add_argument("--max-length", type=int,   default=256)
+    parser.add_argument("--min-lun-words", type=int, default=3,
+                        help="Filter pairs where Lunyoro has fewer than N words "
+                             "(lun2en only). Removes dictionary entries that hurt BLEU. "
+                             "Default 3. Set 0 to disable.")
     parser.add_argument("--fp16",       action="store_true", default=True,
                         help="Mixed precision (GPU only)")
     parser.add_argument("--no-fp16",    dest="fp16", action="store_false")
