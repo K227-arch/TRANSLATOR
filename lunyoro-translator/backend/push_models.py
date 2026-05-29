@@ -34,6 +34,11 @@ def push(model_name: str):
         log.error("HF_TOKEN not set in .env")
         return
 
+    # Ensure offline mode is disabled for uploads
+    for key in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_DATASETS_OFFLINE"):
+        os.environ.pop(key, None)
+        os.environ[key] = "0"
+
     repo_id = HF_REPOS.get(model_name)
     if not repo_id:
         log.error(f"Unknown model: {model_name}. Valid: {list(HF_REPOS.keys())}")
