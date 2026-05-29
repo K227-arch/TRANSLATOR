@@ -117,21 +117,25 @@ def preload_model():
     # Pre-build grammar context once — it's static and large, no need to rebuild per request
     try:
         from language_rules import get_full_grammar_context
-        full = get_full_grammar_context()
-        # Append Grammar Rules 4 context
-        try:
-            from language_rules_gr4 import get_gr4_grammar_context
-            full += get_gr4_grammar_context()
-        except Exception:
-            pass
-        try:
-            from language_rules_gr5 import get_gr5_grammar_context
-            full += get_gr5_grammar_context()
-        except Exception:
-            pass
-        # Keep only the first 6000 chars to stay within Ollama's context window
-        _GRAMMAR_CONTEXT_CACHE = full[:6000]
-    except Exception:
+        from language_rules_gr4 import get_gr4_grammar_context
+        from language_rules_gr5 import get_gr5_grammar_context
+
+        # Build a prioritised compact context that fits within the LLM window.
+        # Strategy: take the most critical sections from each rule set rather
+        # than truncating the full concatenation (which cuts off gr4/gr5 entirely).
+        SECTION_BUDGETS = {
+            "core":  2000,   # language_rules.py — orthography, noun classes, tenses
+            "gr4":   1800,   # grammar rules 4 — copula, kinship, enumeratives
+            "gr5":   2200,   # grammar rules 5 — locatives, colours, augmentatives, negative nouns
+        }
+        core_ctx = get_full_grammar_context()[:SECTION_BUDGETS["core"]]
+        gr4_ctx  = get_gr4_grammar_context()[:SECTION_BUDGETS["gr4"]]
+        gr5_ctx  = get_gr5_grammar_context()[:SECTION_BUDGETS["gr5"]]
+        _GRAMMAR_CONTEXT_CACHE = core_ctx + gr4_ctx + gr5_ctx
+        print(f"[startup] Grammar context: {len(_GRAMMAR_CONTEXT_CACHE)} chars "
+              f"(core={len(core_ctx)}, gr4={len(gr4_ctx)}, gr5={len(gr5_ctx)})")
+    except Exception as _e:
+        print(f"[startup] Grammar context build failed: {_e}")
         _GRAMMAR_CONTEXT_CACHE = ""
 
 # History file — configurable via HISTORY_FILE env var
