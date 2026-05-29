@@ -810,5 +810,17 @@
     "sqs": null,
     "ip": "10.16.37.205",
     "timestamp": "2026-05-28T09:01:12.207740"
+  },
+  {
+    "source_text": "Every dog has its own day",
+    "translation": "Buli embwa egira ekiro kyayo",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.40.242",
+    "timestamp": "2026-05-29T11:21:56.703364"
   }
 ]
