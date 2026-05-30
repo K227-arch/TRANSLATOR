@@ -443,8 +443,14 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     if _is_notation_garbage(nllb_result):
         return None
 
-    # Strip any domain tags the model may have reproduced from training data
+    # Detect passthrough: NLLB returned the source text unchanged (common failure
+    # mode for short phrases with low-resource language codes like run_Latn).
+    # Normalise both sides before comparing to catch case/whitespace differences.
     import re as _re2
+    _src_norm = _re2.sub(r'\s+', ' ', text.strip().lower())
+    _out_norm = _re2.sub(r'\s+', ' ', nllb_result.strip().lower())
+    if _out_norm == _src_norm:
+        return None  # fall back to MarianMT
     nllb_result = _re2.sub(r'^\s*\[[A-Za-z _]+\]\s*', '', nllb_result).strip()
 
     # Strip source-copy artifact: NLLB sometimes appends the English source

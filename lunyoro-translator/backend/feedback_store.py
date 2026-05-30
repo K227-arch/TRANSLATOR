@@ -18,6 +18,47 @@ FEEDBACK_EXPORT_DIR = BASE / "feedback"
 
 _lock = threading.Lock()
 
+# ── Benchmark dimension weights (Runyooro-Rutooro LLM Benchmarking Form) ─────
+BENCHMARK_WEIGHTS = {
+    "score_mng": 25,   # Meaning Fidelity
+    "score_grm": 15,   # Grammar & Syntax
+    "score_tns": 12,   # Tense & Aspect
+    "score_vcb": 12,   # Vocabulary Choice
+    "score_ort":  8,   # Orthography & Spelling
+    "score_ctx": 10,   # Context Awareness
+    "score_flu": 10,   # Fluency & Naturalness
+    "score_cul":  8,   # Cultural & Idiomatic
+}
+BENCHMARK_LABELS = {
+    "score_mng": "Meaning Fidelity",
+    "score_grm": "Grammar & Syntax",
+    "score_tns": "Tense & Aspect",
+    "score_vcb": "Vocabulary Choice",
+    "score_ort": "Orthography & Spelling",
+    "score_ctx": "Context Awareness",
+    "score_flu": "Fluency & Naturalness",
+    "score_cul": "Cultural & Idiomatic",
+}
+
+
+def compute_sqs(dim_scores: dict) -> float | None:
+    """
+    Compute Sentence Quality Score (SQS) from dimension scores.
+    SQS = Σ(score × weight) / 5  →  percentage out of 100.
+    Only uses dimensions that were actually scored (not None).
+    Weights are re-normalised to the scored subset so partial scoring is valid.
+    """
+    scored = {k: v for k, v in dim_scores.items()
+              if v is not None and k in BENCHMARK_WEIGHTS}
+    if not scored:
+        return None
+    total_weight = sum(BENCHMARK_WEIGHTS[k] for k in scored)
+    if total_weight == 0:
+        return None
+    weighted_sum = sum(scored[k] * BENCHMARK_WEIGHTS[k] for k in scored)
+    # Normalise to full 100-point scale
+    return (weighted_sum / total_weight) * 100 / 5
+
 
 def restore_from_github():
     """
@@ -78,17 +119,6 @@ def save_feedback(entry: dict):
     except Exception:
         pass
 
-    # If this is a benchmark entry, also sync benchmark files to GitHub
-    if entry.get("sqs") is not None:
-        try:
-            from github_feedback_sync import push_benchmark_files_to_github
-            all_entries = load_all_feedback()
-            threading.Thread(
-                target=push_benchmark_files_to_github, args=(all_entries,), daemon=True
-            ).start()
-        except Exception:
-            pass
-
     # Auto-export to Excel/CSV after each feedback (async)
     try:
         threading.Thread(target=auto_export_feedback, daemon=True).start()
@@ -114,12 +144,9 @@ def auto_export_feedback():
         
         # Reorder columns
         column_order = [
-            'timestamp', 'direction', 'rating', 'model_used', 'refined', 'domain',
+            'timestamp', 'direction', 'rating', 'model_used', 'refined',
             'source_text', 'translation', 'correction',
-            'error_type', 'sqs',
-            'score_mng', 'score_grm', 'score_tns', 'score_vcb',
-            'score_ort', 'score_ctx', 'score_flu', 'score_cul',
-            'ip'
+            'error_type', 'ip'
         ]
         column_order = [col for col in column_order if col in df.columns]
         df = df[column_order]
@@ -131,34 +158,6 @@ def auto_export_feedback():
         # Export to CSV
         csv_path = FEEDBACK_EXPORT_DIR / "all_feedback.csv"
         df.to_csv(csv_path, index=False, encoding='utf-8')
-
-        # Export benchmark entries as separate CSV + JSON
-        dim_cols = ['score_mng','score_grm','score_tns','score_vcb',
-                    'score_ort','score_ctx','score_flu','score_cul','sqs']
-        bench_cols_present = [c for c in dim_cols if c in df.columns]
-        if bench_cols_present and 'sqs' in df.columns:
-            bench_df = df[df['sqs'].notna()].copy()
-            if len(bench_df) > 0:
-                # Benchmark CSV
-                bench_csv_cols = ['timestamp','direction','source_text','translation',
-                                  'model_used','domain','rating'] + bench_cols_present + ['sqs_band']
-                def _sqs_band(s):
-                    try:
-                        s = float(s)
-                        if s >= 90: return 'Excellent'
-                        if s >= 75: return 'Good'
-                        if s >= 60: return 'Usable'
-                        if s >= 40: return 'Poor'
-                        return 'Unusable'
-                    except: return ''
-                bench_df['sqs_band'] = bench_df['sqs'].apply(_sqs_band)
-                bench_csv_cols = [c for c in bench_csv_cols if c in bench_df.columns]
-                bench_df[bench_csv_cols].to_csv(
-                    FEEDBACK_EXPORT_DIR / "benchmark_scores.csv", index=False, encoding='utf-8')
-                # Benchmark JSON
-                bench_records = bench_df[bench_csv_cols].to_dict(orient='records')
-                with open(FEEDBACK_EXPORT_DIR / "benchmark_scores.json", 'w', encoding='utf-8') as f:
-                    json.dump(bench_records, f, ensure_ascii=False, indent=2)
         
         # Export to Excel with multiple sheets
         excel_path = FEEDBACK_EXPORT_DIR / "feedback_analytics.xlsx"
@@ -230,50 +229,41 @@ def auto_export_feedback():
                 if refined_stats:
                     pd.DataFrame(refined_stats).to_excel(writer, sheet_name='Refined vs Unrefined', index=False)
 
-            # Sheet 7: Benchmark Scores (entries with SQS data)
-            dim_cols = ['score_mng','score_grm','score_tns','score_vcb',
-                        'score_ort','score_ctx','score_flu','score_cul','sqs']
-            bench_cols = [c for c in dim_cols if c in df.columns]
-            if bench_cols:
-                bench_df = df[df['sqs'].notna()].copy() if 'sqs' in df.columns else pd.DataFrame()
-                if len(bench_df) > 0:
-                    bench_out = bench_df[
-                        ['timestamp','direction','source_text','translation',
-                         'model_used','domain'] + bench_cols
-                    ].copy()
-                    # Add SQS band label
-                    def sqs_band(s):
-                        if s is None or (hasattr(s, '__float__') and s != s): return ''
-                        s = float(s)
-                        if s >= 90: return 'Excellent'
-                        if s >= 75: return 'Good'
-                        if s >= 60: return 'Usable'
-                        if s >= 40: return 'Poor'
-                        return 'Unusable'
-                    bench_out['sqs_band'] = bench_out['sqs'].apply(sqs_band)
-                    bench_out.to_excel(writer, sheet_name='Benchmark Scores', index=False)
-
-                    # Dimension averages summary
-                    dim_avgs = []
-                    dim_weights = {'score_mng':25,'score_grm':15,'score_tns':12,'score_vcb':12,
-                                   'score_ort':8,'score_ctx':10,'score_flu':10,'score_cul':8}
-                    dim_labels  = {'score_mng':'Meaning','score_grm':'Grammar','score_tns':'Tense',
-                                   'score_vcb':'Vocabulary','score_ort':'Spelling',
-                                   'score_ctx':'Context','score_flu':'Fluency','score_cul':'Cultural'}
-                    for col in [c for c in dim_cols if c != 'sqs' and c in bench_df.columns]:
-                        vals = bench_df[col].dropna()
+            # Sheet 7: Benchmark Dimension Scores (SQS)
+            dim_cols = [c for c in BENCHMARK_WEIGHTS if c in df.columns]
+            if dim_cols or 'sqs' in df.columns:
+                bench_rows = []
+                for dim in BENCHMARK_WEIGHTS:
+                    if dim in df.columns:
+                        vals = df[dim].dropna()
                         if len(vals):
-                            avg = round(vals.mean(), 2)
-                            dim_avgs.append({
-                                'Dimension': dim_labels.get(col, col),
-                                'Code': col.replace('score_','').upper(),
-                                'Weight (%)': dim_weights.get(col, 0),
-                                'Avg Score (0-5)': avg,
-                                'Weighted Contribution': round(avg * dim_weights.get(col, 0) / 5, 2),
-                                'N': len(vals),
+                            bench_rows.append({
+                                'Dimension': BENCHMARK_LABELS[dim],
+                                'Code': dim.replace('score_', '').upper(),
+                                'Weight (%)': BENCHMARK_WEIGHTS[dim],
+                                'Avg Score (0–5)': round(vals.mean(), 2),
+                                'Min': vals.min(),
+                                'Max': vals.max(),
+                                'N scored': len(vals),
                             })
-                    if dim_avgs:
-                        pd.DataFrame(dim_avgs).to_excel(writer, sheet_name='Benchmark Averages', index=False)
+                if bench_rows:
+                    pd.DataFrame(bench_rows).to_excel(writer, sheet_name='Benchmark Dimensions', index=False)
+                if 'sqs' in df.columns:
+                    sqs_vals = df['sqs'].dropna()
+                    if len(sqs_vals):
+                        bands = [
+                            ('Excellent', 90, 100),
+                            ('Good',      75,  89),
+                            ('Usable',    60,  74),
+                            ('Poor',      40,  59),
+                            ('Unusable',   0,  39),
+                        ]
+                        sqs_dist = []
+                        for label, lo, hi in bands:
+                            count = int(((sqs_vals >= lo) & (sqs_vals <= hi)).sum())
+                            sqs_dist.append({'Band': label, 'SQS Range': f'{lo}–{hi}', 'Count': count,
+                                             'Pct (%)': round(100 * count / len(sqs_vals), 1)})
+                        pd.DataFrame(sqs_dist).to_excel(writer, sheet_name='SQS Distribution', index=False)
         
     except Exception as e:
         # Silently fail - don't break feedback submission
@@ -458,6 +448,33 @@ def get_detailed_analytics() -> dict:
         for e in recent_entries
     ]
     
+    # Benchmark dimension averages
+    benchmark_stats = {}
+    for dim, label in BENCHMARK_LABELS.items():
+        vals = [e[dim] for e in entries if isinstance(e.get(dim), (int, float))]
+        if vals:
+            benchmark_stats[dim] = {
+                "label": label,
+                "weight": BENCHMARK_WEIGHTS[dim],
+                "avg": round(sum(vals) / len(vals), 2),
+                "n": len(vals),
+            }
+
+    # SQS distribution
+    sqs_vals = [e["sqs"] for e in entries if isinstance(e.get("sqs"), (int, float))]
+    sqs_stats = None
+    if sqs_vals:
+        avg_sqs = round(sum(sqs_vals) / len(sqs_vals), 1)
+        bands = [("Excellent",90,100),("Good",75,89),("Usable",60,74),("Poor",40,59),("Unusable",0,39)]
+        sqs_stats = {
+            "avg_sqs": avg_sqs,
+            "n": len(sqs_vals),
+            "distribution": {
+                label: int(sum(1 for s in sqs_vals if lo <= s <= hi))
+                for label, lo, hi in bands
+            },
+        }
+
     return {
         "total_feedback": len(entries),
         "model_usage": dict(model_usage),
@@ -467,8 +484,10 @@ def get_detailed_analytics() -> dict:
         "correction_rate": correction_rate,
         "refined_stats": refined_stats,
         "unique_users": unique_users,
-        "feedback_by_day": dict(sorted(feedback_by_day.items())[-30:]),  # Last 30 days
+        "feedback_by_day": dict(sorted(feedback_by_day.items())[-30:]),
         "recent_feedback": recent_feedback,
+        "benchmark_dimensions": benchmark_stats,
+        "sqs_stats": sqs_stats,
     }
 
 

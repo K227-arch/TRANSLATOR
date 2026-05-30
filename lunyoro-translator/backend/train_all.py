@@ -35,14 +35,20 @@ def run(step: str, cmd: list[str]) -> bool:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs",       type=int, default=3)
-    parser.add_argument("--batch-marian", type=int, default=64)
-    parser.add_argument("--batch-nllb",   type=int, default=8)
-    parser.add_argument("--direction",    type=str, default="both",
+    parser.add_argument("--epochs",        type=int,   default=3)
+    parser.add_argument("--batch-marian",  type=int,   default=64)
+    parser.add_argument("--batch-nllb",    type=int,   default=8)
+    parser.add_argument("--lr-marian",     type=float, default=3e-5,
+                        help="Learning rate for MarianMT fine-tuning")
+    parser.add_argument("--lr-nllb",       type=float, default=8e-6,
+                        help="Learning rate for NLLB fine-tuning")
+    parser.add_argument("--min-lun-words", type=int,   default=3,
+                        help="Filter lun2en pairs where Lunyoro side has fewer than N words")
+    parser.add_argument("--direction",     type=str,   default="both",
                         choices=["en2lun", "lun2en", "both"])
-    parser.add_argument("--marian-only",  action="store_true")
-    parser.add_argument("--nllb-only",    action="store_true")
-    parser.add_argument("--no-push",      action="store_true")
+    parser.add_argument("--marian-only",   action="store_true")
+    parser.add_argument("--nllb-only",     action="store_true")
+    parser.add_argument("--no-push",       action="store_true")
     args = parser.parse_args()
 
     py = sys.executable
@@ -53,9 +59,11 @@ def main():
         ok = run(
             f"MarianMT fine-tuning ({args.direction}, {args.epochs} epochs)",
             [py, "train_marian.py",
-             "--direction", args.direction,
-             "--epochs",    str(args.epochs),
-             "--batch-size", str(args.batch_marian)],
+             "--direction",     args.direction,
+             "--epochs",        str(args.epochs),
+             "--batch-size",    str(args.batch_marian),
+             "--lr",            str(args.lr_marian),
+             "--min-lun-words", str(args.min_lun_words)],
         )
         if not ok:
             failed.append("MarianMT")
@@ -65,9 +73,11 @@ def main():
         ok = run(
             f"NLLB fine-tuning ({args.direction}, {args.epochs} epochs)",
             [py, "train_nllb.py",
-             "--direction", args.direction,
-             "--epochs",    str(args.epochs),
-             "--batch-size", str(args.batch_nllb)],
+             "--direction",     args.direction,
+             "--epochs",        str(args.epochs),
+             "--batch-size",    str(args.batch_nllb),
+             "--lr",            str(args.lr_nllb),
+             "--min-lun-words", str(args.min_lun_words)],
         )
         if not ok:
             failed.append("NLLB")

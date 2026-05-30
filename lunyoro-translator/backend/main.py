@@ -117,21 +117,25 @@ def preload_model():
     # Pre-build grammar context once — it's static and large, no need to rebuild per request
     try:
         from language_rules import get_full_grammar_context
-        full = get_full_grammar_context()
-        # Append Grammar Rules 4 context
-        try:
-            from language_rules_gr4 import get_gr4_grammar_context
-            full += get_gr4_grammar_context()
-        except Exception:
-            pass
-        try:
-            from language_rules_gr5 import get_gr5_grammar_context
-            full += get_gr5_grammar_context()
-        except Exception:
-            pass
-        # Keep only the first 6000 chars to stay within Ollama's context window
-        _GRAMMAR_CONTEXT_CACHE = full[:6000]
-    except Exception:
+        from language_rules_gr4 import get_gr4_grammar_context
+        from language_rules_gr5 import get_gr5_grammar_context
+
+        # Build a prioritised compact context that fits within the LLM window.
+        # Strategy: take the most critical sections from each rule set rather
+        # than truncating the full concatenation (which cuts off gr4/gr5 entirely).
+        SECTION_BUDGETS = {
+            "core":  2000,   # language_rules.py — orthography, noun classes, tenses
+            "gr4":   1800,   # grammar rules 4 — copula, kinship, enumeratives
+            "gr5":   2200,   # grammar rules 5 — locatives, colours, augmentatives, negative nouns
+        }
+        core_ctx = get_full_grammar_context()[:SECTION_BUDGETS["core"]]
+        gr4_ctx  = get_gr4_grammar_context()[:SECTION_BUDGETS["gr4"]]
+        gr5_ctx  = get_gr5_grammar_context()[:SECTION_BUDGETS["gr5"]]
+        _GRAMMAR_CONTEXT_CACHE = core_ctx + gr4_ctx + gr5_ctx
+        print(f"[startup] Grammar context: {len(_GRAMMAR_CONTEXT_CACHE)} chars "
+              f"(core={len(core_ctx)}, gr4={len(gr4_ctx)}, gr5={len(gr5_ctx)})")
+    except Exception as _e:
+        print(f"[startup] Grammar context build failed: {_e}")
         _GRAMMAR_CONTEXT_CACHE = ""
 
 # History file — configurable via HISTORY_FILE env var
@@ -321,18 +325,20 @@ class FeedbackRequest(BaseModel):
     correction: str = ""        # user-provided correct translation
     error_type: str = ""        # grammar, spelling, context, vocabulary, other
     model_used: str = ""        # "marian", "nllb", "both", "none"
-    refined: bool = False       # whether AI refinement was applied
-    domain: str = ""            # domain/category of the translation
-    # ── Benchmark dimension scores (0–5, null if not scored) ──────────────────
-    score_mng: float | None = None   # Meaning Fidelity      (weight 25%)
-    score_grm: float | None = None   # Grammar & Syntax      (weight 15%)
-    score_tns: float | None = None   # Tense & Aspect        (weight 12%)
-    score_vcb: float | None = None   # Vocabulary Choice     (weight 12%)
-    score_ort: float | None = None   # Orthography/Spelling  (weight  8%)
-    score_ctx: float | None = None   # Context Awareness     (weight 10%)
-    score_flu: float | None = None   # Fluency & Naturalness (weight 10%)
-    score_cul: float | None = None   # Cultural Appropriateness (weight 8%)
-    sqs: float | None = None         # Sentence Quality Score (0–100)
+    refined: bool = False       # whether AI refinement was applied to this translation
+
+    # ── Benchmark dimensions (from Runyooro-Rutooro LLM Benchmarking Form) ──
+    # Each scored 0–5 by the evaluator; None means not scored (casual feedback)
+    score_mng: int | None = None   # Meaning Fidelity        (weight 25%)
+    score_grm: int | None = None   # Grammar & Syntax        (weight 15%)
+    score_tns: int | None = None   # Tense & Aspect          (weight 12%)
+    score_vcb: int | None = None   # Vocabulary Choice       (weight 12%)
+    score_ort: int | None = None   # Orthography & Spelling  (weight  8%)
+    score_ctx: int | None = None   # Context Awareness       (weight 10%)
+    score_flu: int | None = None   # Fluency & Naturalness   (weight 10%)
+    score_cul: int | None = None   # Cultural & Idiomatic    (weight  8%)
+    # Computed SQS (0–100) — calculated server-side if any dimension scores present
+    sqs: float | None = None
 
 
 @app.post("/feedback")
@@ -343,7 +349,17 @@ def submit_feedback(req: FeedbackRequest, request: Request):
     if req.rating not in (-1, 0, 1):
         raise HTTPException(status_code=400, detail="rating must be -1, 0, or 1")
 
-    from feedback_store import save_feedback
+    from feedback_store import save_feedback, compute_sqs
+
+    # Compute SQS if any dimension scores were provided
+    dim_scores = {
+        "score_mng": req.score_mng, "score_grm": req.score_grm,
+        "score_tns": req.score_tns, "score_vcb": req.score_vcb,
+        "score_ort": req.score_ort, "score_ctx": req.score_ctx,
+        "score_flu": req.score_flu, "score_cul": req.score_cul,
+    }
+    sqs = compute_sqs(dim_scores) if any(v is not None for v in dim_scores.values()) else None
+
     entry = {
         "source_text": req.source_text.strip(),
         "translation": req.translation.strip(),
@@ -353,18 +369,10 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "error_type":  req.error_type.strip(),
         "model_used":  req.model_used.strip(),
         "refined":     req.refined,
-        "domain":      req.domain.strip(),
-        # Benchmark dimension scores
-        "score_mng":   req.score_mng,
-        "score_grm":   req.score_grm,
-        "score_tns":   req.score_tns,
-        "score_vcb":   req.score_vcb,
-        "score_ort":   req.score_ort,
-        "score_ctx":   req.score_ctx,
-        "score_flu":   req.score_flu,
-        "score_cul":   req.score_cul,
-        "sqs":         req.sqs,
         "ip":          request.client.host if request.client else "unknown",
+        # Benchmark dimension scores (None if not provided)
+        **{k: v for k, v in dim_scores.items() if v is not None},
+        **({"sqs": round(sqs, 1)} if sqs is not None else {}),
     }
     save_feedback(entry)
     
@@ -384,8 +392,7 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "rating": req.rating,
         "correction_received": bool(req.correction.strip()),
         "error_type": req.error_type or None,
-        "benchmark_received": req.sqs is not None,
-        "sqs": req.sqs,
+        "sqs": round(sqs, 1) if sqs is not None else None,
     }
 
 
@@ -847,8 +854,6 @@ def chat(req: ChatRequest, request: Request):
     sector_label = SECTOR_LABELS.get(sector, "")
     dict_ctx     = dict_context(sector) if sector else ""
     grammar_ctx  = (_GRAMMAR_CONTEXT_CACHE or "")[:3000]
-    # Build few-shot examples from corpus pairs for OOV handling
-    few_shot_examples = get_few_shot_examples(corpus_ctx.split("\n") if corpus_ctx else [], sector)
 
     system_prompt = (
         "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda.\n"
@@ -859,13 +864,9 @@ def chat(req: ChatRequest, request: Request):
         "4. Stay context-aware: use the conversation history and corpus examples provided.\n"
         "5. Write in flowing prose. No bullet lists, no headers.\n"
         "6. Do not mix languages. Every word must be English.\n"
-        "7. For novel constructions not in the corpus, use the few-shot examples as a guide.\n"
-        "8. Apply grammar rules systematically: orthographic → morphological → semantic corrections.\n"
         f"\nGrammar rules reference:\n{grammar_ctx}\n"
     )
-    if few_shot_examples:
-        system_prompt += f"\nFew-shot examples for out-of-vocabulary handling:\n{few_shot_examples}\n"
-    if corpus_ctx and few_shot_examples not in system_prompt:
+    if corpus_ctx:
         system_prompt += f"\nRelevant corpus examples for context:\n{corpus_ctx}\n"
     if sector_label:
         system_prompt += f"\nSector focus: {sector_label}\n"

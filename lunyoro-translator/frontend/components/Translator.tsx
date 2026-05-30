@@ -85,7 +85,7 @@ export default function Translator() {
   const [selectedModel, setSelectedModel]         = useState<"marian" | "nllb" | "none" | "both" | null>(null);
   const [modelFeedbackSent, setModelFeedbackSent] = useState(false);
   const [preferredModel, setPreferredModel]       = useState<"marian" | "nllb" | null>(null);
-  const [refine, setRefine]                       = useState(false);
+  const [refine, setRefine]                       = useState(true);
   const [refining, setRefining]                   = useState(false);
   const [domain, setDomain]                       = useState("");
   const [showBenchmark, setShowBenchmark]         = useState(false);

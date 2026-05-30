@@ -1,0 +1,158 @@
+{
+  "MarianMT en\u2192lun": {
+    "bleu": 0.0,
+    "bp": 0.0,
+    "precisions": [
+      50.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "errors": 98,
+    "samples": 100,
+    "examples": [
+      {
+        "src": "to make one see clear ly, enlighten",
+        "hyp": "bwezesa",
+        "ref": "bwezesa"
+      },
+      {
+        "src": "Jesus again placed his hands on him, and he healed all",
+        "hyp": "",
+        "ref": "Kandi yagaruka okumutaho engaro ha maiso; yabyona kurungi"
+      },
+      {
+        "src": "Whoever walks in union with Christ has no God. Those who live in union with this teaching have the Father and the Son",
+        "hyp": "",
+        "ref": "Wena anyakuhinguranaho, kunu taikara omu kwegrsakwa Kristo tanyina Ruhanga:Anyakuikara omu kwegesa oku, nuwe ayina Isitwe Nomwana"
+      },
+      {
+        "src": "to hobble along",
+        "hyp": "hoboija",
+        "ref": "kongoizira"
+      },
+      {
+        "src": "Plants and plants need water",
+        "hyp": "",
+        "ref": "Ebirimwa nebimera kwomera hibyetaaga amaiza"
+      }
+    ]
+  },
+  "NLLB    en\u2192lun": {
+    "bleu": 0.0,
+    "bp": 0.0,
+    "precisions": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "errors": 100,
+    "samples": 100,
+    "examples": [
+      {
+        "src": "to make one see clear ly, enlighten",
+        "hyp": "",
+        "ref": "bwezesa"
+      },
+      {
+        "src": "Jesus again placed his hands on him, and he healed all",
+        "hyp": "",
+        "ref": "Kandi yagaruka okumutaho engaro ha maiso; yabyona kurungi"
+      },
+      {
+        "src": "Whoever walks in union with Christ has no God. Those who live in union with this teaching have the Father and the Son",
+        "hyp": "",
+        "ref": "Wena anyakuhinguranaho, kunu taikara omu kwegrsakwa Kristo tanyina Ruhanga:Anyakuikara omu kwegesa oku, nuwe ayina Isitwe Nomwana"
+      },
+      {
+        "src": "to hobble along",
+        "hyp": "",
+        "ref": "kongoizira"
+      },
+      {
+        "src": "Plants and plants need water",
+        "hyp": "",
+        "ref": "Ebirimwa nebimera kwomera hibyetaaga amaiza"
+      }
+    ]
+  },
+  "MarianMT lun\u2192en": {
+    "bleu": 0.0,
+    "bp": 0.0,
+    "precisions": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "errors": 100,
+    "samples": 100,
+    "examples": [
+      {
+        "src": "bwezesa",
+        "hyp": "",
+        "ref": "to make one see clear ly, enlighten"
+      },
+      {
+        "src": "Kandi yagaruka okumutaho engaro ha maiso; yabyona kurungi",
+        "hyp": "",
+        "ref": "Jesus again placed his hands on him, and he healed all"
+      },
+      {
+        "src": "Wena anyakuhinguranaho, kunu taikara omu kwegrsakwa Kristo tanyina Ruhanga:Anyakuikara omu kwegesa oku, nuwe ayina Isitwe Nomwana",
+        "hyp": "",
+        "ref": "Whoever walks in union with Christ has no God. Those who live in union with this teaching have the Father and the Son"
+      },
+      {
+        "src": "kongoizira",
+        "hyp": "",
+        "ref": "to hobble along"
+      },
+      {
+        "src": "Ebirimwa nebimera kwomera hibyetaaga amaiza",
+        "hyp": "",
+        "ref": "Plants and plants need water"
+      }
+    ]
+  },
+  "NLLB    lun\u2192en": {
+    "bleu": 0.0,
+    "bp": 0.0,
+    "precisions": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "errors": 100,
+    "samples": 100,
+    "examples": [
+      {
+        "src": "bwezesa",
+        "hyp": "",
+        "ref": "to make one see clear ly, enlighten"
+      },
+      {
+        "src": "Kandi yagaruka okumutaho engaro ha maiso; yabyona kurungi",
+        "hyp": "",
+        "ref": "Jesus again placed his hands on him, and he healed all"
+      },
+      {
+        "src": "Wena anyakuhinguranaho, kunu taikara omu kwegrsakwa Kristo tanyina Ruhanga:Anyakuikara omu kwegesa oku, nuwe ayina Isitwe Nomwana",
+        "hyp": "",
+        "ref": "Whoever walks in union with Christ has no God. Those who live in union with this teaching have the Father and the Son"
+      },
+      {
+        "src": "kongoizira",
+        "hyp": "",
+        "ref": "to hobble along"
+      },
+      {
+        "src": "Ebirimwa nebimera kwomera hibyetaaga amaiza",
+        "hyp": "",
+        "ref": "Plants and plants need water"
+      }
+    ]
+  }
+}
