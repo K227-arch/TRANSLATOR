@@ -672,6 +672,80 @@ def apply_gr4_rules(text: str, direction: str = "en->lun") -> str:
     result = apply_ka_emphatic(result)               # 7. ka particle
     result = apply_kinship_correction(result)        # 10. kinship terms
     result = apply_modal_ta_greeting(result)         # 4. modal -ta? greetings
+    result = _apply_demonstrative_corrections(result)  # 2. demonstratives
+    result = _apply_dara_corrections(result)           # 5. dara presentative
+    result = _apply_verb_noun_corrections(result)      # 9. verb-noun derivation
+    return result
+
+
+def _apply_demonstrative_corrections(text: str) -> str:
+    """
+    Fix common MT errors in demonstratives:
+    - 'ogu muntu' should stay as-is (cl.3 near)
+    - 'abo bantu' should stay as-is (cl.2 in-mind)
+    - Correct split forms: 'o nu' -> 'onu', 'ba nu' -> 'banu'
+    """
+    corrections = {
+        r'\bo\s+nu\b':   'onu',
+        r'\bba\s+nu\b':  'banu',
+        r'\bgu\s+nu\b':  'gunu',
+        r'\bki\s+nu\b':  'kinu',
+        r'\bzi\s+nu\b':  'zinu',
+        r'\bo\s+li\b':   'oli',
+        r'\bba\s+li\b':  'bali',
+        r'\bgu\s+li\b':  'guli',
+        r'\bki\s+ri\b':  'kiri',
+        r'\bzi\s+ri\b':  'ziri',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _apply_dara_corrections(text: str) -> str:
+    """
+    Fix common MT errors with dara presentative:
+    - 'dara nyowe' -> 'daranyowe'
+    - 'dara iwe' -> 'daraiwe'
+    - 'dara bo' -> 'darabo'
+    """
+    corrections = {
+        r'\bdara\s+nyowe\b':  'daranyowe',
+        r'\bdara\s+iwe\b':    'daraiwe',
+        r'\bdara\s+uwe\b':    'darawe',
+        r'\bdara\s+itwe\b':   'daraitwe',
+        r'\bdara\s+inywe\b':  'darainywe',
+        r'\bdara\s+bo\b':     'darabo',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _apply_verb_noun_corrections(text: str) -> str:
+    """
+    Fix common MT errors in verb-derived nouns:
+    - 'omu lima' -> 'omulima' (professional digger)
+    - 'omu limi' -> 'omulimi' (cultivator)
+    - 'omu limo' -> 'omulimo' (work)
+    """
+    corrections = {
+        r'\bomu\s+lima\b':    'omulima',
+        r'\bomu\s+limi\b':    'omulimi',
+        r'\bomu\s+limo\b':    'omulimo',
+        r'\bomu\s+zaani\b':   'omuzaani',
+        r'\bomu\s+zaano\b':   'omuzaano',
+        r'\bomu\s+bazi\b':    'omubazi',
+        r'\bomu\s+baro\b':    'omubaro',
+        r'\ben\s+dima\b':     'endima',
+        r'\ben\s+zaana\b':    'enzaana',
+        r'\bem\s+bara\b':     'embara',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
     return result
 
 

@@ -207,7 +207,7 @@ _nllb_available = {}  # {"en2lun": bool, "lun2en": bool}
 _nllb_whitelist: list | None = None  # token ID whitelist loaded once
 
 NLLB_LANG_EN  = "eng_Latn"
-NLLB_LANG_LUN = "run_Latn"  # Rundi — closest supported code to Lunyoro/Rutooro
+NLLB_LANG_LUN = "nyn_Latn"  # Nyankore/Nkore — linguistically closest to Runyoro-Rutooro in NLLB-200
 
 
 def _load_nllb_whitelist() -> list | None:
@@ -321,7 +321,7 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
             early_stopping=True,
             no_repeat_ngram_size=3,
             repetition_penalty=1.3,
-            length_penalty=1.0,
+            length_penalty=1.2,
         )
     result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
@@ -423,7 +423,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         early_stopping=True,
         no_repeat_ngram_size=3,
         repetition_penalty=1.3,
-        length_penalty=1.0,
+        length_penalty=1.2,
     )
     generate_kwargs["forced_bos_token_id"] = tokenizer.convert_tokens_to_ids(tgt_lang)
 

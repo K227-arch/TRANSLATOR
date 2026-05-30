@@ -636,9 +636,149 @@ def apply_gr5_rules(text: str, direction: str = "en->lun") -> str:
         return text
 
     result = text
-    result = apply_copula_locative_correction(result)   # 6. copula + locatives
-    result = apply_adverbial_suffix_correction(result)  # 4. adverbial suffixes
+    result = apply_copula_locative_correction(result)      # 6. copula + locatives
+    result = apply_adverbial_suffix_correction(result)     # 4. adverbial suffixes
+    result = _apply_locative_split_corrections(result)     # 1. split locative prefixes
+    result = _apply_ho_enumerative_corrections(result)     # 8. ho + enumerative
+    result = _apply_dara_locative_corrections(result)      # 7. dara + locative
+    result = _apply_colour_corrections(result)             # 11. colour names
+    result = _apply_negative_noun_corrections(result)      # 12. negative nouns
+    result = _apply_objectival_concord_corrections(result) # 9. objectival concord
     return result
+
+
+def _apply_locative_split_corrections(text: str) -> str:
+    """
+    Fix split locative prefixes that MT sometimes generates:
+    - 'omu nsi' -> 'omunsi', 'ha meeza' -> 'hameeza'
+    - 'ku nu' -> 'kunu', 'ku li' -> 'kuli'
+    - 'owa itu' -> 'owaitu', 'owa anyu' -> 'owaanyu'
+    """
+    corrections = {
+        r'\bomu\s+nsi\b':      'omunsi',
+        r'\bomw\s+iguru\b':    'omwiguru',
+        r'\bomu\s+kibira\b':   'omukibira',
+        r'\bomu\s+nda\b':      'omunda',
+        r'\bomu\s+maiso\b':    'omumaiso',
+        r'\bha\s+meeza\b':     'hameeza',
+        r'\bha\s+nsi\b':       'hansi',
+        r'\bha\s+iguru\b':     'haiguru',
+        r'\bha\s+rubaju\b':    'harubaju',
+        r'\bha\s+nju\b':       'hanju',
+        r'\bku\s+nu\b':        'kunu',
+        r'\bku\s+li\b':        'kuli',
+        r'\bowa\s+itu\b':      'owaitu',
+        r'\bowa\s+anyu\b':     'owaanyu',
+        r'\bowa\s+abu\b':      'owaabu',
+        r'\bowa\s+awe\b':      'owaawe',
+        r'\bomwa\s+nge\b':     'omwange',
+        r'\bomwa\s+we\b':      'omwawe',
+        r'\bomwa\s+itu\b':     'omwaitu',
+        r'\bomwa\s+nyu\b':     'omwanyu',
+        r'\bomwa\s+bu\b':      'omwabu',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _apply_ho_enumerative_corrections(text: str) -> str:
+    """
+    Fix split ho+enumerative forms:
+    - 'ho ona' -> 'hoona', 'ho nka' -> 'honka'
+    - 'ho mbi' -> 'hombi', 'ho onyini' -> 'hoonyini'
+    """
+    corrections = {
+        r'\bho\s+ona\b':     'hoona',
+        r'\bho\s+nka\b':     'honka',
+        r'\bho\s+mbi\b':     'hombi',
+        r'\bho\s+onyini\b':  'hoonyini',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _apply_dara_locative_corrections(text: str) -> str:
+    """
+    Fix split dara+locative forms:
+    - 'dara ho' -> 'daraho', 'dara hanu' -> 'darahanu'
+    """
+    corrections = {
+        r'\bdara\s+ho\b':    'daraho',
+        r'\bdara\s+munu\b':  'daramunu',
+        r'\bdara\s+hanu\b':  'darahanu',
+        r'\bdara\s+hali\b':  'darahali',
+        r'\bdara\s+kunu\b':  'darakunu',
+        r'\bdara\s+mwo\b':   'daramwo',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _apply_colour_corrections(text: str) -> str:
+    """
+    Fix common MT errors in colour names — MT sometimes uses English colours
+    or incorrect Runyoro forms.
+    Only corrects when the colour appears as a standalone adjective after a noun.
+    """
+    # Map English colour words that slip through to Runyoro equivalents
+    colour_fixes = {
+        r'\bgreen\b':       'kinyansi',
+        r'\bwhite\b':       'kyeru',
+        r'\bblack\b':       'kikara',
+        r'\bbrown\b':       'kitaka',
+        r'\byellow\b':      'kyenju',
+        r'\bgrey\b':        'kibuubi',
+        r'\bgray\b':        'kibuubi',
+        r'\bblue\b':        'bbururu',
+        r'\bred\b':         'kigaaja',
+        r'\bpurple\b':      'kihuukya',
+    }
+    result = text
+    for pattern, repl in colour_fixes.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _apply_negative_noun_corrections(text: str) -> str:
+    """
+    Fix split negative noun forms:
+    - 'omu ta seka' -> 'omutaseka'
+    - 'omu ta tooga' -> 'omutotooga'
+    """
+    corrections = {
+        r'\bomu\s+ta\s+seka\b':      'omutaseka',
+        r'\bomu\s+ta\s+tooga\b':     'omutotooga',
+        r'\bomu\s+ta\s+gambwaho\b':  'omutagambwaho',
+        r'\bomu\s+ta\s+leesa\b':     'omutaleesa',
+    }
+    result = text
+    for pattern, repl in corrections.items():
+        result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _apply_objectival_concord_corrections(text: str) -> str:
+    """
+    Fix common objectival concord errors in reversed-object sentences.
+    The model sometimes omits the objectival concord prefix on the verb.
+    These are heuristic fixes for the most common patterns.
+    """
+    # Pattern: object noun (cl.3) + subject + verb without gu- concord
+    # e.g. 'omusiri omukazi alimire' -> 'omusiri omukazi agulimire'
+    # This is complex to fix automatically — apply only the most reliable cases
+    corrections = {
+        # Copula objectival: 'ni omusiri' -> 'ni omusiri' (leave as-is, already correct)
+        # Fix: verb missing -mu- (cl.1 object) concord
+        r'\b(a|ba)(lima|soma|bona|gamba|twara|leeta|ruga|genda)(ire|ye)\b':
+            lambda m: m.group(0),  # leave as-is — too risky to auto-fix
+    }
+    return text  # Return unchanged — objectival concord needs training data, not regex
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,865 @@
+english,lunyoro
+[LOCATIVE] in the world,omunsi
+[LOCATIVE] in heaven,omwiguru
+[LOCATIVE] in the sky,omwiguru
+[LOCATIVE] in the forest,omukibira
+[LOCATIVE] inside / in the stomach,omunda
+[LOCATIVE] in front,omumaiso
+[LOCATIVE] in the house,omunju
+[LOCATIVE] in the water,omumaizi
+[LOCATIVE] in the garden,omusiri
+[LOCATIVE] in the room,omukyumba
+[LOCATIVE] in the church,omukanisa
+[LOCATIVE] in the school,omushomero
+[LOCATIVE] in the hospital,omusaala
+[LOCATIVE] in the market,omubaaza
+[LOCATIVE] in the village,omukiika
+[LOCATIVE] on the table,hameeza
+[LOCATIVE] on the ground,hansi
+[LOCATIVE] below / underneath,hansi
+[LOCATIVE] above / up high,haiguru
+[LOCATIVE] to the side,harubaju
+[LOCATIVE] on the house,hanju
+[LOCATIVE] at the door,hamuryango
+[LOCATIVE] at the river,hakaraba
+[LOCATIVE] at the road,hamusebo
+[LOCATIVE] at the school,hamushomero
+[LOCATIVE] at the market,habaaza
+[LOCATIVE] at the hospital,hamusaala
+[LOCATIVE] at our home,owaitu
+[LOCATIVE] at your home,owaanyu
+[LOCATIVE] at their home,owaabu
+[LOCATIVE] at his/her home,owe
+[LOCATIVE] at my home,owange
+[LOCATIVE] at your (sg) home,owaawe
+[LOCATIVE] this way / this side,kunu
+[LOCATIVE] that way / that side,kuli
+[LOCATIVE] to the left,ku rubaju rwa kumosi
+[LOCATIVE] to the right,ku rubaju rwa kuguru
+[LOCATIVE] The book is on the table,Ekitabu kiri hameeza
+[LOCATIVE] The child is in the house,Omwana ali omunju
+[LOCATIVE] The water is in the river,Amaizi gari omukaraba
+[LOCATIVE] We are going to our home,Turagenda owaitu
+[LOCATIVE] She slept at their home,Yaraireyo owaabu
+[LOCATIVE] The food is on the ground,Ebikulyo biri hansi
+[LOCATIVE] God is in heaven,Ruhanga ali omwiguru
+[LOCATIVE] The cow is in the forest,Ente iri omukibira
+[LOCATIVE] He is standing at the door,Ayemerereho hamuryango
+[LOCATIVE] The children are at school,Abaana bari hamushomero
+[LOCATIVE] I am going to your home,Ndigenda owaawe
+[LOCATIVE] They came from the market,Baaza omubaaza
+[LOCATIVE] She is sitting on the ground,Yaikara hansi
+[LOCATIVE] The bird is up high,Ekuni kiri haiguru
+[LOCATIVE] We met at the hospital,Twahurira hamusaala
+[LOCATIVE_DEM] in here,munu
+[LOCATIVE_DEM] in there,muli
+[LOCATIVE_DEM] here,hanu
+[LOCATIVE_DEM] there,hali
+[LOCATIVE_DEM] this way,kunu
+[LOCATIVE_DEM] that way,kuli
+[LOCATIVE_DEM] come here,ija hanu
+[LOCATIVE_DEM] go there,genda hali
+[LOCATIVE_DEM] it is in here,nimunu
+[LOCATIVE_DEM] it is in there,nimuli
+[LOCATIVE_DEM] it is here,nihanu
+[LOCATIVE_DEM] it is there,nihali
+[LOCATIVE_DEM] it is this way,nukunu
+[LOCATIVE_DEM] it is that way,nukuli
+[LOCATIVE_DEM] it is in it,numwo
+[LOCATIVE_DEM] it is on it,nuho
+[LOCATIVE_DEM] the water is in here,Amaizi gari munu
+[LOCATIVE_DEM] the person is in there,Omuntu ali muli
+[LOCATIVE_DEM] the food is here,Ebikulyo biri hanu
+[LOCATIVE_DEM] the cow is there,Ente iri hali
+[LOCATIVE_DEM] go this way,Genda kunu
+[LOCATIVE_DEM] come that way,Ija kuli
+[LOCATIVE_DEM] the book is in it,Ekitabu kiri numwo
+[LOCATIVE_DEM] the cup is on it,Ekikopo kiri nuho
+[ADV_SUFFIX] get in,Taahamu
+[ADV_SUFFIX] there is water in here,Munu harumu amaizi
+[ADV_SUFFIX] there is no happiness in the world,Omunsi busamu kusemererwa
+[ADV_SUFFIX] he entered inside,Yaingiramu
+[ADV_SUFFIX] put it inside,Biikamu
+[ADV_SUFFIX] stay inside,Ikaramu
+[ADV_SUFFIX] take away / remove it,Taaho
+[ADV_SUFFIX] get away / move away,Rugaho
+[ADV_SUFFIX] a heron is standing on the house,Hanju heemeriireho ekidongodongo
+[ADV_SUFFIX] what is on the ground?,Hansi haroho ki?
+[ADV_SUFFIX] stand on it,Yemeraaho
+[ADV_SUFFIX] put it on there,Biikaho
+[ADV_SUFFIX] sit on it,Ikaraho
+[ADV_SUFFIX] I shall go there to see the porcupine,Ndigendayo ndole enyamunungu
+[ADV_SUFFIX] four visitors slept at our home,Owaitu haraireyo abagenyi bana
+[ADV_SUFFIX] there is no person there,Kuli busayo muntu
+[ADV_SUFFIX] how did you sleep over there?,Muraireyo muta?
+[ADV_SUFFIX] go there,Gendayo
+[ADV_SUFFIX] come back from there,Garukayo
+[ADV_SUFFIX] bring it from there,Leetayo
+[LOC_POSS] in my house,omwange
+[LOC_POSS] in your house,omwawe
+[LOC_POSS] in his/her house,omwe
+[LOC_POSS] in our house,omwaitu
+[LOC_POSS] in your (pl) house,omwanyu
+[LOC_POSS] in their house,omwabu
+[LOC_POSS] at your home,owaawe
+[LOC_POSS] at your (pl) home,owaanyu
+[LOC_POSS] I am going to my home,Ndigenda owange
+[LOC_POSS] she went to his home,Yagenda owe
+[LOC_POSS] they slept at our home,Baraireyo owaitu
+[LOC_POSS] come to my house,Ija omwange
+[LOC_POSS] the food is in your house,Ebikulyo biri omwawe
+[LOC_POSS] we met at their home,Twahurira owaabu
+[LOC_POSS] he lives in our house,Aikara omwaitu
+[LOC_POSS] go to your home,Genda owaawe
+[ENUMERATIVE] I alone,nyenka
+[ENUMERATIVE] you alone,wenka
+[ENUMERATIVE] he/she alone,wenka
+[ENUMERATIVE] we alone,twendeka
+[ENUMERATIVE] you (pl) alone,mwenka
+[ENUMERATIVE] they alone,bonka
+[ENUMERATIVE] they only,bonka
+[ENUMERATIVE] all of us,tweena
+[ENUMERATIVE] all of you,mweena
+[ENUMERATIVE] all of them,boona
+[ENUMERATIVE] all of myself,nyeena
+[ENUMERATIVE] all of yourself,weena
+[ENUMERATIVE] I myself,nyeenyini
+[ENUMERATIVE] you yourself,weenyini
+[ENUMERATIVE] he/she himself,weenyini
+[ENUMERATIVE] we ourselves,tweenyini
+[ENUMERATIVE] you yourselves,mweenyini
+[ENUMERATIVE] they themselves,boonyini
+[ENUMERATIVE] both of us,twembi
+[ENUMERATIVE] both of you,mwembi
+[ENUMERATIVE] both of them,bombi
+[ENUMERATIVE] I came alone,Naaza nyenka
+[ENUMERATIVE] they all came,Baaza boona
+[ENUMERATIVE] she did it herself,Yabikoora weenyini
+[ENUMERATIVE] we went there ourselves,Twagenda tweenyini
+[ENUMERATIVE] both of them are here,Bombi bari hanu
+[ENUMERATIVE] he alone knows the answer,Wenka azi eisubizo
+[ENUMERATIVE] all of you must come,Mweena muriija
+[ENUMERATIVE] they themselves said it,Boonyini babigamba
+[ENUMERATIVE] we alone can do this,Twendeka twabikoora
+[ENUMERATIVE] both of us slept there,Twembi twaraireyo
+[COPULA] it is I / I am the one,niinyowe
+[COPULA] it is you,niiwe
+[COPULA] it is he/she,nuwe
+[COPULA] it is we,niitwe
+[COPULA] it is you (pl),niinywe
+[COPULA] it is they,nubo
+[COPULA] it is a person,n'omuntu
+[COPULA] it is a cow,n'ente
+[COPULA] it is a child,n'omwana
+[COPULA] it is a woman,n'omukazi
+[COPULA] it is a man,n'omusaija
+[COPULA] it is a tree,n'omuti
+[COPULA] it is water,n'amaizi
+[COPULA] it is food,n'ebikulyo
+[COPULA] it is a book,n'ekitabu
+[COPULA] it is a house,n'enju
+[COPULA] it is a dog,n'embwa
+[COPULA] it is a cat,n'ekipaka
+[COPULA] here he/she is (cl.1 near),ngunu
+[COPULA] here they are (cl.2 near),mbanu
+[COPULA] here it is (cl.3 near),ngunu
+[COPULA] here it is (cl.7 near),nkinu
+[COPULA] here they are (cl.10 near),nzinu
+[COPULA] there he/she is (cl.1 far),nguli
+[COPULA] there they are (cl.2 far),mbali
+[COPULA] there it is (cl.3 far),nguli
+[COPULA] there it is (cl.7 far),nkiri
+[COPULA] there they are (cl.10 far),nziri
+[COPULA] who are you?,Niiwe oha?
+[COPULA] it is really you,Niiwe weenyini
+[COPULA] it is a good person,N'omuntu murungi
+[COPULA] it is not a cow,Si nte
+[COPULA] what is it?,Ni ki?
+[COPULA] it is this (cl.3),Ngunu
+[COPULA] it is that (cl.3 far),Nguli
+[COPULA] is it a person?,Ni omuntu?
+"[COPULA] yes, it is a person","Yego, n'omuntu"
+[DARA] here I am,daranyowe
+[DARA] here you are,daraiwe
+[DARA] here he/she is,darawe
+[DARA] here we are,daraitwe
+[DARA] here you (pl) are,darainywe
+[DARA] here they are,darabo
+[DARA] here it is (cl.3),daragwo
+[DARA] here it is (cl.4),darayo
+[DARA] here it is (cl.5),daralyo
+[DARA] here it is (cl.6),darago
+[DARA] here it is (cl.7),darakyo
+[DARA] here it is (cl.8),darabyo
+[DARA] here it is (cl.9),darayo
+[DARA] here it is (cl.10),darazo
+[DARA] here it is (cl.11),dararwo
+[DARA] here it is (cl.12),darako
+[DARA] here it is (cl.14),darabwo
+[DARA] here he/she is (near),daroonu
+[DARA] here they are (near),darabanu
+[DARA] here I come to the place,daraho
+[DARA] I am sure it is in here,daramunu
+[DARA] I am sure it is from here,darahanu
+"[DARA] come here, I have something to tell you",darahanu
+[DARA] it is from there,darahali
+[DARA] it is this way,darakunu
+"[DARA] here I am, I have come","Daranyowe, naaza"
+"[DARA] here they are, all of them",Darabo boona
+[DARA] here is the book,Darakyo ekitabu
+[DARA] here is the water,Darago amaizi
+[DARA] here is the child,Daroonu omwana
+[KA_PARTICLE] the very person,ka muntu
+[KA_PARTICLE] a really good one,ka murungi
+[KA_PARTICLE] it is really you,ka niiwe
+[KA_PARTICLE] it is really my relative,ka wange
+[KA_PARTICLE] here he/she truly is,ka ngunu
+[KA_PARTICLE] the very thing,ka kinu
+[KA_PARTICLE] the very place,ka hanu
+[KA_PARTICLE] let us go,ka tugende
+[KA_PARTICLE] let me go,ka ngende
+[KA_PARTICLE] let him/her go,ka agende
+[KA_PARTICLE] let them go,ka bagende
+[KA_PARTICLE] let us eat,ka tulie
+[KA_PARTICLE] let me eat,ka nlie
+[KA_PARTICLE] let him/her eat,ka alie
+[KA_PARTICLE] let them eat,ka balie
+[KA_PARTICLE] let us sleep,ka turare
+[KA_PARTICLE] let us work,ka tukorere
+[KA_PARTICLE] let us pray,ka tuseenge
+[KA_PARTICLE] let us sing,ka tuimbe
+[KA_PARTICLE] let me see,ka nbone
+[KA_PARTICLE] let him/her come,ka aije
+[KA_PARTICLE] let them come,ka baije
+[KA_PARTICLE] let us go home,ka tugende owaitu
+[KA_PARTICLE] let me help you,ka nkubeho
+[KA_PARTICLE] let us go to school,Ka tugende omushomero
+[KA_PARTICLE] let me speak first,Ka ngambe banza
+[KA_PARTICLE] let them rest,Ka bapumure
+[KA_PARTICLE] let us pray together,Ka tuseenge hamwe
+[KINSHIP] my father,isange
+[KINSHIP] your father,isaawe
+[KINSHIP] his/her father,ise
+[KINSHIP] our father,isiitwe
+[KINSHIP] your (pl) father,isiinywe
+[KINSHIP] their father,isabo
+[KINSHIP] my mother,nyinange
+[KINSHIP] your mother,nyinawe
+[KINSHIP] his/her mother,nyina
+[KINSHIP] our mother,nyinenitu
+[KINSHIP] your (pl) mother,nyineninywe
+[KINSHIP] their mother,nyinabo
+[KINSHIP] my grandfather,isenkurwange
+[KINSHIP] your grandfather,isenkurwawe
+[KINSHIP] his/her grandfather,isenkuru
+[KINSHIP] our grandfather,isenkurwitwe
+[KINSHIP] my grandmother,nyinenkurwange
+[KINSHIP] your grandmother,nyinenkurwawe
+[KINSHIP] his/her grandmother,nyinenkuru
+[KINSHIP] our grandmother,nyinenkurwitwe
+[KINSHIP] paternal aunt,isenkati
+[KINSHIP] maternal aunt,nyinento
+[KINSHIP] maternal uncle,nyinarumi
+[KINSHIP] paternal uncle,isento
+[KINSHIP] father-in-law,isezaara
+[KINSHIP] mother-in-law,nyinazaara
+[KINSHIP] husband,iba
+[KINSHIP] my father came home,Isange yaaza owaitu
+[KINSHIP] her mother is a teacher,Nyina ni omwigishwa
+[KINSHIP] our grandfather is old,Isenkurwitwe ni mukuru
+[KINSHIP] his father works in the city,Ise akoora omu tauni
+[KINSHIP] my mother cooks food,Nyinange ateka ebikulyo
+[KINSHIP] their father is a farmer,Isabo ni omulimi
+[KINSHIP] your grandmother is kind,Nyinenkurwawe ni murungi
+[KINSHIP] I love my mother,Nkunda nyinange
+[KINSHIP] we respect our father,Tukuratira isange
+[KINSHIP] she visited her grandmother,Yazinduka nyinenkurwawe
+[COLOUR] green (like grass),kinyansi
+[COLOUR] green (like ejabwa plant),kijubwa
+[COLOUR] green (like plantain leaf),rubabi
+[COLOUR] brown (like soil),kitaka
+[COLOUR] light brown (like termite hill),kataiki
+[COLOUR] yellow (like ripe banana),kyenju
+[COLOUR] purple (like ehuukya berries),kihuukya
+[COLOUR] red / reddish brown,kigaaja
+[COLOUR] white (like white cow),kyeru
+[COLOUR] dark brown,kisiina
+[COLOUR] grey,kibuubi
+[COLOUR] black (like black cow),kikara
+[COLOUR] dark blue,kaneke
+[COLOUR] blue,bbururu
+[COLOUR] purple (baboon-derived),kakobe
+[COLOUR] the cow is white,Ente ni kyeru
+[COLOUR] the cow is black,Ente ni kikara
+[COLOUR] the cow is brown,Ente ni kitaka
+[COLOUR] the grass is green,Obuheesi ni kinyansi
+[COLOUR] the banana is yellow,Egitooke ni kyenju
+[COLOUR] the sky is blue,Iguru ni bbururu
+[COLOUR] the soil is brown,Itaka ni kitaka
+[COLOUR] the cloth is white,Orugoye ni kyeru
+[COLOUR] the cloth is black,Orugoye ni kikara
+[COLOUR] the cloth is red,Orugoye ni kigaaja
+[COLOUR] what colour is it?,Ni rangi ki?
+[COLOUR] it is white,Ni kyeru
+[COLOUR] it is black,Ni kikara
+[COLOUR] it is green,Ni kinyansi
+[COLOUR] it is yellow,Ni kyenju
+[COLOUR] it is blue,Ni bbururu
+[COLOUR] it is red,Ni kigaaja
+[COLOUR] it is brown,Ni kitaka
+[COLOUR] it is grey,Ni kibuubi
+[NEG_NOUN] a gloomy person / one who does not laugh,omutaseka
+[NEG_NOUN] a touchy person / easily offended,omutagambwaho
+[NEG_NOUN] a dirty person / one who does not bathe,omutooga
+[NEG_NOUN] one who fails to clean,omutacunguurra
+[NEG_NOUN] one who fails to cut nails,omutacwanono
+[NEG_NOUN] one who does not laugh,omutaseka
+[NEG_NOUN] one who does not bathe,omutotooga
+[NEG_NOUN] one who does not work,omutakoora
+[NEG_NOUN] one who does not eat,omutalia
+[NEG_NOUN] one who does not sleep,omutarara
+[NEG_NOUN] one who does not speak,omutayogera
+[NEG_NOUN] one who does not listen,omutawulira
+[NEG_NOUN] one who does not come,omutaija
+[NEG_NOUN] one who does not go,omutayenda
+[NEG_NOUN] one who does not know,omutazi
+[NEG_NOUN] he is a gloomy person,Ni omutaseka
+[NEG_NOUN] she is a dirty person,Ni omutooga
+[NEG_NOUN] he is a touchy person,Ni omutagambwaho
+[NEG_NOUN] do not be a person who does not work,Otaba omutakoora
+[PROF_NOUN] professional cultivator,endimi
+[PROF_NOUN] professional trader,ensuubuzi
+[PROF_NOUN] incurable liar,encwangya
+[PROF_NOUN] permanent widow / widower,enfaakati
+[PROF_NOUN] one who always attends weddings,entaahamagenyi
+[PROF_NOUN] one who visits only for food,engenderakulya
+[PROF_NOUN] an idler / one who is always visiting,embungabungi
+[PROF_NOUN] one who has never seen anything striking,entakabonaga
+[PROF_NOUN] professional carpenter,embazi
+[PROF_NOUN] professional hunter,ennhiizi
+[PROF_NOUN] professional singer,enimbi
+[PROF_NOUN] professional runner,endiriizi
+[PROF_NOUN] professional swimmer,ensimbuzi
+[PROF_NOUN] she is a professional trader,Ni ensuubuzi
+[PROF_NOUN] he is an incurable liar,Ni encwangya
+[PROF_NOUN] she became a permanent widow,Yatuuka enfaakati
+[PROF_NOUN] he is a professional cultivator,Ni endimi
+[VERB_NOUN] cultivator / farmer,omulimi
+[VERB_NOUN] work / cultivation,omulimo
+[VERB_NOUN] method of digging,endima
+[VERB_NOUN] professional digger,omulima
+[VERB_NOUN] player,omuzaani
+[VERB_NOUN] play / game,omuzaano
+[VERB_NOUN] method of playing,enzaana
+[VERB_NOUN] maid servant,omuzaana
+[VERB_NOUN] carpenter,omubazi
+[VERB_NOUN] counting / carpentry,omubaro
+[VERB_NOUN] method of counting,embara
+[VERB_NOUN] one who pants,omuhiizi
+[VERB_NOUN] panting,omuhiijo
+[VERB_NOUN] student / reader,omusomi
+[VERB_NOUN] reading / studying,omusomo
+[VERB_NOUN] method of reading,ensoma
+[VERB_NOUN] speaker,omugambi
+[VERB_NOUN] speech / speaking,omugambo
+[VERB_NOUN] worker,omukozi
+[VERB_NOUN] work,omukozo
+[VERB_NOUN] one who sees / witness,omuboni
+[VERB_NOUN] sight / vision,omubono
+[VERB_NOUN] traveller / walker,omugendi
+[VERB_NOUN] journey / travel,omugendo
+[VERB_NOUN] he is a good farmer,Ni omulimi murungi
+[VERB_NOUN] work is important,Omulimo ni wa bwire
+[VERB_NOUN] the student is reading,Omusomi asoma
+[VERB_NOUN] the carpenter made a chair,Omubazi yakora entebe
+[VERB_NOUN] the worker is tired,Omukozi aruha
+[VERB_NOUN] the traveller arrived,Omugendi yatuuka
+[FRACTION] one half / a half,kimu kya kabiri
+[FRACTION] one third,kimu kya kasatu
+[FRACTION] one quarter,kimu kya kana
+[FRACTION] one fifth,kimu kya kataano
+[FRACTION] two thirds,bibiri bya kasatu
+[FRACTION] two fifths,bibiri bya kataano
+[FRACTION] three quarters,bisatu bya kana
+[FRACTION] two by two,babiri babiri
+[FRACTION] three by three,basatu basatu
+[FRACTION] four by four,bana bana
+[FRACTION] five by five,bataano bataano
+[FRACTION] one by one,omwe omwe
+[FRACTION] in pairs / two by two,babiri babiri
+[FRACTION] give them half each,Baha kimu kya kabiri omwe omwe
+[FRACTION] they came two by two,Baaza babiri babiri
+[FRACTION] they sat three by three,Baikara basatu basatu
+[FRACTION] cut it in half,Temamu kimu kya kabiri
+[FRACTION] he ate three quarters,Yalya bisatu bya kana
+[MODAL] Good morning / How have you slept?,Oraire ota?
+[MODAL] How are you?,Oroho ota?
+[MODAL] I am fine,Ndooho nti
+[MODAL] How do women dig?,Abakazi balima bata?
+[MODAL] They dig like this,Balima bati
+[MODAL] How do cows moo?,Ente zijuga zita?
+[MODAL] They moo like this,Zijuga ziti
+[MODAL] How does he run?,Aguruka ata?
+[MODAL] He runs like this,Aguruka ati
+[MODAL] How do you cook?,Oteka ota?
+[MODAL] I cook like this,Nteka nti
+[MODAL] How do they sing?,Baimba bata?
+[MODAL] They sing like this,Baimba bati
+[MODAL] How did you sleep?,Waraireho ota?
+[MODAL] I slept well,Naraireho nti
+"[MODAL] We told them, 'We are also people like you'","Tukabagambira tuti, 'Na itwe tuli bantu nka inywe'"
+"[MODAL] She said, 'I am going home'","Yagamba ati, 'Ndigenda owaitu'"
+"[MODAL] He said, 'I am tired'","Yagamba ati, 'Nruha'"
+"[MODAL] They said, 'We are hungry'","Bagamba bati, 'Tukanywa'"
+"[MODAL] I said, 'I do not know'","Nagamba nti, 'Nkizi'"
+[HO_ENUM] everywhere / all over,hoona
+[HO_ENUM] only there / in that place only,honka
+[HO_ENUM] both sides / both places,hombi
+[HO_ENUM] the very spot / exactly there,hoonyini
+[HO_ENUM] God is everywhere,Ruhanga ali hoona
+[HO_ENUM] there are books everywhere on the table,Hameeza hoona haijwireho ebitabu
+[HO_ENUM] I looked in the box only,Nkarora omusanduuko honka
+[HO_ENUM] both sides of this cloth are alike,"Hombi, omunda n'aheeru y'orugoye runu nihasisana"
+[HO_ENUM] I did not reach the very spot,Ho hoonyini ntahikeho
+[HO_ENUM] he searched everywhere,Yashakira hoona
+[HO_ENUM] she went to that place only,Yagenda honka
+[HO_ENUM] they came from both sides,Baaza hombi
+[HO_ENUM] that is the very spot,Ho hoonyini
+[OBJ_CONCORD] the garden the woman dug,omusiri omukazi agulimire
+[OBJ_CONCORD] the food the child ate,ebikulyo omwana abyalire
+[OBJ_CONCORD] the book the student read,ekitabu omusomi akisomire
+[OBJ_CONCORD] the cow the man bought,ente omusaija ayizire
+[OBJ_CONCORD] the water the woman fetched,amaizi omukazi agaazire
+[OBJ_CONCORD] the house the man built,enju omusaija ayiziimire
+[OBJ_CONCORD] the child the mother carried,omwana nyina amuzwire
+[OBJ_CONCORD] the song the children sang,endiimbo abaana bayiimbire
+[OBJ_CONCORD] the letter the teacher wrote,barua omwigishwa ayiziikire
+[OBJ_CONCORD] the road the workers made,oluguudo abakoozi baruziimire
+[OBJ_CONCORD] the woman dug the garden,Omukazi alimire omusiri
+[OBJ_CONCORD] the child ate the food,Omwana alire ebikulyo
+[OBJ_CONCORD] the student read the book,Omusomi asomire ekitabu
+[OBJ_CONCORD] the man bought the cow,Omusaija yazire ente
+[OBJ_CONCORD] the woman fetched water,Omukazi aazire amaizi
+[AUGMENTATIVE] big/disrespectful man,isaija
+[AUGMENTATIVE] youth acting badly,isigazi
+[AUGMENTATIVE] insolent child,eryana
+[AUGMENTATIVE] girl of great beauty,eriisiki
+[AUGMENTATIVE] sturdy/troublesome peasant,eriiru
+[AUGMENTATIVE] monster-like person,erintu
+[AUGMENTATIVE] dear poor man (affection),ekiiru
+[AUGMENTATIVE] clumsy/contemptible man,ekisaija
+[AUGMENTATIVE] funny-looking child,ekiyana
+[AUGMENTATIVE] he is a big disrespectful man,Ni isaija
+[AUGMENTATIVE] that youth is acting badly,Oyo ni isigazi
+[AUGMENTATIVE] that child is insolent,Oyo mwana ni eryana
+[AUGMENTATIVE] poor dear man,Ekiiru
+[AUGMENTATIVE] that clumsy man,Ekisaija oyo
+[DEMONSTRATIVE_NEAR] this person,onu omuntu
+[DEMONSTRATIVE_NEAR] these people,banu abantu
+[DEMONSTRATIVE_NEAR] this tree,gunu omuti
+[DEMONSTRATIVE_NEAR] these trees,enu imitiyo
+[DEMONSTRATIVE_NEAR] this fruit,linu eriibo
+[DEMONSTRATIVE_NEAR] these fruits,ganu amaibo
+[DEMONSTRATIVE_NEAR] this thing,kinu ekintu
+[DEMONSTRATIVE_NEAR] these things,binu ebiintu
+[DEMONSTRATIVE_NEAR] this cow,enu ente
+[DEMONSTRATIVE_NEAR] these cows,zinu ente
+[DEMONSTRATIVE_NEAR] this rope,runu oruguwa
+[DEMONSTRATIVE_NEAR] this small thing,kanu akantu
+[DEMONSTRATIVE_NEAR] these small things,tunu utuuntu
+[DEMONSTRATIVE_NEAR] this state,bunu obuuntu
+[DEMONSTRATIVE_NEAR] this action,kunu okukoora
+[DEMONSTRATIVE_FAR] that person,oli omuntu
+[DEMONSTRATIVE_FAR] those people,bali abantu
+[DEMONSTRATIVE_FAR] that tree,guli omuti
+[DEMONSTRATIVE_FAR] those trees,eri imitiyo
+[DEMONSTRATIVE_FAR] that fruit,liri eriibo
+[DEMONSTRATIVE_FAR] those fruits,gali amaibo
+[DEMONSTRATIVE_FAR] that thing,kiri ekintu
+[DEMONSTRATIVE_FAR] those things,biri ebiintu
+[DEMONSTRATIVE_FAR] that cow,eri ente
+[DEMONSTRATIVE_FAR] those cows,ziri ente
+[DEMONSTRATIVE_FAR] that rope,ruli oruguwa
+[DEMONSTRATIVE_FAR] that small thing,kali akantu
+[DEMONSTRATIVE_FAR] that state,buli obuuntu
+[DEMONSTRATIVE_FAR] that action,kuli okukoora
+[VERB_CONJ] I cultivate/dig,nlima
+[VERB_CONJ] I have cultivate/digd / I cultivate/diged,nlimire
+[VERB_CONJ] I do not cultivate/dig / I don't cultivate/dig,tinlima
+[VERB_CONJ] you cultivate/dig,olima
+[VERB_CONJ] you have cultivate/digd / you cultivate/diged,olimire
+[VERB_CONJ] you do not cultivate/dig / you don't cultivate/dig,tiolima
+[VERB_CONJ] he/she cultivate/dig,alima
+[VERB_CONJ] he/she have cultivate/digd / he/she cultivate/diged,alimire
+[VERB_CONJ] he/she do not cultivate/dig / he/she don't cultivate/dig,tialima
+[VERB_CONJ] we cultivate/dig,tulima
+[VERB_CONJ] we have cultivate/digd / we cultivate/diged,tulimire
+[VERB_CONJ] we do not cultivate/dig / we don't cultivate/dig,titulima
+[VERB_CONJ] you (pl) cultivate/dig,mulima
+[VERB_CONJ] you (pl) have cultivate/digd / you (pl) cultivate/diged,mulimire
+[VERB_CONJ] you (pl) do not cultivate/dig / you (pl) don't cultivate/dig,timulima
+[VERB_CONJ] they cultivate/dig,balima
+[VERB_CONJ] they have cultivate/digd / they cultivate/diged,balimire
+[VERB_CONJ] they do not cultivate/dig / they don't cultivate/dig,tibalima
+[VERB_CONJ] cultivate/dig! (command),lima
+[VERB_CONJ] to cultivate/dig,okulima
+[VERB_CONJ] I go/walk,ngenda
+[VERB_CONJ] I have go/walkd / I go/walked,ngenzire
+[VERB_CONJ] I do not go/walk / I don't go/walk,tingenda
+[VERB_CONJ] you go/walk,ogenda
+[VERB_CONJ] you have go/walkd / you go/walked,ogenzire
+[VERB_CONJ] you do not go/walk / you don't go/walk,tiogenda
+[VERB_CONJ] he/she go/walk,agenda
+[VERB_CONJ] he/she have go/walkd / he/she go/walked,agenzire
+[VERB_CONJ] he/she do not go/walk / he/she don't go/walk,tiagenda
+[VERB_CONJ] we go/walk,tugenda
+[VERB_CONJ] we have go/walkd / we go/walked,tugenzire
+[VERB_CONJ] we do not go/walk / we don't go/walk,titugenda
+[VERB_CONJ] you (pl) go/walk,mugenda
+[VERB_CONJ] you (pl) have go/walkd / you (pl) go/walked,mugenzire
+[VERB_CONJ] you (pl) do not go/walk / you (pl) don't go/walk,timugenda
+[VERB_CONJ] they go/walk,bagenda
+[VERB_CONJ] they have go/walkd / they go/walked,bagenzire
+[VERB_CONJ] they do not go/walk / they don't go/walk,tibagenda
+[VERB_CONJ] go/walk! (command),genda
+[VERB_CONJ] to go/walk,okugenda
+[VERB_CONJ] I read/study,nsoma
+[VERB_CONJ] I have read/studyd / I read/studyed,nsomire
+[VERB_CONJ] I do not read/study / I don't read/study,tinsoma
+[VERB_CONJ] you read/study,osoma
+[VERB_CONJ] you have read/studyd / you read/studyed,osomire
+[VERB_CONJ] you do not read/study / you don't read/study,tiosoma
+[VERB_CONJ] he/she read/study,asoma
+[VERB_CONJ] he/she have read/studyd / he/she read/studyed,asomire
+[VERB_CONJ] he/she do not read/study / he/she don't read/study,tiasoma
+[VERB_CONJ] we read/study,tusoma
+[VERB_CONJ] we have read/studyd / we read/studyed,tusomire
+[VERB_CONJ] we do not read/study / we don't read/study,titusoma
+[VERB_CONJ] you (pl) read/study,musoma
+[VERB_CONJ] you (pl) have read/studyd / you (pl) read/studyed,musomire
+[VERB_CONJ] you (pl) do not read/study / you (pl) don't read/study,timusoma
+[VERB_CONJ] they read/study,basoma
+[VERB_CONJ] they have read/studyd / they read/studyed,basomire
+[VERB_CONJ] they do not read/study / they don't read/study,tibasoma
+[VERB_CONJ] read/study! (command),soma
+[VERB_CONJ] to read/study,okusoma
+[VERB_CONJ] I eat,nlya
+[VERB_CONJ] I have eatd / I eated,nlyire
+[VERB_CONJ] I do not eat / I don't eat,tinlya
+[VERB_CONJ] you eat,olya
+[VERB_CONJ] you have eatd / you eated,olyire
+[VERB_CONJ] you do not eat / you don't eat,tiolya
+[VERB_CONJ] he/she eat,alya
+[VERB_CONJ] he/she have eatd / he/she eated,alyire
+[VERB_CONJ] he/she do not eat / he/she don't eat,tialya
+[VERB_CONJ] we eat,tulya
+[VERB_CONJ] we have eatd / we eated,tulyire
+[VERB_CONJ] we do not eat / we don't eat,titulya
+[VERB_CONJ] you (pl) eat,mulya
+[VERB_CONJ] you (pl) have eatd / you (pl) eated,mulyire
+[VERB_CONJ] you (pl) do not eat / you (pl) don't eat,timulya
+[VERB_CONJ] they eat,balya
+[VERB_CONJ] they have eatd / they eated,balyire
+[VERB_CONJ] they do not eat / they don't eat,tibalya
+[VERB_CONJ] eat! (command),lya
+[VERB_CONJ] to eat,okulya
+[VERB_CONJ] I sleep,nrara
+[VERB_CONJ] I have sleepd / I sleeped,nrazire
+[VERB_CONJ] I do not sleep / I don't sleep,tinrara
+[VERB_CONJ] you sleep,orara
+[VERB_CONJ] you have sleepd / you sleeped,orazire
+[VERB_CONJ] you do not sleep / you don't sleep,tiorara
+[VERB_CONJ] he/she sleep,arara
+[VERB_CONJ] he/she have sleepd / he/she sleeped,arazire
+[VERB_CONJ] he/she do not sleep / he/she don't sleep,tiarara
+[VERB_CONJ] we sleep,turara
+[VERB_CONJ] we have sleepd / we sleeped,turazire
+[VERB_CONJ] we do not sleep / we don't sleep,titurara
+[VERB_CONJ] you (pl) sleep,murara
+[VERB_CONJ] you (pl) have sleepd / you (pl) sleeped,murazire
+[VERB_CONJ] you (pl) do not sleep / you (pl) don't sleep,timurara
+[VERB_CONJ] they sleep,barara
+[VERB_CONJ] they have sleepd / they sleeped,barazire
+[VERB_CONJ] they do not sleep / they don't sleep,tibarara
+[VERB_CONJ] sleep! (command),rara
+[VERB_CONJ] to sleep,okurara
+[VERB_CONJ] I work,nkoora
+[VERB_CONJ] I have workd / I worked,nkoozire
+[VERB_CONJ] I do not work / I don't work,tinkoora
+[VERB_CONJ] you work,okoora
+[VERB_CONJ] you have workd / you worked,okoozire
+[VERB_CONJ] you do not work / you don't work,tiokoora
+[VERB_CONJ] he/she work,akoora
+[VERB_CONJ] he/she have workd / he/she worked,akoozire
+[VERB_CONJ] he/she do not work / he/she don't work,tiakoora
+[VERB_CONJ] we work,tukoora
+[VERB_CONJ] we have workd / we worked,tukoozire
+[VERB_CONJ] we do not work / we don't work,titukoora
+[VERB_CONJ] you (pl) work,mukoora
+[VERB_CONJ] you (pl) have workd / you (pl) worked,mukoozire
+[VERB_CONJ] you (pl) do not work / you (pl) don't work,timukoora
+[VERB_CONJ] they work,bakoora
+[VERB_CONJ] they have workd / they worked,bakoozire
+[VERB_CONJ] they do not work / they don't work,tibakoora
+[VERB_CONJ] work! (command),koora
+[VERB_CONJ] to work,okukoora
+[VERB_CONJ] I speak/say,ngamba
+[VERB_CONJ] I have speak/sayd / I speak/sayed,ngambire
+[VERB_CONJ] I do not speak/say / I don't speak/say,tingamba
+[VERB_CONJ] you speak/say,ogamba
+[VERB_CONJ] you have speak/sayd / you speak/sayed,ogambire
+[VERB_CONJ] you do not speak/say / you don't speak/say,tiogamba
+[VERB_CONJ] he/she speak/say,agamba
+[VERB_CONJ] he/she have speak/sayd / he/she speak/sayed,agambire
+[VERB_CONJ] he/she do not speak/say / he/she don't speak/say,tiagamba
+[VERB_CONJ] we speak/say,tugamba
+[VERB_CONJ] we have speak/sayd / we speak/sayed,tugambire
+[VERB_CONJ] we do not speak/say / we don't speak/say,titugamba
+[VERB_CONJ] you (pl) speak/say,mugamba
+[VERB_CONJ] you (pl) have speak/sayd / you (pl) speak/sayed,mugambire
+[VERB_CONJ] you (pl) do not speak/say / you (pl) don't speak/say,timugamba
+[VERB_CONJ] they speak/say,bagamba
+[VERB_CONJ] they have speak/sayd / they speak/sayed,bagambire
+[VERB_CONJ] they do not speak/say / they don't speak/say,tibagamba
+[VERB_CONJ] speak/say! (command),gamba
+[VERB_CONJ] to speak/say,okugamba
+[VERB_CONJ] I see,nbona
+[VERB_CONJ] I have seed / I seeed,nbonire
+[VERB_CONJ] I do not see / I don't see,tinbona
+[VERB_CONJ] you see,obona
+[VERB_CONJ] you have seed / you seeed,obonire
+[VERB_CONJ] you do not see / you don't see,tiobona
+[VERB_CONJ] he/she see,abona
+[VERB_CONJ] he/she have seed / he/she seeed,abonire
+[VERB_CONJ] he/she do not see / he/she don't see,tiabona
+[VERB_CONJ] we see,tubona
+[VERB_CONJ] we have seed / we seeed,tubonire
+[VERB_CONJ] we do not see / we don't see,titubona
+[VERB_CONJ] you (pl) see,mubona
+[VERB_CONJ] you (pl) have seed / you (pl) seeed,mubonire
+[VERB_CONJ] you (pl) do not see / you (pl) don't see,timubona
+[VERB_CONJ] they see,babona
+[VERB_CONJ] they have seed / they seeed,babonire
+[VERB_CONJ] they do not see / they don't see,tibabona
+[VERB_CONJ] see! (command),bona
+[VERB_CONJ] to see,okubona
+[VERB_CONJ] I come,nija
+[VERB_CONJ] I have comed / I comeed,nizire
+[VERB_CONJ] I do not come / I don't come,tinija
+[VERB_CONJ] you come,oija
+[VERB_CONJ] you have comed / you comeed,oizire
+[VERB_CONJ] you do not come / you don't come,tioija
+[VERB_CONJ] he/she come,aija
+[VERB_CONJ] he/she have comed / he/she comeed,aizire
+[VERB_CONJ] he/she do not come / he/she don't come,tiaija
+[VERB_CONJ] we come,tuija
+[VERB_CONJ] we have comed / we comeed,tuizire
+[VERB_CONJ] we do not come / we don't come,tituija
+[VERB_CONJ] you (pl) come,muija
+[VERB_CONJ] you (pl) have comed / you (pl) comeed,muizire
+[VERB_CONJ] you (pl) do not come / you (pl) don't come,timuija
+[VERB_CONJ] they come,baija
+[VERB_CONJ] they have comed / they comeed,baizire
+[VERB_CONJ] they do not come / they don't come,tibaija
+[VERB_CONJ] come! (command),ija
+[VERB_CONJ] to come,okuija
+[VERB_CONJ] I love,nkunda
+[VERB_CONJ] I have loved / I loveed,nkunzire
+[VERB_CONJ] I do not love / I don't love,tinkunda
+[VERB_CONJ] you love,okunda
+[VERB_CONJ] you have loved / you loveed,okunzire
+[VERB_CONJ] you do not love / you don't love,tiokunda
+[VERB_CONJ] he/she love,akunda
+[VERB_CONJ] he/she have loved / he/she loveed,akunzire
+[VERB_CONJ] he/she do not love / he/she don't love,tiakunda
+[VERB_CONJ] we love,tukunda
+[VERB_CONJ] we have loved / we loveed,tukunzire
+[VERB_CONJ] we do not love / we don't love,titukunda
+[VERB_CONJ] you (pl) love,mukunda
+[VERB_CONJ] you (pl) have loved / you (pl) loveed,mukunzire
+[VERB_CONJ] you (pl) do not love / you (pl) don't love,timukunda
+[VERB_CONJ] they love,bakunda
+[VERB_CONJ] they have loved / they loveed,bakunzire
+[VERB_CONJ] they do not love / they don't love,tibakunda
+[VERB_CONJ] love! (command),kunda
+[VERB_CONJ] to love,okukunda
+[VERB_CONJ] I cook,nteka
+[VERB_CONJ] I have cookd / I cooked,ntekire
+[VERB_CONJ] I do not cook / I don't cook,tinteka
+[VERB_CONJ] you cook,oteka
+[VERB_CONJ] you have cookd / you cooked,otekire
+[VERB_CONJ] you do not cook / you don't cook,tioteka
+[VERB_CONJ] he/she cook,ateka
+[VERB_CONJ] he/she have cookd / he/she cooked,atekire
+[VERB_CONJ] he/she do not cook / he/she don't cook,tiateka
+[VERB_CONJ] we cook,tuteka
+[VERB_CONJ] we have cookd / we cooked,tutekire
+[VERB_CONJ] we do not cook / we don't cook,tituteka
+[VERB_CONJ] you (pl) cook,muteka
+[VERB_CONJ] you (pl) have cookd / you (pl) cooked,mutekire
+[VERB_CONJ] you (pl) do not cook / you (pl) don't cook,timuteka
+[VERB_CONJ] they cook,bateka
+[VERB_CONJ] they have cookd / they cooked,batekire
+[VERB_CONJ] they do not cook / they don't cook,tibateka
+[VERB_CONJ] cook! (command),teka
+[VERB_CONJ] to cook,okuteka
+[VERB_CONJ] I sing,nimba
+[VERB_CONJ] I have singd / I singed,nimbire
+[VERB_CONJ] I do not sing / I don't sing,tinimba
+[VERB_CONJ] you sing,oimba
+[VERB_CONJ] you have singd / you singed,oimbire
+[VERB_CONJ] you do not sing / you don't sing,tioimba
+[VERB_CONJ] he/she sing,aimba
+[VERB_CONJ] he/she have singd / he/she singed,aimbire
+[VERB_CONJ] he/she do not sing / he/she don't sing,tiaimba
+[VERB_CONJ] we sing,tuimba
+[VERB_CONJ] we have singd / we singed,tuimbire
+[VERB_CONJ] we do not sing / we don't sing,tituimba
+[VERB_CONJ] you (pl) sing,muimba
+[VERB_CONJ] you (pl) have singd / you (pl) singed,muimbire
+[VERB_CONJ] you (pl) do not sing / you (pl) don't sing,timuimba
+[VERB_CONJ] they sing,baimba
+[VERB_CONJ] they have singd / they singed,baimbire
+[VERB_CONJ] they do not sing / they don't sing,tibaimba
+[VERB_CONJ] sing! (command),imba
+[VERB_CONJ] to sing,okwimba
+[VERB_CONJ] I leave/go out,nruga
+[VERB_CONJ] I have leave/go outd / I leave/go outed,nrugire
+[VERB_CONJ] I do not leave/go out / I don't leave/go out,tinruga
+[VERB_CONJ] you leave/go out,oruga
+[VERB_CONJ] you have leave/go outd / you leave/go outed,orugire
+[VERB_CONJ] you do not leave/go out / you don't leave/go out,tioruga
+[VERB_CONJ] he/she leave/go out,aruga
+[VERB_CONJ] he/she have leave/go outd / he/she leave/go outed,arugire
+[VERB_CONJ] he/she do not leave/go out / he/she don't leave/go out,tiaruga
+[VERB_CONJ] we leave/go out,turuga
+[VERB_CONJ] we have leave/go outd / we leave/go outed,turugire
+[VERB_CONJ] we do not leave/go out / we don't leave/go out,tituruga
+[VERB_CONJ] you (pl) leave/go out,muruga
+[VERB_CONJ] you (pl) have leave/go outd / you (pl) leave/go outed,murugire
+[VERB_CONJ] you (pl) do not leave/go out / you (pl) don't leave/go out,timuruga
+[VERB_CONJ] they leave/go out,baruga
+[VERB_CONJ] they have leave/go outd / they leave/go outed,barugire
+[VERB_CONJ] they do not leave/go out / they don't leave/go out,tibaruga
+[VERB_CONJ] leave/go out! (command),ruga
+[VERB_CONJ] to leave/go out,okuruga
+[VERB_CONJ] I return,ngaruka
+[VERB_CONJ] I have returnd / I returned,ngarukire
+[VERB_CONJ] I do not return / I don't return,tingaruka
+[VERB_CONJ] you return,ogaruka
+[VERB_CONJ] you have returnd / you returned,ogarukire
+[VERB_CONJ] you do not return / you don't return,tiogaruka
+[VERB_CONJ] he/she return,agaruka
+[VERB_CONJ] he/she have returnd / he/she returned,agarukire
+[VERB_CONJ] he/she do not return / he/she don't return,tiagaruka
+[VERB_CONJ] we return,tugaruka
+[VERB_CONJ] we have returnd / we returned,tugarukire
+[VERB_CONJ] we do not return / we don't return,titugaruka
+[VERB_CONJ] you (pl) return,mugaruka
+[VERB_CONJ] you (pl) have returnd / you (pl) returned,mugarukire
+[VERB_CONJ] you (pl) do not return / you (pl) don't return,timugaruka
+[VERB_CONJ] they return,bagaruka
+[VERB_CONJ] they have returnd / they returned,bagarukire
+[VERB_CONJ] they do not return / they don't return,tibagaruka
+[VERB_CONJ] return! (command),garuka
+[VERB_CONJ] to return,okugaruka
+[VERB_CONJ] I need,netaaga
+[VERB_CONJ] I have needd / I needed,netaagire
+[VERB_CONJ] I do not need / I don't need,tinetaaga
+[VERB_CONJ] you need,oetaaga
+[VERB_CONJ] you have needd / you needed,oetaagire
+[VERB_CONJ] you do not need / you don't need,tioetaaga
+[VERB_CONJ] he/she need,aetaaga
+[VERB_CONJ] he/she have needd / he/she needed,aetaagire
+[VERB_CONJ] he/she do not need / he/she don't need,tiaetaaga
+[VERB_CONJ] we need,tuetaaga
+[VERB_CONJ] we have needd / we needed,tuetaagire
+[VERB_CONJ] we do not need / we don't need,tituetaaga
+[VERB_CONJ] you (pl) need,muetaaga
+[VERB_CONJ] you (pl) have needd / you (pl) needed,muetaagire
+[VERB_CONJ] you (pl) do not need / you (pl) don't need,timuetaaga
+[VERB_CONJ] they need,baetaaga
+[VERB_CONJ] they have needd / they needed,baetaagire
+[VERB_CONJ] they do not need / they don't need,tibaetaaga
+[VERB_CONJ] need! (command),etaaga
+[VERB_CONJ] to need,okwetaaga
+[VERB_CONJ] I pray/ask,nshaba
+[VERB_CONJ] I have pray/askd / I pray/asked,nshabire
+[VERB_CONJ] I do not pray/ask / I don't pray/ask,tinshaba
+[VERB_CONJ] you pray/ask,oshaba
+[VERB_CONJ] you have pray/askd / you pray/asked,oshabire
+[VERB_CONJ] you do not pray/ask / you don't pray/ask,tioshaba
+[VERB_CONJ] he/she pray/ask,ashaba
+[VERB_CONJ] he/she have pray/askd / he/she pray/asked,ashabire
+[VERB_CONJ] he/she do not pray/ask / he/she don't pray/ask,tiashaba
+[VERB_CONJ] we pray/ask,tushaba
+[VERB_CONJ] we have pray/askd / we pray/asked,tushabire
+[VERB_CONJ] we do not pray/ask / we don't pray/ask,titushaba
+[VERB_CONJ] you (pl) pray/ask,mushaba
+[VERB_CONJ] you (pl) have pray/askd / you (pl) pray/asked,mushabire
+[VERB_CONJ] you (pl) do not pray/ask / you (pl) don't pray/ask,timushaba
+[VERB_CONJ] they pray/ask,bashaba
+[VERB_CONJ] they have pray/askd / they pray/asked,bashabire
+[VERB_CONJ] they do not pray/ask / they don't pray/ask,tibashaba
+[VERB_CONJ] pray/ask! (command),shaba
+[VERB_CONJ] to pray/ask,okushaba
+[VERB_CONJ] I thank,nbaza
+[VERB_CONJ] I have thankd / I thanked,nbazire
+[VERB_CONJ] I do not thank / I don't thank,tinbaza
+[VERB_CONJ] you thank,obaza
+[VERB_CONJ] you have thankd / you thanked,obazire
+[VERB_CONJ] you do not thank / you don't thank,tiobaza
+[VERB_CONJ] he/she thank,abaza
+[VERB_CONJ] he/she have thankd / he/she thanked,abazire
+[VERB_CONJ] he/she do not thank / he/she don't thank,tiabaza
+[VERB_CONJ] we thank,tubaza
+[VERB_CONJ] we have thankd / we thanked,tubazire
+[VERB_CONJ] we do not thank / we don't thank,titubaza
+[VERB_CONJ] you (pl) thank,mubaza
+[VERB_CONJ] you (pl) have thankd / you (pl) thanked,mubazire
+[VERB_CONJ] you (pl) do not thank / you (pl) don't thank,timubaza
+[VERB_CONJ] they thank,babaza
+[VERB_CONJ] they have thankd / they thanked,babazire
+[VERB_CONJ] they do not thank / they don't thank,tibabaza
+[VERB_CONJ] thank! (command),baza
+[VERB_CONJ] to thank,okubaza
+[VERB_CONJ] I want/love,nenda
+[VERB_CONJ] I have want/loved / I want/loveed,nenzire
+[VERB_CONJ] I do not want/love / I don't want/love,tinenda
+[VERB_CONJ] you want/love,oenda
+[VERB_CONJ] you have want/loved / you want/loveed,oenzire
+[VERB_CONJ] you do not want/love / you don't want/love,tioenda
+[VERB_CONJ] he/she want/love,aenda
+[VERB_CONJ] he/she have want/loved / he/she want/loveed,aenzire
+[VERB_CONJ] he/she do not want/love / he/she don't want/love,tiaenda
+[VERB_CONJ] we want/love,tuenda
+[VERB_CONJ] we have want/loved / we want/loveed,tuenzire
+[VERB_CONJ] we do not want/love / we don't want/love,tituenda
+[VERB_CONJ] you (pl) want/love,muenda
+[VERB_CONJ] you (pl) have want/loved / you (pl) want/loveed,muenzire
+[VERB_CONJ] you (pl) do not want/love / you (pl) don't want/love,timuenda
+[VERB_CONJ] they want/love,baenda
+[VERB_CONJ] they have want/loved / they want/loveed,baenzire
+[VERB_CONJ] they do not want/love / they don't want/love,tibaenda
+[VERB_CONJ] want/love! (command),enda
+[VERB_CONJ] to want/love,okwenda
+[VERB_CONJ] I do/make,nkora
+[VERB_CONJ] I have do/maked / I do/makeed,nkozire
+[VERB_CONJ] I do not do/make / I don't do/make,tinkora
+[VERB_CONJ] you do/make,okora
+[VERB_CONJ] you have do/maked / you do/makeed,okozire
+[VERB_CONJ] you do not do/make / you don't do/make,tiokora
+[VERB_CONJ] he/she do/make,akora
+[VERB_CONJ] he/she have do/maked / he/she do/makeed,akozire
+[VERB_CONJ] he/she do not do/make / he/she don't do/make,tiakora
+[VERB_CONJ] we do/make,tukora
+[VERB_CONJ] we have do/maked / we do/makeed,tukozire
+[VERB_CONJ] we do not do/make / we don't do/make,titukora
+[VERB_CONJ] you (pl) do/make,mukora
+[VERB_CONJ] you (pl) have do/maked / you (pl) do/makeed,mukozire
+[VERB_CONJ] you (pl) do not do/make / you (pl) don't do/make,timukora
+[VERB_CONJ] they do/make,bakora
+[VERB_CONJ] they have do/maked / they do/makeed,bakozire
+[VERB_CONJ] they do not do/make / they don't do/make,tibakora
+[VERB_CONJ] do/make! (command),kora
+[VERB_CONJ] to do/make,okukora
