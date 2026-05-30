@@ -31,6 +31,10 @@ DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
 GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
 
+# New-only training files (pairs not yet trained on)
+NEW_TRAIN_CSV = os.path.join(DATA_DIR, "new_only_train.csv")
+NEW_VAL_CSV   = os.path.join(DATA_DIR, "new_only_val.csv")
+
 SEED_CSVS = [
     os.path.join(BASE, "data", "raw", "medical_seed_vocabulary.csv"),
     os.path.join(BASE, "data", "raw", "education_seed_vocabulary.csv"),
@@ -40,7 +44,7 @@ SEED_CSVS = [
 ]
 
 NLLB_LANG_EN  = "eng_Latn"
-NLLB_LANG_LUN = "run_Latn"
+NLLB_LANG_LUN = "nyn_Latn"  # Nyankore/Nkore — linguistically closest to Runyoro-Rutooro in NLLB-200
 
 
 def _load_pair_keys(csv_path: str) -> set:
@@ -180,10 +184,17 @@ def train_direction(direction: str, args):
     print(f"  Loading from: {model_path}")
     print(f"{'='*55}")
 
-    # Load data
-    train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
-    val_df   = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
-    print(f"  Train: {len(train_df):,}  Val: {len(val_df):,}")
+    # Load data — use new-only split for training if requested, but always validate on full val set
+    if args.new_only and os.path.exists(NEW_TRAIN_CSV):
+        train_df = pd.read_csv(NEW_TRAIN_CSV).dropna()
+        print(f"  [NEW-ONLY] Train: {len(train_df):,} (new pairs only)")
+    else:
+        train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
+        print(f"  Train: {len(train_df):,}")
+
+    # Always validate on the full val.csv for a meaningful BLEU score
+    val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
+    print(f"  Val:   {len(val_df):,} (full val set)")
 
     # Load tokenizer and model from local path (fine-tune, not from scratch)
     print("  Loading tokenizer and model from local checkpoint...")
@@ -280,7 +291,7 @@ def train_direction(direction: str, args):
             raw_model, tokenizer, val_df, direction, device,
             src_lang, tgt_lang, max_length=args.max_length,
         )
-        print(f"  Epoch {epoch}/{args.epochs} — loss={avg_loss:.4f}  BLEU={bleu:.2f}")
+        print(f"  Epoch {epoch}/{args.epochs} -- loss={avg_loss:.4f}  BLEU={bleu:.2f}")
 
         # Save best checkpoint
         if bleu > best_bleu:
@@ -289,7 +300,7 @@ def train_direction(direction: str, args):
                 shutil.rmtree(best_ckpt)
             raw_model.save_pretrained(best_ckpt)
             tokenizer.save_pretrained(best_ckpt)
-            print(f"  ✓ New best BLEU={bleu:.2f} — saved to {best_ckpt}")
+            print(f"  [BEST] New best BLEU={bleu:.2f} -- saved to {best_ckpt}")
 
     # Promote best checkpoint to model root
     if os.path.exists(best_ckpt):
@@ -298,7 +309,7 @@ def train_direction(direction: str, args):
             src = os.path.join(best_ckpt, fname)
             dst = os.path.join(model_path, fname)
             shutil.copy2(src, dst)
-        print(f"  ✓ nllb_{direction} updated")
+        print(f"  [OK] nllb_{direction} updated")
     else:
         print("  No best checkpoint found — saving final model")
         raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
@@ -314,9 +325,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Fine-tune local NLLB models on Runyoro-Rutooro data"
     )
+    parser.add_argument("--new-only",   action="store_true", default=False,
+                        help="Train only on new (untrained) pairs from new_only_train.csv")
     parser.add_argument("--direction", type=str, default="both",
                         choices=["en2lun", "lun2en", "both"])
-    parser.add_argument("--epochs",     type=int,   default=3)
+    parser.add_argument("--epochs",     type=int,   default=5)
     parser.add_argument("--batch-size", type=int,   default=8,
                         help="Keep low (8-16) — NLLB is large")
     parser.add_argument("--lr",         type=float, default=1e-5,

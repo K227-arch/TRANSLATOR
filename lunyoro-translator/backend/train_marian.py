@@ -47,6 +47,10 @@ DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
 GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
 
+# New-only training files (pairs not yet trained on)
+NEW_TRAIN_CSV = os.path.join(DATA_DIR, "new_only_train.csv")
+NEW_VAL_CSV   = os.path.join(DATA_DIR, "new_only_val.csv")
+
 # Seed vocabulary files - these are the highest-priority pairs
 SEED_CSVS = [
     os.path.join(BASE, "data", "raw", "medical_seed_vocabulary.csv"),
@@ -257,10 +261,17 @@ def train_direction(direction: str, args):
     print(f"Training: {direction}")
     print(f"{'='*50}")
 
-    # Load data
-    train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
-    val_df   = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
-    print(f"  Train: {len(train_df):,}  Val: {len(val_df):,}")
+    # Load data — use new-only split for training if requested, but always validate on full val set
+    if args.new_only and os.path.exists(NEW_TRAIN_CSV):
+        train_df = pd.read_csv(NEW_TRAIN_CSV).dropna()
+        print(f"  [NEW-ONLY] Train: {len(train_df):,} (new pairs only)")
+    else:
+        train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
+        print(f"  Train: {len(train_df):,}")
+
+    # Always validate on the full val.csv for a meaningful BLEU score
+    val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
+    print(f"  Val:   {len(val_df):,} (full val set)")
 
     # Load tokenizer and model
     print("  Loading tokenizer and model...")
@@ -413,9 +424,12 @@ def train_direction(direction: str, args):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--new-only",     action="store_true", default=False,
+                        help="Train only on new (untrained) pairs from new_only_train.csv")
     parser.add_argument("--direction",    type=str, default="both",
                         choices=["en2lun", "lun2en", "both"])
-    parser.add_argument("--epochs",       type=int,   default=5)
+    parser.add_argument("--epochs",       type=int,   default=5,
+                        help="Number of training epochs (default: 5)")
     parser.add_argument("--batch-size",   type=int,   default=32)
     parser.add_argument("--lr",           type=float, default=5e-5)
     parser.add_argument("--max-length",   type=int,   default=256,
