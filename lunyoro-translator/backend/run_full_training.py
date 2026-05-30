@@ -74,6 +74,7 @@ def main():
             [py, "train_marian.py",
              "--direction", "en2lun",
              "--epochs", str(args.marian_en2lun_epochs),
+             "--lr", "3e-5",
              "--new-only"],
         )
         if not ok:
@@ -84,6 +85,8 @@ def main():
             [py, "train_marian.py",
              "--direction", "lun2en",
              "--epochs", str(args.marian_lun2en_epochs),
+             "--lr", "3e-5",
+             "--min-lun-words", "3",
              "--new-only"],
         )
         if not ok:
@@ -96,6 +99,7 @@ def main():
             [py, "train_nllb.py",
              "--direction", "en2lun",
              "--epochs", str(args.nllb_en2lun_epochs),
+             "--lr", "8e-6",
              "--new-only"],
         )
         if not ok:
@@ -106,6 +110,8 @@ def main():
             [py, "train_nllb.py",
              "--direction", "lun2en",
              "--epochs", str(args.nllb_lun2en_epochs),
+             "--lr", "8e-6",
+             "--min-lun-words", "3",
              "--new-only"],
         )
         if not ok:
@@ -123,7 +129,8 @@ def main():
         [py, "train_marian.py",
          "--direction", "en2lun",
          "--epochs", str(args.retrain_en2lun_epochs),
-         "--new-only"],   # trains on new data, validates on full val.csv
+         "--lr", "3e-5",
+         "--new-only"],
     )
     if not ok:
         failed.append("MarianMT-en2lun-retrain")
@@ -133,7 +140,9 @@ def main():
         [py, "train_marian.py",
          "--direction", "lun2en",
          "--epochs", str(args.retrain_lun2en_epochs),
-         "--new-only"],   # trains on new data, validates on full val.csv
+         "--lr", "3e-5",
+         "--min-lun-words", "3",
+         "--new-only"],
     )
     if not ok:
         failed.append("MarianMT-lun2en-retrain")

@@ -43,6 +43,8 @@ SEED_CSVS = [
     os.path.join(BASE, "data", "raw", "agriculture_seed_vocabulary.csv"),
 ]
 
+GR5_UNC_CSV = os.path.join(BASE, "data", "cleaned", "gr5_uncovered_pairs.csv")
+
 NLLB_LANG_EN  = "eng_Latn"
 NLLB_LANG_LUN = "nyn_Latn"  # Nyankore/Nkore — linguistically closest to Runyoro-Rutooro in NLLB-200
 
@@ -63,12 +65,13 @@ def _load_pair_keys(csv_path: str) -> set:
     return keys
 
 
-# ── Weighted sampler (same logic as train_marian.py) ─────────────────────────
+# ── Weighted sampler (direction-aware, same logic as train_marian.py) ────────
 
-def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedRandomSampler:
-    gr4_keys  = _load_pair_keys(GR4_CSV)
-    gr5_keys  = _load_pair_keys(GR5_CSV)
-    grammar_keys = gr4_keys | gr5_keys
+def build_weighted_sampler(df: pd.DataFrame, direction: str = "en2lun") -> WeightedRandomSampler:
+    gr4_keys   = _load_pair_keys(GR4_CSV)
+    gr5_keys   = _load_pair_keys(GR5_CSV)
+    gr5u_keys  = _load_pair_keys(GR5_UNC_CSV)
+    grammar_keys = gr4_keys | gr5_keys | gr5u_keys
 
     seed_keys: set = set()
     for csv_path in SEED_CSVS:
@@ -79,14 +82,30 @@ def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedR
         en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
         lun = str(row.get("lunyoro", "")).strip().lower()
         src = str(row.get("source", "")).lower()
+
         if (en, lun) in seed_keys:
-            weights.append(8.0)
+            w = 8.0
         elif (en, lun) in grammar_keys:
-            weights.append(6.0)
+            w = 6.0
         elif "back_translation" in src:
-            weights.append(2.0)
+            w = 2.0
         else:
-            weights.append(1.0)
+            w = 1.0
+
+        lun_words = len(lun.split())
+        en_words  = len(en.split())
+
+        if direction == "lun2en":
+            if lun_words >= 5:
+                w *= 3.0
+            elif lun_words >= 3:
+                w *= 1.5
+            elif lun_words <= 2:
+                w *= 0.3
+        elif direction == "en2lun" and en_words >= 8:
+            w *= 1.5
+
+        weights.append(w)
 
     weights_tensor = torch.DoubleTensor(weights)
     return WeightedRandomSampler(weights_tensor, num_samples=len(weights), replacement=True)
@@ -196,6 +215,13 @@ def train_direction(direction: str, args):
     val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
     print(f"  Val:   {len(val_df):,} (full val set)")
 
+    # Filter short Lunyoro entries for lun2en (removes dict entries that hurt BLEU)
+    if direction == "lun2en" and args.min_lun_words > 0:
+        before = len(train_df)
+        train_df = train_df[train_df["lunyoro"].astype(str).str.split().str.len() >= args.min_lun_words]
+        print(f"  [filter] lun2en: kept {len(train_df):,}/{before:,} pairs "
+              f"(lun_words >= {args.min_lun_words})")
+
     # Load tokenizer and model from local path (fine-tune, not from scratch)
     print("  Loading tokenizer and model from local checkpoint...")
     tokenizer = NllbTokenizer.from_pretrained(model_path)
@@ -221,8 +247,8 @@ def train_direction(direction: str, args):
         return collate_fn(batch, tokenizer, src_lang, tgt_lang,
                           max_length=args.max_length)
 
-    # Weighted sampler: gr4 pairs 4x, back-translated 2x, rest 1x
-    sampler = build_weighted_sampler(train_df)
+    # Direction-aware weighted sampler
+    sampler = build_weighted_sampler(train_df, direction=direction)
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size,
         sampler=sampler, collate_fn=_collate, num_workers=0,
@@ -327,13 +353,16 @@ def main():
     )
     parser.add_argument("--new-only",   action="store_true", default=False,
                         help="Train only on new (untrained) pairs from new_only_train.csv")
+    parser.add_argument("--min-lun-words", type=int, default=3,
+                        help="Filter pairs where Lunyoro has fewer than N words "
+                             "(lun2en only). Default 3. Set 0 to disable.")
     parser.add_argument("--direction", type=str, default="both",
                         choices=["en2lun", "lun2en", "both"])
     parser.add_argument("--epochs",     type=int,   default=5)
     parser.add_argument("--batch-size", type=int,   default=8,
-                        help="Keep low (8-16) — NLLB is large")
-    parser.add_argument("--lr",         type=float, default=1e-5,
-                        help="Lower LR than MarianMT (default 1e-5)")
+                        help="Keep low (8-16) -- NLLB is large")
+    parser.add_argument("--lr",         type=float, default=8e-6,
+                        help="Slightly lower LR for better convergence (was 1e-5)")
     parser.add_argument("--max-length", type=int,   default=256)
     parser.add_argument("--fp16",       action="store_true", default=True,
                         help="Mixed precision (GPU only)")
