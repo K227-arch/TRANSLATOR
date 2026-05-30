@@ -239,8 +239,10 @@ def collate_fn(batch, tokenizer, max_length: int = 256,
 # ── Training loop ─────────────────────────────────────────────────────────────
 
 def evaluate_bleu(model, tokenizer, val_df: pd.DataFrame,
-                  direction: str, device: str, n_samples: int = 500) -> float:
-    """Compute BLEU on a sample of the validation set."""
+                  direction: str, device: str, n_samples: int = 500,
+                  min_lun_words: int = 0) -> float:
+    """Compute BLEU on a sample of the validation set.
+    For lun2en, filters short Lunyoro pairs to match training distribution."""
     model.eval()
     bleu = BLEU(effective_order=True)
 
@@ -252,7 +254,12 @@ def evaluate_bleu(model, tokenizer, val_df: pd.DataFrame,
     else:
         src_col, tgt_col = 'lunyoro', 'english'
 
-    sample = val_df.sample(min(n_samples, len(val_df)), random_state=42)
+    # For lun2en: filter val set to match training distribution
+    eval_df = val_df
+    if direction == "lun2en" and min_lun_words > 0:
+        eval_df = val_df[val_df["lunyoro"].astype(str).str.split().str.len() >= min_lun_words]
+
+    sample = eval_df.sample(min(n_samples, len(eval_df)), random_state=42)
     hypotheses, references = [], []
 
     for _, row in sample.iterrows():
@@ -411,9 +418,10 @@ def train_direction(direction: str, args):
         avg_loss = total_loss / steps
         print(f"\n  Epoch {epoch} complete - avg loss: {avg_loss:.4f}")
 
-        # Evaluate BLEU
+        # Evaluate BLEU — for lun2en, filter val set to match training distribution
         raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
-        bleu_score = evaluate_bleu(raw_model, tokenizer, val_df, direction, device)
+        bleu_score = evaluate_bleu(raw_model, tokenizer, val_df, direction, device,
+                                   min_lun_words=args.min_lun_words)
         print(f"  Validation BLEU: {bleu_score:.2f}")
 
         # Save best checkpoint

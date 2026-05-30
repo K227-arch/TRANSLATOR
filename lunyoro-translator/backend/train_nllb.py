@@ -151,16 +151,22 @@ def collate_fn(batch, tokenizer, src_lang, tgt_lang, max_length=256):
 # ── BLEU evaluation ───────────────────────────────────────────────────────────
 
 def evaluate_bleu(model, tokenizer, val_df, direction, device,
-                  src_lang, tgt_lang, max_samples=200, max_length=256):
+                  src_lang, tgt_lang, max_samples=200, max_length=256,
+                  min_lun_words=0):
     from sacrebleu.metrics import BLEU
     bleu = BLEU(effective_order=True)
 
+    # For lun2en: filter val set to match training distribution
+    eval_df = val_df
+    if direction == "lun2en" and min_lun_words > 0:
+        eval_df = val_df[val_df["lunyoro"].astype(str).str.split().str.len() >= min_lun_words]
+
     if direction == "en2lun":
-        srcs = val_df["english"].astype(str).tolist()[:max_samples]
-        refs = val_df["lunyoro"].astype(str).tolist()[:max_samples]
+        srcs = eval_df["english"].astype(str).tolist()[:max_samples]
+        refs = eval_df["lunyoro"].astype(str).tolist()[:max_samples]
     else:
-        srcs = val_df["lunyoro"].astype(str).tolist()[:max_samples]
-        refs = val_df["english"].astype(str).tolist()[:max_samples]
+        srcs = eval_df["lunyoro"].astype(str).tolist()[:max_samples]
+        refs = eval_df["english"].astype(str).tolist()[:max_samples]
 
     model.eval()
     hypotheses = []
@@ -311,11 +317,12 @@ def train_direction(direction: str, args):
 
         avg_loss = total_loss / max(steps, 1)
 
-        # Evaluate
+        # Evaluate — for lun2en, filter val set to match training distribution
         raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
         bleu = evaluate_bleu(
             raw_model, tokenizer, val_df, direction, device,
             src_lang, tgt_lang, max_length=args.max_length,
+            min_lun_words=args.min_lun_words,
         )
         print(f"  Epoch {epoch}/{args.epochs} -- loss={avg_loss:.4f}  BLEU={bleu:.2f}")
 
