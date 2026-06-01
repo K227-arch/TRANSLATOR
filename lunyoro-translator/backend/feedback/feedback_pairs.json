@@ -945,5 +945,17 @@
     "score_cul": 4,
     "sqs": 92.4,
     "timestamp": "2026-06-01T06:06:11.648087"
+  },
+  {
+    "source_text": "I am going to the market to buy tomatoes and onions.",
+    "translation": "Ningenda mukale kugira entaanya na entatunguru.",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "Nogenda mukatale kugura enyanya no'butunguru",
+    "error_type": "spelling, other: Plurals",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.47.7",
+    "timestamp": "2026-06-01T06:08:36.000886"
   }
 ]
