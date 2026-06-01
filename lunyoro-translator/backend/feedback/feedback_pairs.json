@@ -1023,5 +1023,26 @@
     "score_cul": 2,
     "sqs": 71.8,
     "timestamp": "2026-06-01T06:30:24.279353"
+  },
+  {
+    "source_text": "Yesterday my my children played football until evening.",
+    "translation": "Ijo abaana bange bana nibazaana omupiira kuhikya nyenkyakara.",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.40.242",
+    "score_mng": 4,
+    "score_grm": 5,
+    "score_tns": 5,
+    "score_vcb": 4,
+    "score_ort": 4,
+    "score_ctx": 5,
+    "score_flu": 4,
+    "score_cul": 4,
+    "sqs": 87.4,
+    "timestamp": "2026-06-01T06:35:20.920567"
   }
 ]
