@@ -1056,5 +1056,26 @@
     "refined": true,
     "ip": "10.16.40.242",
     "timestamp": "2026-06-01T06:37:00.706705"
+  },
+  {
+    "source_text": "Tell your mother that I will visit tomorrow.",
+    "translation": "Gambira nyoko nyije n'omugonza nyenkya.",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.47.7",
+    "score_mng": 5,
+    "score_grm": 5,
+    "score_tns": 4,
+    "score_vcb": 4,
+    "score_ort": 5,
+    "score_ctx": 5,
+    "score_flu": 4,
+    "score_cul": 4,
+    "sqs": 91.6,
+    "timestamp": "2026-06-01T06:45:47.278617"
   }
 ]
