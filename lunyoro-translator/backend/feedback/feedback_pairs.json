@@ -1077,5 +1077,17 @@
     "score_cul": 4,
     "sqs": 91.6,
     "timestamp": "2026-06-01T06:45:47.278617"
+  },
+  {
+    "source_text": "The food is delicious but a little testy",
+    "translation": "Ebyokurya birungi baitu bikyokya muno",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "refined": true,
+    "ip": "10.16.40.242",
+    "timestamp": "2026-06-01T07:34:11.350637"
   }
 ]
