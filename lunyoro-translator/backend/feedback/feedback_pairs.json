@@ -1175,5 +1175,17 @@
     "score_cul": 2,
     "sqs": 58.6,
     "timestamp": "2026-06-01T09:08:23.999166"
+  },
+  {
+    "source_text": "Parliament passed the bill with a  two-thirds majority vote.",
+    "translation": "Orukurato nurubinga ebiragiro ebi habwiboro bibiri bya kasatu.",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "both_models_wrong",
+    "model_used": "none",
+    "refined": true,
+    "ip": "10.16.3.80",
+    "timestamp": "2026-06-01T09:12:01.716202"
   }
 ]
