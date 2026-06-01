@@ -1002,5 +1002,26 @@
     "refined": true,
     "ip": "10.16.40.242",
     "timestamp": "2026-06-01T06:29:50.017947"
+  },
+  {
+    "source_text": "Where did you put the keys to the house?",
+    "translation": "Okaghetti nkaha ebisumuruzo by'enzu?",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "Ebisumuruzo bye'nju obitaire nkaha?",
+    "error_type": "spelling, vocabulary",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.37.205",
+    "score_mng": 4,
+    "score_grm": 5,
+    "score_tns": 4,
+    "score_vcb": 3,
+    "score_ort": 3,
+    "score_ctx": 4,
+    "score_flu": 2,
+    "score_cul": 2,
+    "sqs": 71.8,
+    "timestamp": "2026-06-01T06:30:24.279353"
   }
 ]
