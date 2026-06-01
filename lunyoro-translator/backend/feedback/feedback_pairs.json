@@ -891,5 +891,17 @@
     "refined": true,
     "ip": "10.16.40.242",
     "timestamp": "2026-06-01T05:55:56.009828"
+  },
+  {
+    "source_text": "My name is Tumusiime and I am from Hoima.",
+    "translation": "Ibara ryange Tumusiime kandi ndi Hoima.",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "both_models_correct",
+    "model_used": "both",
+    "refined": true,
+    "ip": "10.16.47.7",
+    "timestamp": "2026-06-01T05:58:14.081463"
   }
 ]
