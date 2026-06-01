@@ -1044,5 +1044,17 @@
     "score_cul": 4,
     "sqs": 87.4,
     "timestamp": "2026-06-01T06:35:20.920567"
+  },
+  {
+    "source_text": "Yesterday my my children played football until evening.",
+    "translation": "Ijo abaana bange bana nibazaana omupiira kuhikya nyenkyakara.",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "Ijo abaana bange bakazana omupiira okuhikya rwebajyo",
+    "error_type": "spelling, vocabulary",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.40.242",
+    "timestamp": "2026-06-01T06:37:00.706705"
   }
 ]
