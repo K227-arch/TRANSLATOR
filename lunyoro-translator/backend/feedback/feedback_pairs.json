@@ -957,5 +957,26 @@
     "refined": true,
     "ip": "10.16.47.7",
     "timestamp": "2026-06-01T06:08:36.000886"
+  },
+  {
+    "source_text": "Please give me a cup of water; I am very thirsty.",
+    "translation": "Onganyira mpaire nkopo y'amaizi; nyin'iroho.",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.47.7",
+    "score_mng": 2,
+    "score_grm": 4,
+    "score_tns": 4,
+    "score_vcb": 1,
+    "score_ort": 3,
+    "score_ctx": 3,
+    "score_flu": 1,
+    "score_cul": 1,
+    "sqs": 48.4,
+    "timestamp": "2026-06-01T06:14:47.549419"
   }
 ]
