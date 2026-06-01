@@ -1130,5 +1130,17 @@
     "score_cul": 4,
     "sqs": 87.0,
     "timestamp": "2026-06-01T07:44:09.671365"
+  },
+  {
+    "source_text": "If you finish your work early,  we can go together to the well.",
+    "translation": "Kakuba wamazire kara omulimo nitusobora kugenda hamu ha iziba.",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "Kakuba Omaha Kara omulimo gwawe,  nitusobora kugenda hamu haiziba",
+    "error_type": "grammar, spelling",
+    "model_used": "nllb",
+    "refined": true,
+    "ip": "10.16.37.205",
+    "timestamp": "2026-06-01T07:44:12.183445"
   }
 ]
