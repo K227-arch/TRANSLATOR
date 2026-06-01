@@ -1142,5 +1142,17 @@
     "refined": true,
     "ip": "10.16.37.205",
     "timestamp": "2026-06-01T07:44:12.183445"
+  },
+  {
+    "source_text": "The president addressed the nation about the new education policy.",
+    "translation": "Omuhikirwa akataahya ihanga habwebiragiro by'enjigiriza ebihyaka.",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "both_models_wrong",
+    "model_used": "none",
+    "refined": true,
+    "ip": "10.16.3.80",
+    "timestamp": "2026-06-01T09:00:36.343842"
   }
 ]
