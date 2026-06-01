@@ -879,5 +879,17 @@
     "score_cul": 3,
     "sqs": 82.8,
     "timestamp": "2026-06-01T05:53:59.650434"
+  },
+  {
+    "source_text": "Good morning, how did you sleep?",
+    "translation": "Oraire n'omuntu?",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "Nyenkyara enungi, oraire ota?",
+    "error_type": "",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.40.242",
+    "timestamp": "2026-06-01T05:55:56.009828"
   }
 ]
