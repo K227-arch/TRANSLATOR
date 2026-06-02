@@ -1,111 +1,778 @@
 source,english
-gr5_uncovered_pairs.csv,The woman dug the garden.
-gr5_uncovered_pairs.csv,The woman dug the garden (object fronted).
-gr5_uncovered_pairs.csv,The garden the woman dug.
-gr5_uncovered_pairs.csv,The garden the woman dug (object fronted).
-gr5_uncovered_pairs.csv,The herdsmen drank the milk.
-gr5_uncovered_pairs.csv,The herdsmen drank the milk (object fronted).
-gr5_uncovered_pairs.csv,The children brought the books.
-gr5_uncovered_pairs.csv,The children brought the books (object fronted).
-gr5_uncovered_pairs.csv,The child herded the cow.
-gr5_uncovered_pairs.csv,The child herded the cow (object fronted).
-gr5_uncovered_pairs.csv,The farmer cut the rope.
-gr5_uncovered_pairs.csv,The farmer cut the rope (object fronted).
-gr5_uncovered_pairs.csv,The woman saw the child.
-gr5_uncovered_pairs.csv,The woman saw the child (object fronted).
-gr5_uncovered_pairs.csv,The people saw the dog.
-gr5_uncovered_pairs.csv,The people saw the dog (object fronted).
-gr5_uncovered_pairs.csv,The child read the book.
-gr5_uncovered_pairs.csv,The child read the book (object fronted).
-gr5_uncovered_pairs.csv,The woman bought the bananas.
-gr5_uncovered_pairs.csv,The woman bought the bananas (object fronted).
-gr5_uncovered_pairs.csv,The dog bit the child.
-gr5_uncovered_pairs.csv,The child the dog bit.
-gr5_uncovered_pairs.csv,The farmer cut the banana tree.
-gr5_uncovered_pairs.csv,The teacher taught the children.
-gr5_uncovered_pairs.csv,The children the teacher taught.
-gr5_uncovered_pairs.csv,Amooti is a good person.
-gr5_uncovered_pairs.csv,All the grandmothers are wise.
-gr5_uncovered_pairs.csv,The Mr. Elephants are big.
-gr5_uncovered_pairs.csv,The Mr. Rabbits are clever.
-gr5_uncovered_pairs.csv,the green (like ejabwa plant)
-gr5_uncovered_pairs.csv,the green (like plantain leaf)
-gr5_uncovered_pairs.csv,the light brown (like termite hill)
-gr5_uncovered_pairs.csv,the yellow (like ripe banana)
-gr5_uncovered_pairs.csv,the purple (like ehuukya berries)
-gr5_uncovered_pairs.csv,red/reddish brown (like reddish cow)
-gr5_uncovered_pairs.csv,the red/reddish brown (like reddish cow)
-gr5_uncovered_pairs.csv,the white (like white cow/hen)
-gr5_uncovered_pairs.csv,dark brown (like dark brown cow)
-gr5_uncovered_pairs.csv,the dark brown (like dark brown cow)
-gr5_uncovered_pairs.csv,the grey (like greyish cow)
-gr5_uncovered_pairs.csv,the black (like black cow/hen)
-gr5_uncovered_pairs.csv,many green (like ejabwa plant)s
-gr5_uncovered_pairs.csv,many green (like plantain leaf)s
-gr5_uncovered_pairs.csv,many light brown (like termite hill)s
-gr5_uncovered_pairs.csv,many yellow (like ripe banana)s
-gr5_uncovered_pairs.csv,many purple (like ehuukya berries)s
-gr5_uncovered_pairs.csv,The office is near the market.
-gr5_uncovered_pairs.csv,The motor car is fast.
-gr5_uncovered_pairs.csv,There are more things at Kaseese.
-gr5_uncovered_pairs.csv,Buganda is a big kingdom.
-gr5_uncovered_pairs.csv,Tooro is in western Uganda.
-gr5_uncovered_pairs.csv,Bunyoro is an ancient kingdom.
-gr5_uncovered_pairs.csv,The offices are near the market.
-gr5_uncovered_pairs.csv,The motor cars are fast.
-gr5_uncovered_pairs.csv,The cow is reddish brown.
-gr5_uncovered_pairs.csv,The cow is dark brown.
-gr5_uncovered_pairs.csv,Count each group of cows of the same colour.
-gr5_uncovered_pairs.csv,The white cow is mine.
-gr5_uncovered_pairs.csv,I want a black cow.
-gr5_uncovered_pairs.csv,The green grass is fresh.
-gr5_uncovered_pairs.csv,What colour is the cow?
-gr5_uncovered_pairs.csv,The cow is light brown.
-gr5_uncovered_pairs.csv,The cloth is dark blue.
-gr5_uncovered_pairs.csv,one who climbs the table
-gr5_uncovered_pairs.csv,one who does not study
-gr5_uncovered_pairs.csv,one who does not dance
-gr5_uncovered_pairs.csv,person who refuses to dance
-gr5_uncovered_pairs.csv,one who does not ask
-gr5_uncovered_pairs.csv,one who does not look
-gr5_uncovered_pairs.csv,one who does not drink
-gr5_uncovered_pairs.csv,one who does not arrive
-gr5_uncovered_pairs.csv,person who is always late
-gr5_uncovered_pairs.csv,one who does not bring
-gr5_uncovered_pairs.csv,person who never brings anything
-gr5_uncovered_pairs.csv,He is a gloomy person who never laughs.
-gr5_uncovered_pairs.csv,She is a dirty person who never bathes.
-gr5_uncovered_pairs.csv,He is a touchy person.
-gr5_uncovered_pairs.csv,The gloomy person sat alone.
-gr5_uncovered_pairs.csv,A dirty person is not welcome.
-gr5_uncovered_pairs.csv,He is a lazy person who never works.
-gr5_uncovered_pairs.csv,She is a silent person.
-gr5_uncovered_pairs.csv,A person who never eats is sick.
-gr5_uncovered_pairs.csv,one who always goes to parties
-gr5_uncovered_pairs.csv,"one who is always visiting, idler"
-gr5_uncovered_pairs.csv,one who is always going
-gr5_uncovered_pairs.csv,The professional cultivator works hard.
-gr5_uncovered_pairs.csv,The professional trader sells many things.
-gr5_uncovered_pairs.csv,The incurable liar is not trusted.
-gr5_uncovered_pairs.csv,The permanent widow lives alone.
-gr5_uncovered_pairs.csv,The professional builder built the house.
-gr5_uncovered_pairs.csv,The professional hunter caught a lion.
-gr5_uncovered_pairs.csv,The glutton ate all the food.
-gr5_uncovered_pairs.csv,That big disrespectful man came.
-gr5_uncovered_pairs.csv,The insolent child broke the cup.
-gr5_uncovered_pairs.csv,That clumsy man fell down.
-gr5_uncovered_pairs.csv,The dear poor man is my friend.
-gr5_uncovered_pairs.csv,That bold girl is clever.
-gr5_uncovered_pairs.csv,The troublesome youth ran away.
-gr5_uncovered_pairs.csv,That huge person ate all the food.
-gr5_uncovered_pairs.csv,The mongoose is in its place.
-gr5_uncovered_pairs.csv,The animal is at its place.
-training_tagged,[AGRCULTURE) There is a plant in the garden
+bt_remaining_candidates.csv,The woman dug the garden.
+bt_remaining_candidates.csv,The garden the woman dug.
+bt_remaining_candidates.csv,The herdsmen drank the milk.
+bt_remaining_candidates.csv,The children brought the books.
+bt_remaining_candidates.csv,The child herded the cow.
+bt_remaining_candidates.csv,The farmer cut the rope.
+bt_remaining_candidates.csv,The woman saw the child.
+bt_remaining_candidates.csv,The people saw the dog.
+bt_remaining_candidates.csv,The child read the book.
+bt_remaining_candidates.csv,The woman bought the bananas.
+bt_remaining_candidates.csv,The dog bit the child.
+bt_remaining_candidates.csv,The child the dog bit.
+bt_remaining_candidates.csv,The farmer cut the banana tree.
+bt_remaining_candidates.csv,The teacher taught the children.
+bt_remaining_candidates.csv,The children the teacher taught.
+bt_remaining_candidates.csv,Amooti is a good person.
+bt_remaining_candidates.csv,All the grandmothers are wise.
+bt_remaining_candidates.csv,The Mr. Elephants are big.
+bt_remaining_candidates.csv,The Mr. Rabbits are clever.
+bt_remaining_candidates.csv,the green (like ejabwa plant)
+bt_remaining_candidates.csv,the light brown (like termite hill)
+bt_remaining_candidates.csv,the yellow (like ripe banana)
+bt_remaining_candidates.csv,the purple (like ehuukya berries)
+bt_remaining_candidates.csv,the white (like white cow/hen)
+bt_remaining_candidates.csv,dark brown (like dark brown cow)
+bt_remaining_candidates.csv,the grey (like greyish cow)
+bt_remaining_candidates.csv,many yellow (like ripe banana)s
+bt_remaining_candidates.csv,The office is near the market.
+bt_remaining_candidates.csv,The motor car is fast.
+bt_remaining_candidates.csv,Buganda is a big kingdom.
+bt_remaining_candidates.csv,Bunyoro is an ancient kingdom.
+bt_remaining_candidates.csv,The offices are near the market.
+bt_remaining_candidates.csv,The motor cars are fast.
+bt_remaining_candidates.csv,The cow is reddish brown.
+bt_remaining_candidates.csv,The cow is dark brown.
+bt_remaining_candidates.csv,The white cow is mine.
+bt_remaining_candidates.csv,I want a black cow.
+bt_remaining_candidates.csv,The green grass is fresh.
+bt_remaining_candidates.csv,What colour is the cow?
+bt_remaining_candidates.csv,The cow is light brown.
+bt_remaining_candidates.csv,The cloth is dark blue.
+bt_remaining_candidates.csv,one who climbs the table
+bt_remaining_candidates.csv,one who does not study
+bt_remaining_candidates.csv,one who does not dance
+bt_remaining_candidates.csv,person who refuses to dance
+bt_remaining_candidates.csv,one who does not ask
+bt_remaining_candidates.csv,one who does not look
+bt_remaining_candidates.csv,one who does not drink
+bt_remaining_candidates.csv,one who does not arrive
+bt_remaining_candidates.csv,one who does not bring
+bt_remaining_candidates.csv,person who never brings anything
+bt_remaining_candidates.csv,He is a gloomy person who never laughs.
+bt_remaining_candidates.csv,She is a dirty person who never bathes.
+bt_remaining_candidates.csv,He is a touchy person.
+bt_remaining_candidates.csv,The gloomy person sat alone.
+bt_remaining_candidates.csv,A dirty person is not welcome.
+bt_remaining_candidates.csv,She is a silent person.
+bt_remaining_candidates.csv,A person who never eats is sick.
+bt_remaining_candidates.csv,one who always goes to parties
+bt_remaining_candidates.csv,"one who is always visiting, idler"
+bt_remaining_candidates.csv,The professional cultivator works hard.
+bt_remaining_candidates.csv,The permanent widow lives alone.
+bt_remaining_candidates.csv,The professional builder built the house.
+bt_remaining_candidates.csv,The professional hunter caught a lion.
+bt_remaining_candidates.csv,The glutton ate all the food.
+bt_remaining_candidates.csv,The insolent child broke the cup.
+bt_remaining_candidates.csv,That clumsy man fell down.
+bt_remaining_candidates.csv,The troublesome youth ran away.
+bt_remaining_candidates.csv,The mongoose is in its place.
+bt_remaining_candidates.csv,The animal is at its place.
+bt_remaining_candidates.csv,"Let us not be proud, boast, be proud, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, be proud, beware, beware, beware, be proud, beware, beware, beware, be proud, beware, beware, be proud."
+bt_remaining_candidates.csv,"to be proud, boast, be proud, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware"
+bt_remaining_candidates.csv,"be glad, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, be proud, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, be proud"
+bt_remaining_candidates.csv,"put together, put together, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down"
+bt_remaining_candidates.csv,"drag oneself up, drag up, drag down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take"
+bt_remaining_candidates.csv,"piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, etc."
+bt_remaining_candidates.csv,"purl up, boast, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, be proud"
+bt_remaining_candidates.csv,"be dry, dry, tingle (e.g. dirt), be dry, dry, tingle (e.g. dirt), be dry, tingle (e.g. dirt), be dry, tingle (e.g. dirt), be cramped, tingle (e.g. dirt), be choked (e.g. dirt, dirt, dirt, dirt, etc.)"
+bt_remaining_candidates.csv,"hand of a child to be proud, boast, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, be proud"
+bt_remaining_candidates.csv,"crack, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out"
+bt_remaining_candidates.csv,"spout, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush, gush, gush, gush out, gush, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out, gush out"
+bt_remaining_candidates.csv,"that man boasts, boasts, be proud, boasts, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, be proud, beware, beware, beware, be proud, beware, beware, beware, beware, beware, be proud"
+bt_remaining_candidates.csv,"to be proud, boast, be proud, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, be proud"
+bt_remaining_candidates.csv,"look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart, look smart"
+bt_remaining_candidates.csv,"be in excess, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown, be overgrown."
+bt_remaining_candidates.csv,"resemble to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to, pleasing to."
+bt_remaining_candidates.csv,be cut to a point
+bt_remaining_candidates.csv,"be angry with, be angry. suk.iraniza, o-, n. cl. 11, (pl. nil)"
+bt_remaining_candidates.csv,"take in a knot, take in, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down"
+bt_remaining_candidates.csv,"be on the face-out for, be on"
+bt_remaining_candidates.csv,"to be proud, boast, be proud, boast, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, be proud, beware, beware, beware, be proud, beware, beware, beware, beware, beware, be proud"
+bt_remaining_candidates.csv,"make a c. ragaaoa, adv., ku-, oku-, v.i., (pf. -gaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+bt_remaining_candidates.csv,"be upset with, be upset"
+bt_remaining_candidates.csv,"chop small, small piece of meat, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, piece of wood, etc."
+bt_remaining_candidates.csv,"cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen, cause to happen,"
+bt_remaining_candidates.csv,"lie round, lie round, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, lie about, wait about, lie about, wait about, wait for, be told about, be told about, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, be told, about, be kept, be told"
+bt_remaining_candidates.csv,"make a favourite of, make a favourite of, make a favourite of, make a favourite of, make a favourite of, make a favourite of, make a favourite of, make a favourite of, make a favourite of, make a favourite of, make a favourite, make a favourite, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, be pleasing to, pleasing to, be pleasing to, be pleasing to"
+bt_remaining_candidates.csv,"bring to nothing, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down"
+bt_remaining_candidates.csv,"bring forth abundantly, take up, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down"
+bt_remaining_candidates.csv,"be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed, be paralysed"
+bt_remaining_candidates.csv,"cause to give up, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down"
+bt_remaining_candidates.csv,"be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be pacified, be, be pacified, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen, be seen"
+bt_remaining_candidates.csv,"take. off, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take down, take"
+bt_remaining_candidates.csv,"to be proud, boast, be proud, boast, be proud, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, beware, be proud, beware, beware, beware, be proud, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, be proud"
+bt_remaining_candidates.csv,"to be proud, boast, be proud, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, beware, be proud, beware, beware, beware, be proud, beware, beware, beware, beware, be proud"
+bt_remaining_candidates.csv,"be in excess, be overgrown, be inattentive."
+bt_remaining_candidates.csv,"be pleasing to, be pleasing"
+bt_remaining_candidates.csv,"make a favourite of, make a favourable person."
+bt_remaining_candidates.csv,"be cross with, be cross"
+bt_remaining_candidates.csv,"be disgusted with, be annoyed"
+bt_remaining_candidates.csv,[pl. same] he finished his work
+bt_remaining_candidates.csv,"[MEDICAL] I do not want to go back to him in prayer, but to be afraid of him."
+bt_remaining_candidates.csv,"[MEDICAL] The Lord is the one who gives me life, and I will not take it away."
+bt_remaining_candidates.csv,[MEDICAL] He was waiting for the crops to come.
+bt_remaining_candidates.csv,[GENERAL] You have been taken to the brain/sickness hospital.
+bt_remaining_candidates.csv,[GENERAL] The disease could be treated by doctors.
+bt_remaining_candidates.csv,[GENERAL] The history of the past has come to an end
+bt_remaining_candidates.csv,[GENERAL] The disease is very common in the cities.
+bt_remaining_candidates.csv,[EDUCATION] the Council is made up of
+bt_remaining_candidates.csv,[GENERAL] The patient's thinking is based on health care.
+bt_remaining_candidates.csv,[MEDICAL] I pray for my friend who is not easily shaken.
+bt_remaining_candidates.csv,[GENERAL] The patient has shown signs of a dreaded skin disease.
+bt_remaining_candidates.csv,[GENERAL] The patient's condition has changed because of the treatment.
+bt_remaining_candidates.csv,[MEDICAL] he must die in a merciful place
+bt_remaining_candidates.csv,[GENERAL] The disease does not affect the age of the world.
+bt_remaining_candidates.csv,[EDUC paper] [reLIGIED] He heard about the things that had happened to him.
+bt_remaining_candidates.csv,[MEDICAL] the farmer used a machine for digging
+bt_remaining_candidates.csv,[reLIGIED] He told them to go quickly.
+bt_remaining_candidates.csv,[MEDICAL] He was written by a mental - health professional?
+bt_remaining_candidates.csv,bring to an end (a)
+bt_remaining_candidates.csv,have burning sensation (on body or in mouth)
+bt_remaining_candidates.csv,"catch in the hands, catch"
+bt_remaining_candidates.csv,to talk to a person with insight
+bt_remaining_candidates.csv,"[MEDICAL] to be proud, boast, be proud"
+bt_remaining_candidates.csv,he/she did not have a single person to pick and eat un peeled termites with
+bt_remaining_candidates.csv,"be in agony, be indolent"
+bt_remaining_candidates.csv,of a baby to go to sleep.
+bt_remaining_candidates.csv,"be in a panic. dunga, o-, n. cl. 11, (pl. nil)"
+bt_remaining_candidates.csv,rescue from the state in which on has been
+bt_remaining_candidates.csv,fall on the top of
+bt_remaining_candidates.csv,with the suffix -nll at the end
+bt_remaining_candidates.csv,[MEDICAL] The one who was the one who had been the one whom the king loved
+bt_remaining_candidates.csv,"be light in colour, be light"
+bt_remaining_candidates.csv,"accept to be a applicant in an election. esimbagiriza, o-, 11. cl. 14, (pl. nil)"
+bt_remaining_candidates.csv,walk with a stick (for support).
+bt_remaining_candidates.csv,"make to stand at, stand at"
+bt_remaining_candidates.csv,"to tread to do harm, hurt"
+bt_remaining_candidates.csv,be in the last stage of exaggeration.
+bt_remaining_candidates.csv,"be out of tears, be out"
+bt_remaining_candidates.csv,"be disrespectable to superiors, be proud, boast, be paralysed, be cramped, tingle (e.g. dirt), be cramped."
+bt_remaining_candidates.csv,have unwanted retention of urn in the bleeding
+bt_remaining_candidates.csv,"rub in the bands, rub in"
+bt_remaining_candidates.csv,come to the help of
+bt_remaining_candidates.csv,at the cry of a tree.
+bt_remaining_candidates.csv,"have in Ternal pain, be in pain"
+bt_remaining_candidates.csv,"cause to grow at, grow at"
+bt_remaining_candidates.csv,vistor part of the audience that with whom you are not familiar with
+bt_remaining_candidates.csv,he/she is at home (not necessarily in the house).
+bt_remaining_candidates.csv,"have smallpox, be in good health"
+bt_remaining_candidates.csv,"be made to suffer, suffer"
+bt_remaining_candidates.csv,a daughter on her marriage
+bt_remaining_candidates.csv,"be v.i., be in good health"
+bt_remaining_candidates.csv,"be weary of, be weary"
+bt_remaining_candidates.csv,of the day that is fine in wet season
+bt_remaining_candidates.csv,"be in empero, adv., mpora."
+bt_remaining_candidates.csv,[GENERAL] to be very dry he was suffering from a dreaded skin disease in the hospital
+bt_remaining_candidates.csv,[MEDICAL] Why did you know what was happening to him
+bt_remaining_candidates.csv,"cause to be sharp, sharp"
+bt_remaining_candidates.csv,"knee with the bandes, n., ekisisani."
+bt_remaining_candidates.csv,"have a nap, have a drink"
+bt_remaining_candidates.csv,fonn of address to a chief or a superior but not a king. wait
+bt_remaining_candidates.csv,"aJI of it, n., ekisisani."
+bt_remaining_candidates.csv,[MIDICAL) The patient's health condition has changed
+bt_remaining_candidates.csv,[AGICULTURE) Fruits come from plants
+bt_remaining_candidates.csv,[AGICULTURE) maize is a cash crop
+bt_remaining_candidates.csv,"[GENERAL] random, search for stolen property (but see also under ara, kw-, okw-). B. One of the bi-labial consonants m Runyoro-Rutooro. Since it is normally pronounced very softly it is brought to be a ""biabiabial fractured"" : e.g. okuuba, to bum)"
+bt_remaining_candidates.csv,"[GENERAL] to be proud, boast, be proud, be proud, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, be proud, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, be proud, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware, beware"
+bt_remaining_candidates.csv,"[GENERAL] piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, piece of meat, etc."
+bt_remaining_candidates.csv,[GENERAL] he found him sending him away empty-handedly and brought him to the 11th
+bt_remaining_candidates.csv,"[GENERAL] grow fat, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up, be choked up."
+bt_remaining_candidates.csv,"[GENERAL] nyanyahi, o-, n. cl. 11, (pl. nil)"
+bt_remaining_candidates.csv,[GENERAL] The goods are sold in the market.
+bt_remaining_candidates.csv,[AGRICULTURE] soil is a waste of crops.
+bt_remaining_candidates.csv,[MEDICAL] redness is a dreaded disease
+bt_remaining_candidates.csv,[GENERAL] The water in the basin is fighting against the enemy.
+bt_remaining_candidates.csv,[GENERAL] I want to buy a pair of shoes.
+bt_remaining_candidates.csv,[GENERAL] The same trap is to be removed.
+bt_remaining_candidates.csv,[GENERAL] To break into pieces does not break into pieces.
+bt_remaining_candidates.csv,[GENERAL] The messengers are men of action.
+bt_remaining_candidates.csv,[GENERAL] f matter is too hard to start or you have no friends
+bt_remaining_candidates.csv,[GENerAL] So Jesus ran down and welcomed him gladly.
+bt_remaining_candidates.csv,"[GENerAL] But Jesus knew what they were saying,"
+bt_remaining_candidates.csv,[EDUCATION] and to be praised by the people who belong to the tribe of Levi.
+bt_remaining_candidates.csv,[GENERAL] For the priesthood has been made clean.
+bt_remaining_candidates.csv,[GENERAL] The grace of the Lord has been poured out on you.
+bt_remaining_candidates.csv,"[GENerAL] He wrote a letter to them, saying,"
+bt_remaining_candidates.csv,[GENERAL] No one is looking for God
+bt_remaining_candidates.csv,[GENerAL] For he has brought salvation to his people and to those who have been saved.
+bt_remaining_candidates.csv,"[GENerAL] They followed him, and when he put the coins out of the money."
+bt_remaining_candidates.csv,[GENerAL] He heard them and thought that they were giving him something.
+bt_remaining_candidates.csv,"[GENerAL] He left everything, got up, and followed him."
+bt_remaining_candidates.csv,"[RELIGIOUS] That is what you have done, and you will teach."
+bt_remaining_candidates.csv,[GENerAL] He gave gifts to the people.
+bt_remaining_candidates.csv,[GENERAL] Pilate took Jesus and had him whipped.
+bt_remaining_candidates.csv,"[GENERAL] To grow in love, God."
+bt_remaining_candidates.csv,[MEDICAL] The Samba are planting
+bt_remaining_candidates.csv,[GENERAL] praise the Lord at all times
+bt_remaining_candidates.csv,[GENERAL] The Lord bless you
+bt_remaining_candidates.csv,[MEDICAL] You have a dream
+bt_remaining_candidates.csv,[MEDICAL] Think carefully about it
+bt_remaining_candidates.csv,[MEDICAL] give me oil and myrrh
+bt_remaining_candidates.csv,[MEDICAL] The sower went into the field
+bt_remaining_candidates.csv,[GENERAL] the student wants to learn mercy
+bt_remaining_candidates.csv,[GENERAL] We have been sitting in the meeting hall
+bt_remaining_candidates.csv,[GENERAL] We are going to grow crops for the year
+bt_remaining_candidates.csv,[GENERAL] There is a gift of the Lord
+bt_remaining_candidates.csv,[GENERAL] We are making a learning plan
+bt_remaining_candidates.csv,[GENERAL] We all learn manners
+bt_remaining_candidates.csv,[GENERAL] The teacher teaches children manners
+bt_remaining_candidates.csv,[GENERAL] We teach students about the history of the world
+bt_remaining_candidates.csv,[GENERAL] People grow crops in the soil
+bt_remaining_candidates.csv,[EDUCATION] The pastor built a new church
+bt_remaining_candidates.csv,[GENERAL] Respect Him Will you reject God
+bt_remaining_candidates.csv,[GENerAL] And he forgave all who had forgiven them
+bt_remaining_candidates.csv,[GENERAL] The man is able to explain the Law
+bt_remaining_candidates.csv,[GENERAL] The woman learns to make baskets
+bt_remaining_candidates.csv,[GENERAL] The plant is pleasing to the soil.
+bt_remaining_candidates.csv,[GENERAL] Eating helps me to call animals.
+bt_remaining_candidates.csv,[GENERAL] The crops are harvested.
+bt_remaining_candidates.csv,[GENERAL] The soil is fertile and productive.
+bt_remaining_candidates.csv,[MEDICAL] Nor did you sit on your bed.
+bt_remaining_candidates.csv,[GENERAL] Plants come from the soil.
+bt_remaining_candidates.csv,[GENERAL] A tractor is used for digging.
+bt_remaining_candidates.csv,[GENERAL] The grains of food are good for the fish.
+bt_remaining_candidates.csv,[GENERAL] Farmers do not stop planting.
+bt_remaining_candidates.csv,[GENERAL] Pigs feed on food crops.
+bt_remaining_candidates.csv,[MEDICAL] I help both of you
+bt_remaining_candidates.csv,[MEDICAL] The mother sits on the floor
+bt_remaining_candidates.csv,"[MEDICAL] Please forgive me, sir."
+bt_remaining_candidates.csv,[MEDICAL] I swear that I haven't done it.
+bt_remaining_candidates.csv,[MEDICAL] I hope to help you.
+bt_remaining_candidates.csv,[MEDICAL] I will not take this man away from me.
+bt_remaining_candidates.csv,[GENERAL] The farmers wear boots and eat them.
+bt_remaining_candidates.csv,[GENERAL] The Abanyoro and Batooro are farmers.
+bt_remaining_candidates.csv,[GENERal] The worms are a destructive crop.
+bt_remaining_candidates.csv,[GENERAL] The cow is used to sow grain.
+bt_remaining_candidates.csv,[GENERAL] A large bundle of flour is used for reading.
+bt_remaining_candidates.csv,[GENERAL] A crop specifically grown for digging.
+bt_remaining_candidates.csv,[GENERAL] Food that has a lot of value.
+bt_remaining_candidates.csv,[GENERAL] This soil of the river is fertile
+bt_remaining_candidates.csv,[GENERAL] The soil that grows crops.
+bt_remaining_candidates.csv,[GENERAL] the farmer sows seed
+bt_remaining_candidates.csv,[GENERAL] the fertile soil is fertile and tall
+bt_remaining_candidates.csv,[MEDICAL] The head of the family was healed.
+bt_remaining_candidates.csv,[MEDICAL] his wife sang with him from the heart.
+bt_remaining_candidates.csv,[GENERAL] Put the school food in the kitchen.
+bt_remaining_candidates.csv,[GENERAL] The grass is good for food.
+bt_remaining_candidates.csv,[GENERAL] The whole school is a teacher.
+bt_remaining_candidates.csv,[MEDICAL] The government should kill people.
+bt_remaining_candidates.csv,[GENERAL] The wild animal that eats
+bt_remaining_candidates.csv,[GENERAL] The feed of cows has disappeared.
+bt_remaining_candidates.csv,[GENERAL] Vaccination is a disease.
+bt_remaining_candidates.csv,[GENERAL] The songs in the church are talking.
+bt_remaining_candidates.csv,[GENERAL] he first read his essay before submitting it
+bt_remaining_candidates.csv,[GENERal] The soil is eaten by food
+bt_remaining_candidates.csv,[MEDICAL] The lady of the house is pregnant.
+bt_remaining_candidates.csv,[GENERAL] Food that spoils crops.
+bt_remaining_candidates.csv,[MEDICAL] Take care of yourself.
+bt_remaining_candidates.csv,[GENERAL] the teacher narrated to us a story that was very scary
+bt_remaining_candidates.csv,[GENERal] plants make us happy and help us
+bt_remaining_candidates.csv,[GENERAL] Painting is done by digging.
+bt_remaining_candidates.csv,[MEDICAL] He has healed every kind of sickness.
+bt_remaining_candidates.csv,[GENERAL] the teacher asked the teacher for an illustration
+bt_remaining_candidates.csv,[GENERAL] The patient has a very low temperature.
+bt_remaining_candidates.csv,[GENERAL] when he was a teacher of art
+bt_remaining_candidates.csv,[GENERAL] A fertile plant is eaten as food.
+bt_remaining_candidates.csv,[GENERAL] Sweet potatoes are food for the soil.
+bt_remaining_candidates.csv,[GENerAL] The evil spirit has not healed you.
+bt_remaining_candidates.csv,[MEDICAL] Please clean the floor before we sit on the floor.
+bt_remaining_candidates.csv,[MEDICAL] His mother will come to visit him.
+bt_remaining_candidates.csv,[GENERAL] I have been studying Art History.
+bt_remaining_candidates.csv,[GENERal] I am going to dig every Monday.
+bt_remaining_candidates.csv,[MEDICAL] We are going to work on the Sabbath.
+bt_remaining_candidates.csv,[GENERAL] The Law is like a shadow.
+bt_remaining_candidates.csv,[GENERAL] mother was taken to the hospital for treatment
+bt_remaining_candidates.csv,[GENERAL] hunger for school children
+bt_remaining_candidates.csv,[MEDICAL] mother was instructed to be at home
+bt_remaining_candidates.csv,[GENERAL] laziness is unbearable and we are dying of a dreaded disease
+bt_remaining_candidates.csv,[MEDICAL] I will come and knock on the bed.
+bt_remaining_candidates.csv,[EDUCATION] The old churches are made of wood.
+bt_remaining_candidates.csv,[RELIGIOUS] The Teacher is a teacher of the Law.
+bt_remaining_candidates.csv,[EDUCATION] Mullah is a Muslim educated in Islamic religion.
+bt_remaining_candidates.csv,[GENERAL] the weeds are eaten by him
+bt_remaining_candidates.csv,[GENERal] the plants grow on the ground
+bt_remaining_candidates.csv,[EDUCATION] The pastor is very busy praying.
+bt_remaining_candidates.csv,[GENERAL] The pastor serves God.
+bt_remaining_candidates.csv,[GENERAL] He attended the Sacred Tent when he was praying.
+bt_remaining_candidates.csv,[GENERAL] The patient was placed in the hands of the patient and prayed.
+bt_remaining_candidates.csv,[GENERal] the wild animal is a symbol of the wild beast
+bt_remaining_candidates.csv,[GENERAL] He first learnt early in the morning before going to work.
+bt_remaining_candidates.csv,[GENERAL] She was discharged and went to school.
+bt_remaining_candidates.csv,[MEDICAL] I took a bath.
+bt_remaining_candidates.csv,[MEDICAL] a large bundle of flour for slaughter every animal in the province of bunyoro
+bt_remaining_candidates.csv,[GENERAL] The teacher has trouble with the boy.
+bt_remaining_candidates.csv,[GENerAL] The spirit pleased him with the grave.
+bt_remaining_candidates.csv,[GENERAL] The boy needs therapy.
+bt_remaining_candidates.csv,[MEDICAL] He is cutting off his head from the ground.
+bt_remaining_candidates.csv,[GENERAL] His sickness is a therapy for cancer.
+bt_remaining_candidates.csv,[GENERAL] The coconut is a plant.
+bt_remaining_candidates.csv,[MEDICAL] The painkillers cause loss
+bt_remaining_candidates.csv,[MEDICAL] Marriage strengthens the legs.
+bt_remaining_candidates.csv,[GENERAL] He came to school on a mat.
+bt_remaining_candidates.csv,[MEDICAL] Revivalment has all kinds of animals.
+bt_remaining_candidates.csv,"[GENERAL] boast about, be proud, boast, be angry, be paralysed, be cramped, tingle (e.g. dirt), be proud"
+bt_remaining_candidates.csv,[GENERAL] There is a watchman where I am going to pray if my Master of the harvest has revealed it.
+bt_remaining_candidates.csv,[MEDICAL] They put blood in you?
+bt_remaining_candidates.csv,[GENERAL] The crops are destroyed by pollution.
+bt_remaining_candidates.csv,[GENERAL] They have contracted diseases that cause divisions.
+bt_remaining_candidates.csv,[GENERAL] Trees help the soil to be untied.
+bt_remaining_candidates.csv,[GENERAL] The cow is being eaten by cows.
+bt_remaining_candidates.csv,[GENERAL] the director of the organization around us teaching the people of the market who are guards of the zoo
+bt_remaining_candidates.csv,[GENerAL] There is no difference between what I am talking about and what I should look for in others.
+bt_remaining_candidates.csv,[MEDICAL] they left the diocese
+bt_remaining_candidates.csv,[RELIGARICULTURE] He heard about the things that had happened to him.
+bt_remaining_candidates.csv,[GENERAL] The patient's health condition.
+bt_remaining_candidates.csv,[GENERAL] a valuable book to study
+bt_remaining_candidates.csv,[GENERAL] He was written by a mental - health professional?
+bt_remaining_candidates.csv,[GENERAL] The soil that does not grow up brings the soil to nothing.
+bt_remaining_candidates.csv,[GENERAL] The patient is a new healer.
+bt_remaining_candidates.csv,[MEDICAL] the doctor led me to be punished
+bt_remaining_candidates.csv,[GENERAL] You have been taken to the hospital for brain/sickness.
+bt_remaining_candidates.csv,[GENERAL] Health care needs to be tested by your blood every time you go to check on HIV/AIDs.
+bt_remaining_candidates.csv,[MEDICAL] I go to the market on the road.
+bt_remaining_candidates.csv,[MEDICAL] He arrived at the end of his story.
+bt_remaining_candidates.csv,[GENERAL] The virus is very strong.
+bt_remaining_candidates.csv,[GENERAL] The doctor told me to eat meat.
+bt_remaining_candidates.csv,[MEDICAL] He was found to be eating at the feet.
+bt_remaining_candidates.csv,[GENERAL] This year the seeds will be good on the hillside
+bt_remaining_candidates.csv,[GENERAL] The patient is suffering from a dreaded skin disease.
+bt_remaining_candidates.csv,[GENERAL] Health care has to be given daily.
+bt_remaining_candidates.csv,[GENERAL] The doctor of medicine has fixed him on food that will help him.
+bt_remaining_candidates.csv,[GENERal] You should separate the cows from the goats.
+bt_remaining_candidates.csv,[GENERAL] Health care is there in the news.
+bt_remaining_candidates.csv,[GENERAL] He told them to go quickly.
+bt_remaining_candidates.csv,[GENERAL] He was rushed back to the hospital and was suffering from a dreaded skin disease.
+bt_remaining_candidates.csv,[GENERAL] He is suffering from a dreaded skin disease.
+bt_remaining_candidates.csv,[MEDICAL] What can be seen when the first blood appears to be not going well in the body?
+bt_remaining_candidates.csv,"[GENERAL] The patient's wound has healed, haven't it?"
+bt_remaining_candidates.csv,[GOVERNry] He has been given cancer control over cancer
+bt_remaining_candidates.csv,[GENERAL] The patient's blood rate is today.
+bt_remaining_candidates.csv,[GENERAL] You will hear evil in this matter.
+bt_remaining_candidates.csv,[MEDICAL] What is your sack?
+bt_remaining_candidates.csv,[GENERAL] The patient was suffering a little.
+bt_remaining_candidates.csv,[GENERAL] The patient's condition is rapid.
+bt_remaining_candidates.csv,[MEDICAL] The human race is what it is.
+bt_remaining_candidates.csv,[GENERAL] The doctor is known for good health.
+bt_remaining_candidates.csv,[MEDICAL] listen to me and I will not lie to you
+bt_remaining_candidates.csv,[GENERAL] The patient's thinking has disappeared.
+bt_remaining_candidates.csv,[GENERAL] Pesticides add to the age cycle.
+bt_remaining_candidates.csv,[GENERAL] the farmer used a machine for digging
+bt_remaining_candidates.csv,[MEDICAL] He is crying after making him happy.
+bt_remaining_candidates.csv,[MEDICAL] I want to go to dig
+bt_remaining_candidates.csv,[MEDICAL] There he struck you in my ears.
+bt_remaining_candidates.csv,[MEDICAL] you have pity on me
+bt_remaining_candidates.csv,[GENERAL] You should be merciful to the sick.
+bt_remaining_candidates.csv,[GENERAL] The doctor has told you differently.
+bt_remaining_candidates.csv,[GENERAL] The patient has been tested by many things.
+bt_remaining_candidates.csv,[GENERAL] The treatment is used to treat the patient's needs.
+bt_remaining_candidates.csv,"[GENERAL] [MEDICAL] I do not want to go back to him in prayer, but to be afraid of him."
+bt_remaining_candidates.csv,[GENERal] The farmers harvest green seed.
+bt_remaining_candidates.csv,[GENERAL] The disease is spread everywhere.
+bt_remaining_candidates.csv,"[GENERAL] [MEDICAL] The Lord is the one who gives me life, and I will not take it away."
+bt_remaining_candidates.csv,[GENERAL] The patient is going faster.
+bt_remaining_candidates.csv,[GENERal] [MEDICAL] He was waiting for the crops to come.
+bt_remaining_candidates.csv,[MEDICAL] How did you get your body?
+bt_remaining_candidates.csv,[GENERAL] The patient has started doing well.
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] You have been taken to the brain/sickness hospital.
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] The disease could be treated by doctors.
+bt_remaining_candidates.csv,[GENERAL] The patient's health has improved.
+bt_remaining_candidates.csv,[ELIGIOUS] [GENERAL] The history of the past has come to an end
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] The disease is very common in the cities.
+bt_remaining_candidates.csv,[RELIGIOUS] [EDUCATION] the Council is made up of
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] The patient's thinking is based on health care.
+bt_remaining_candidates.csv,[GENERal] Workers are planting hard seed.
+bt_remaining_candidates.csv,[GENERAL] [MEDICAL] I pray for my friend who is not easily shaken.
+bt_remaining_candidates.csv,[MEDICAL] you don't care about it not important
+bt_remaining_candidates.csv,[MEDICAL] he finished his work
+bt_remaining_candidates.csv,[MEDICAL] the old man is going with you
+bt_remaining_candidates.csv,"[GENERAL] The degradation of the soil has reduced the number of crops in the soil, and the number is greater than the number y, the number one."
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] The patient has shown signs of a dreaded skin disease.
+bt_remaining_candidates.csv,[GENERAL] Crops have been harvested by pests.
+bt_remaining_candidates.csv,"[MEDICAL] I have a written document, which I write."
+bt_remaining_candidates.csv,[MEDICAL] He was very sick and had a fever.
+bt_remaining_candidates.csv,[GENERAL] Aren't you suffering from a dreaded skin disease?
+bt_remaining_candidates.csv,[MEDICAL] I sit down more eager every morning.
+bt_remaining_candidates.csv,[MEDICAL] I go on my journey aimlessly
+bt_remaining_candidates.csv,[GENerAL] workers grow new seedlings
+bt_remaining_candidates.csv,[MEDICAL] Why are you crying and crying?
+bt_remaining_candidates.csv,[GENERAL] Farmers depend on their crops.
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] The patient's condition has changed because of the treatment.
+bt_remaining_candidates.csv,[GENERAL] [MEDICAL] he must die in a merciful place
+bt_remaining_candidates.csv,[GENERAL] The patient has tested many things.
+bt_remaining_candidates.csv,[MEDICAL] I wake up and want to go to dig
+bt_remaining_candidates.csv,[MEDICAL] I don't know when I get up early.
+bt_remaining_candidates.csv,[GENERAL] Workers grow water crops.
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] The disease does not affect the age of the world.
+bt_remaining_candidates.csv,[REDUCATION] [EDUC paper] [reLIGIED] He heard about the things that had happened to him.
+bt_remaining_candidates.csv,[MEDICAL] He broke the stick and it was broken.
+bt_remaining_candidates.csv,[GENERAL] The disease takes a long time to heal.
+bt_remaining_candidates.csv,[GENERAL] [MEDICAL] the farmer used a machine for digging
+bt_remaining_candidates.csv,[GENERAL] [reLIGIED] He told them to go quickly.
+bt_remaining_candidates.csv,[GENERAL] [MEDICAL] He was written by a mental - health professional?
+bt_remaining_candidates.csv,[MEDICAL] I don't have the right to be afraid.
+bt_remaining_candidates.csv,[MEDICAL] I saw him and fixed the road
+bt_remaining_candidates.csv,[RELIGARICULTURE] He ate the night with his family.
+bt_remaining_candidates.csv,[MEDICAL] she has taken care of things
+bt_remaining_candidates.csv,[GENRELIGIOUS] the Abahimi were children of the power of the tongue when they were dead
+bt_remaining_candidates.csv,[GENRELIGIOUS] the soil is dry and dry
+bt_remaining_candidates.csv,[GENRELIGIOUS] This is where they arrived
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was tempted to have music
+bt_remaining_candidates.csv,[GENRELIGIOUS] He was healed of the sores
+bt_remaining_candidates.csv,[GENRELIGIOUS] My mother cried at the table11
+bt_remaining_candidates.csv,[GENRELIGIOUS] help is being given to us with a feast
+bt_remaining_candidates.csv,[GENRELIGIOUS] all the dragons were thrown into the sea
+bt_remaining_candidates.csv,[AGGENERAL] who has split it this plant cloth?.
+bt_remaining_candidates.csv,[GENRELIGIOUS] in the year when Baza zingiha? How is it that Mondays are there in a year?
+bt_remaining_candidates.csv,[GENRELIGIOUS] I am being treated as if I were an adult
+bt_remaining_candidates.csv,[ERICULTURE] his kitchen was built by a teacher
+bt_remaining_candidates.csv,[GENRELIGIOUS] I heard what had happened to them
+bt_remaining_candidates.csv,"[GENRELIGIOUS] [MEDICAL] to be proud, boast, be proud"
+bt_remaining_candidates.csv,[GENICAL] the child did not betray his parents
+bt_remaining_candidates.csv,[GENRELIGIOUS] then it will teach you
+bt_remaining_candidates.csv,[GENRELIGIOUS] the house in the head is broken
+bt_remaining_candidates.csv,[GENRELIGIOUS] she told him about 'okwnuki:a rule
+bt_remaining_candidates.csv,[GENRELIGIOUS] the first house he has built has a foundation
+bt_remaining_candidates.csv,[GENRELIGIOUS] the men who had made fun of him and the king who had punished them
+bt_remaining_candidates.csv,"[GENRELIGIOUS] akollbolt ekereza rak111anga kurahya, adv., ku-, oku-, v.i., (pf. -culeezi)"
+bt_remaining_candidates.csv,[GENRELIGIOUS] the rooster crowed and told him
+bt_remaining_candidates.csv,[GENRELIGIOUS] ob1111zi when they did not quickly give up
+bt_remaining_candidates.csv,"[GENRELIGIOUS] to most pain to the extend of causing him/her to make a continuum pickled cry. borogo, o-, 11. cl. 14, (pl. nil)"
+bt_remaining_candidates.csv,[GENICAL] the man told me where I was going
+bt_remaining_candidates.csv,[GENRELIGIOUS] What made him so stubborn that you were the one who led him astray
+bt_remaining_candidates.csv,[AGGENERAL] the sower is the one who is the master of the harvest
+bt_remaining_candidates.csv,[AGGENERAL] muded up in the hands and feet: mix of sympathy and millet.
+bt_remaining_candidates.csv,[GENRELIGIOUS] they are the ones who wait for him when the King comes
+bt_remaining_candidates.csv,[GENRELIGIOUS] security (on the feet)
+bt_remaining_candidates.csv,[GENRELIGIOUS] I will sing praises to him
+bt_remaining_candidates.csv,[GENRELIGIOUS] The wind has healed him on the way and he will come
+bt_remaining_candidates.csv,[MOVERNMENT] The foot was broken by the patient's skin
+bt_remaining_candidates.csv,[GENRELIGIOUS] the river is flowing down the rock
+bt_remaining_candidates.csv,[GENRELIGIOUS] all the cows ate 11gamllceenya
+bt_remaining_candidates.csv,[GENRELIGIOUS] They made fun of him in his house
+bt_remaining_candidates.csv,[GENRELIGIOUS] The child was taken by the earthquake=a hand
+bt_remaining_candidates.csv,[GENRELIGIOUS] I was crying early in the morning
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was a prisoner in Katojo
+bt_remaining_candidates.csv,[GENRELIGIOUS] there are some young men who have been eating
+bt_remaining_candidates.csv,[GENRELIGIOUS] Why did you deceive them and now you know 11gle and this worker?
+bt_remaining_candidates.csv,[REGOVERNMENT] the people answered the Lord
+bt_remaining_candidates.csv,[GENRELIGIOUS] she looked at nk'om1111ak11
+bt_remaining_candidates.csv,[GENRELIGIOUS] we tried to find a place to look for
+bt_remaining_candidates.csv,[GENRELIGIOUS] There are some people who cause divisions
+bt_remaining_candidates.csv,[ERICULTURE] she teaches the home of menelkunt
+bt_remaining_candidates.csv,[GENRELIGIOUS] be angry because I loved him
+bt_remaining_candidates.csv,[GENRELIGIOUS] I was very upset
+bt_remaining_candidates.csv,[GENRELIGIOUS] /hear what you have done
+bt_remaining_candidates.csv,[GENRELIGIOUS] he failed to teach them
+bt_remaining_candidates.csv,[GENRELIGIOUS] Do not be fooled by the immoral ways of the people
+bt_remaining_candidates.csv,[GENRELIGIOUS] they left because of the use of weapons
+bt_remaining_candidates.csv,[Muslim] i/e to compare with the patient
+bt_remaining_candidates.csv,[GENRELIGIOUS] He taught them to eat at home
+bt_remaining_candidates.csv,[GENRELIGIOUS] the owner of the vineyard was not
+bt_remaining_candidates.csv,[GENRELIGIOUS] he found water poured down and went away
+bt_remaining_candidates.csv,[GENRELIGIOUS] he welcomed his friends and treated them with contempt
+bt_remaining_candidates.csv,[GENRELIGIOUS] he made a covenant with the king of Israel
+bt_remaining_candidates.csv,[GENRELIGIOUS] he prepared kllmwin11kya kyenyakaara lruwwa
+bt_remaining_candidates.csv,[GENRELIGIOUS] he has heard of the coming of the old man
+bt_remaining_candidates.csv,[GENRELIGIOUS] she stayed in her father's house
+bt_remaining_candidates.csv,[GENRELIGIOUS] she is drunk in water
+bt_remaining_candidates.csv,[GENRELIGIOUS] [MEDICAL] The one who was the one who had been the one whom the king loved
+bt_remaining_candidates.csv,[GENRELIGIOUS] he confirmed the matter with the authorities
+bt_remaining_candidates.csv,[GENRELIGIOUS] The soil is burned by fire
+bt_remaining_candidates.csv,[GENRELIGIOUS] she taught the children at school
+bt_remaining_candidates.csv,[GENRELIGIOUS] be very important to settle
+bt_remaining_candidates.csv,[GENRELIGIOUS] he gave him a good answer1
+bt_remaining_candidates.csv,[GENRELIGIOUS] she told her husband
+bt_remaining_candidates.csv,[GENRELIGIOUS] to be proud of the people who belong to him
+bt_remaining_candidates.csv,[GENRELIGIOUS] the hare opened the way for the loss of the bow
+bt_remaining_candidates.csv,[GENRELIGIOUS] force a lion to play
+bt_remaining_candidates.csv,[GENRELIGIOUS] she went to visit her workmate
+bt_remaining_candidates.csv,[GENRELIGIOUS] people made fun of them and took them away.
+bt_remaining_candidates.csv,"[MOVERNMENT] take a medicine, be in good health"
+bt_remaining_candidates.csv,[GENRELIGIOUS] ky'esoni omultll to be expelled from human beings
+bt_remaining_candidates.csv,[GENRELIGIOUS] they threw themselves into the field of the grave
+bt_remaining_candidates.csv,[GENRELIGIOUS] they will eat you gave me
+bt_remaining_candidates.csv,[GENRELIGIOUS] they prepared to finish what they had taken
+bt_remaining_candidates.csv,[GEDICAL] I have told you the way of the Council has not yet been
+bt_remaining_candidates.csv,[GENRELIGIOUS] They prepared a meal for their son
+bt_remaining_candidates.csv,[GENRELIGIOUS] what he is talking about did not happen to him alone
+bt_remaining_candidates.csv,[GENRELIGIOUS] do not follow a thing you cannot do
+bt_remaining_candidates.csv,[GENRELIGIOUS] she put on a thing that made her cry
+bt_remaining_candidates.csv,[GENRELIGIOUS] the thing that is going to happen is self-control
+bt_remaining_candidates.csv,[GENRELIGIOUS] men ate a foreigner without their help
+bt_remaining_candidates.csv,[GENRELIGIOUS] the Abajwo/This shows that people know as they are better than others
+bt_remaining_candidates.csv,[GENRELIGIOUS] He drew near to him and took away what he wanted
+bt_remaining_candidates.csv,[GENRELIGIOUS] she looked at the girl in the kitchen
+bt_remaining_candidates.csv,[REDUCATION] Yestll Kristo gave us a prayer together
+bt_remaining_candidates.csv,[GENICAL] the child was circumcised by J.wnu and by his feet
+bt_remaining_candidates.csv,[ERICULTURE] The water was beginning to flow
+bt_remaining_candidates.csv,[GENRELIGIOUS] afi1111keerra in the time of the end
+bt_remaining_candidates.csv,[GENRELIGIOUS] I have come to you to destroy all the earth
+bt_remaining_candidates.csv,[GENRELIGIOUS] you did not see a lamp and you were afraid
+bt_remaining_candidates.csv,"[GENRELIGIOUS] go abstractly, go to a safe place"
+bt_remaining_candidates.csv,[GENRELIGIOUS] the soil is fertile and dry
+bt_remaining_candidates.csv,[GENRELIGIOUS] he deceives his friend and he deceiveth him
+bt_remaining_candidates.csv,[GENRELIGIOUS] the men who were taking care of the carriage
+bt_remaining_candidates.csv,[GENRELIGIOUS] for exfact in an exam
+bt_remaining_candidates.csv,"[GENRELIGIOUS] abais be baka1111gweerra omllllhanda, a-, n. cl. 6, (used in pl.)"
+bt_remaining_candidates.csv,[GENRELIGIOUS] send but I do not know where to go
+bt_remaining_candidates.csv,[GENRELIGIOUS] there was no doubt in the city
+bt_remaining_candidates.csv,[GENRELIGIOUS] he beat his servant
+bt_remaining_candidates.csv,[GENRELIGIOUS] he taught me about 'to drive out the sheep
+bt_remaining_candidates.csv,[GENRELIGIOUS] the car carried it on the road
+bt_remaining_candidates.csv,[GENRELIGIOUS] ls scoring me the first thing you should do upon your arrive? c.form
+bt_remaining_candidates.csv,[GENRELIGIOUS] The king was kept safe by the cows
+bt_remaining_candidates.csv,[GENRELIGIOUS] you have not eaten
+bt_remaining_candidates.csv,"[GENRELIGIOUS] be disrespectable to superiors, be proud, boast, be paralysed, be cramped, tingle (e.g. dirt), be cramped."
+bt_remaining_candidates.csv,[GENRELIGIOUS] He threw him out of the way and threw him down
+bt_remaining_candidates.csv,[GENRELIGIOUS] he got into a pit
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was annoyed when they were punished
+bt_remaining_candidates.csv,[GENRELIGIOUS] This place is not good
+bt_remaining_candidates.csv,[GENRELIGIOUS] the merciful one was drunk and was led into the pit
+bt_remaining_candidates.csv,[GENRELIGIOUS] take the sword and I will take it away
+bt_remaining_candidates.csv,[GENRELIGIOUS] have unwanted retention of urn in the bleeding
+bt_remaining_candidates.csv,[GENICAL] the child is no longer crying
+bt_remaining_candidates.csv,[GENICAL] the cook was holding the tree
+bt_remaining_candidates.csv,[GENRELIGIOUS] my grandmother has prayed to him for goats
+bt_remaining_candidates.csv,[GENRELIGIOUS] He came to touch here
+bt_remaining_candidates.csv,[GENRELIGIOUS] the rain poured down the waters of the river
+bt_remaining_candidates.csv,[GENRELIGIOUS] they found the body of a dead man
+bt_remaining_candidates.csv,[GENRELIGIOUS] the trouble made him cry out to him for help
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was healed and his bones were healed
+bt_remaining_candidates.csv,[REGOVERNMENT] we have brought praise to God with our hearts
+bt_remaining_candidates.csv,[GENRELIGIOUS] the nation is raised to life by kings
+bt_remaining_candidates.csv,[GENRELIGIOUS] the one who leads the people to me is one
+bt_remaining_candidates.csv,[REGOVERNMENT] The air is blowing by a person's ears
+bt_remaining_candidates.csv,[GENRELIGIOUS] they went to eat the sun
+bt_remaining_candidates.csv,[GENRELIGIOUS] they drew him out of the blood of the Lamb
+bt_remaining_candidates.csv,[AGGENERAL] six excited of lifts and large animals in the cooking season.
+bt_remaining_candidates.csv,[GENRELIGIOUS] pass. of c. form.jeeragezi bw a
+bt_remaining_candidates.csv,[MOVERNMENT] He got healed of his sickness
+bt_remaining_candidates.csv,[MEDICAL] the director of the organization around us teaching the people of the market are guards of the zoo
+bt_remaining_candidates.csv,[GENICAL] I will bring up the child in the womb a/ye
+bt_remaining_candidates.csv,[GENRELIGIOUS] the Abahira believe that enjunjuzi t
+bt_remaining_candidates.csv,[GENRELIGIOUS] they have put on the new self
+bt_remaining_candidates.csv,[GENRELIGIOUS] he begged him to open his mouth
+bt_remaining_candidates.csv,[GENRELIGIOUS] be a strain (test)
+bt_remaining_candidates.csv,[GENRELIGIOUS] at the cry of a tree.
+bt_remaining_candidates.csv,"[GENRELIGIOUS] subj. pronom. cone. for phrases in present continuum tense and in the negative: ekibi nikija, o-, n. cl. 11, (pl. nil)"
+bt_remaining_candidates.csv,[GENRELIGIOUS] the plant does not bear fruit
+bt_remaining_candidates.csv,[GENRELIGIOUS] building pain in the side
+bt_remaining_candidates.csv,[GENRELIGIOUS] take in (garment) at waste.
+bt_remaining_candidates.csv,[GENRELIGIOUS] a person obll takes a wound and puts his/her body in the body
+bt_remaining_candidates.csv,"[ERICULTURE] lic 'emegayo omukama omugambizi ku-, oku-, v.i., (pf. -culeezi)"
+bt_remaining_candidates.csv,"[GENRELIGIOUS] wrap up a body, rub"
+bt_remaining_candidates.csv,[GENRELIGIOUS] I have been encouraged and have been burdened with it
+bt_remaining_candidates.csv,[GENRELIGIOUS] what is nature to introduce guests
+bt_remaining_candidates.csv,[AGGENERAL] the weeds do not sprout without food
+bt_remaining_candidates.csv,[GENRELIGIOUS] let me go to the diocese and to the rest of the world
+bt_remaining_candidates.csv,[GENRELIGIOUS] He was very upset.
+bt_remaining_candidates.csv,"[GENRELIGIOUS] gasp in a fancy, n., ekisisani."
+bt_remaining_candidates.csv,[GENRELIGIOUS] the guests m.ba111l are not allowed to go
+bt_remaining_candidates.csv,[ERICULTURE] herb small in number
+bt_remaining_candidates.csv,[GENRELIGIOUS] you are too proud of your Publius to obey elders.
+bt_remaining_candidates.csv,[GENRELIGIOUS] put on a mat
+bt_remaining_candidates.csv,[GENRELIGIOUS] This is when the time came for him to come
+bt_remaining_candidates.csv,"[AGGENERAL] mass of cooked and masked plants, n., ekisisani."
+bt_remaining_candidates.csv,"[GENICAL] 242 mugini mugorogoro sharp, a-, n. cl. 6, (used in pl.)"
+bt_remaining_candidates.csv,"[GENRELIGIOUS] to be proud, boast, be proud"
+bt_remaining_candidates.csv,[REGOVERNMENT] frontal bone. The Lord
+bt_remaining_candidates.csv,[ERICULTURE] The adult is in the school
+bt_remaining_candidates.csv,[GENRELIGIOUS] our ancestors raised him to life in the world
+bt_remaining_candidates.csv,"[GENRELIGIOUS] 254 muiga munyampara, a-, n. cl. 6, (used in pl.)"
+bt_remaining_candidates.csv,"[GENRELIGIOUS] wash the branches, wipe off"
+bt_remaining_candidates.csv,[GENRELIGIOUS] The car is going to pass.
+bt_remaining_candidates.csv,[GENRELIGIOUS] who has raised him to life
+bt_remaining_candidates.csv,[REGOVERNMENT] god's bells are white and white
+bt_remaining_candidates.csv,[GENRELIGIOUS] It is a foreigner
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was tempted to be given egombolra
+bt_remaining_candidates.csv,[GENRELIGIOUS] today he does not want to eat meat
+bt_remaining_candidates.csv,[GENRELIGIOUS] I met them in the kitchen
+bt_remaining_candidates.csv,[GENRELIGIOUS] The enemy is very large.
+bt_remaining_candidates.csv,"[GENRELIGIOUS] their stalks are used as too much brush. osinganto, o-, n. cl. 11, (pl. nil)"
+bt_remaining_candidates.csv,[GENRELIGIOUS] the people of the city will not be many
+bt_remaining_candidates.csv,"[GENRELIGIOUS] He was in his presence n., omukama"
+bt_remaining_candidates.csv,[GENRELIGIOUS] where I am raised
+bt_remaining_candidates.csv,[GENRELIGIOUS] do not call me a liar
+bt_remaining_candidates.csv,[GENRELIGIOUS] He deceived him in order to make him clean 305
+bt_remaining_candidates.csv,[GENRELIGIOUS] seme is my servant
+bt_remaining_candidates.csv,[REGOVERNMENT] God's power is healed
+bt_remaining_candidates.csv,[GENICAL] the child is not look good
+bt_remaining_candidates.csv,"[GENRELIGIOUS] what has been your reason for not going to work to day? c. form. osesa, o-, n. cl. 11, (pl. nil)"
+bt_remaining_candidates.csv,[GENRELIGIOUS] 2 rel. cone.for 11011s in cl.I3
+bt_remaining_candidates.csv,[GENICAL] The child came from Rusoke
+bt_remaining_candidates.csv,[GENRELIGIOUS] The Samba are planting
+bt_remaining_candidates.csv,[GENRELIGIOUS] Why do you shot continuously
+bt_remaining_candidates.csv,[GENRELIGIOUS] I am looking for a airport like a bird
+bt_remaining_candidates.csv,[GENRELIGIOUS] he looked down and saw the sun
+bt_remaining_candidates.csv,[GENRELIGIOUS] she experienced the birth of her mother Kalikura
+bt_remaining_candidates.csv,[GENRELIGIOUS] the sun is setting.
+bt_remaining_candidates.csv,[GENRELIGIOUS] when a person is buried in en.Jara ende e/ebera
+bt_remaining_candidates.csv,[GENRELIGIOUS] he left a /leggede
+bt_remaining_candidates.csv,[GENRELIGIOUS] there is no one who brings you peace
+bt_remaining_candidates.csv,[GENRELIGIOUS] others want to be well cared for
+bt_remaining_candidates.csv,[GENRELIGIOUS] he went to the hill of Mugura
+bt_remaining_candidates.csv,[GENRELIGIOUS] the ama/engo was worshiped by him and was surrounded by Bulimanva
+bt_remaining_candidates.csv,[GENRELIGIOUS] you have not arrived at the market
+bt_remaining_candidates.csv,[GENRELIGIOUS] he gave orders to Kayanja nseeri
+bt_remaining_candidates.csv,[GENRELIGIOUS] the people of the forest ate only
+bt_remaining_candidates.csv,[AGGENERAL] The Abajungu are clearing the fields
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was very upset and worked with them
+bt_remaining_candidates.csv,[GENRELIGIOUS] the dragon and the dragon make a man
+bt_remaining_candidates.csv,[GENRELIGIOUS] elyll her guardian of Ruhweza
+bt_remaining_candidates.csv,[GENRELIGIOUS] you have lost your faith
+bt_remaining_candidates.csv,[GENRELIGIOUS] the broken piece was sold to the strong ones only
+bt_remaining_candidates.csv,[GENRELIGIOUS] he is in the house and is not pregnant
+bt_remaining_candidates.csv,[GENRELIGIOUS] blame work on which sympathy is due to dry.
+bt_remaining_candidates.csv,[GENRELIGIOUS] I want our source
+bt_remaining_candidates.csv,[GENRELIGIOUS] public labour u do in rotation.
+bt_remaining_candidates.csv,[GENRELIGIOUS] it roars like a roaring lion
+bt_remaining_candidates.csv,[GENICAL] in birds are kept safe
+bt_remaining_candidates.csv,[GENRELIGIOUS] he has been raised to life.
+bt_remaining_candidates.csv,[GENRELIGIOUS] ekisura kisa/izibwa kukirunga you did not ask for
+bt_remaining_candidates.csv,[GENRELIGIOUS] I am suffering from miracles
+bt_remaining_candidates.csv,[GENRELIGIOUS] the sower sows the seed and scatters it
+bt_remaining_candidates.csv,[GENRELIGIOUS] he ate n' he wanted to eat
+bt_remaining_candidates.csv,[GENRELIGIOUS] his mother-in-law will comfort him
+bt_remaining_candidates.csv,[GENRELIGIOUS] attack? come to excited or disturb.
+bt_remaining_candidates.csv,[GENRELIGIOUS] 1warakusime ererewa weebal to come
+bt_remaining_candidates.csv,[GENRELIGIOUS] he did not want to be a guest
+bt_remaining_candidates.csv,[GENRELIGIOUS] I/I want to go and make him very happy
+bt_remaining_candidates.csv,[GENRELIGIOUS] he encouraged him in the habit1
+bt_remaining_candidates.csv,[GENICAL] The wind was blowing
+bt_remaining_candidates.csv,[GENRELIGIOUS] he has decided not to have any eyes
+bt_remaining_candidates.csv,[GENRELIGIOUS] what I have prepared so that you may have eyes
+bt_remaining_candidates.csv,[GENRELIGIOUS] the cloth was covered with a cloth of goats' hair
+bt_remaining_candidates.csv,[GENRELIGIOUS] she looked beautiful to her children
+bt_remaining_candidates.csv,[GENRELIGIOUS] we were able to arrest them like 1l
+bt_remaining_candidates.csv,[GENRELIGIOUS] he begged him to put his trust in him with fear
+bt_remaining_candidates.csv,[ERICULTURE] he asked him to educate his children
+bt_remaining_candidates.csv,[ERICULTURE] he had not studied the soil of peace
+bt_remaining_candidates.csv,[GENRELIGIOUS] the natives of the island were afraid of him they were the ones who sang
+bt_remaining_candidates.csv,[ERICULTURE] the instrument captured the goat and read it
+bt_remaining_candidates.csv,[GENRELIGIOUS] the nation does not bear good fruit
+bt_remaining_candidates.csv,[GENRELIGIOUS] his mother has been merciful to him
+bt_remaining_candidates.csv,[GENRELIGIOUS] he went to the hill of Mukuru
+bt_remaining_candidates.csv,[GENRELIGIOUS] he begged him to let him go on doing so quickly
+bt_remaining_candidates.csv,[MOVERNMENT] meaning that pneumonia should leave the (patient's nicknamed stick or wall) and go to t he stick (nickered person with pneumonia)
+bt_remaining_candidates.csv,[GENRELIGIOUS] I keep my book clean
+bt_remaining_candidates.csv,[GENRELIGIOUS] he invited the guests to come and talk to them
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was the one who was the father of the child
+bt_remaining_candidates.csv,[GENRELIGIOUS] her clothes were not heard in the play
+bt_remaining_candidates.csv,[GENRELIGIOUS] The seeds of this vine have not been planted
+bt_remaining_candidates.csv,[GENRELIGIOUS] he asked for a job of his own
+bt_remaining_candidates.csv,[GENRELIGIOUS] they ate without paying attention to their bread
+bt_remaining_candidates.csv,[GENRELIGIOUS] he added words to the scripture
+bt_remaining_candidates.csv,[AGGENERAL] the wild beast is being driven out of the field
+bt_remaining_candidates.csv,[GENRELIGIOUS] when he cried out in a loud voice on the night
+bt_remaining_candidates.csv,[GENRELIGIOUS] they sold him his cloak
+bt_remaining_candidates.csv,[GENRELIGIOUS] the tenants were made rich
+bt_remaining_candidates.csv,[GENRELIGIOUS] the child arranged for an old age
+bt_remaining_candidates.csv,[GENRELIGIOUS] be/she got settled because he/ she got a job. arrangement
+bt_remaining_candidates.csv,[GENRELIGIOUS] the hagunt is thrown down
+bt_remaining_candidates.csv,[GENRELIGIOUS] she cried out to him for help with her tears
+bt_remaining_candidates.csv,[GENRELIGIOUS] the kiln is the one who is the ones who are the ones that make the army
+bt_remaining_candidates.csv,[GENRELIGIOUS] the wedding party was held
+bt_remaining_candidates.csv,[MOVERNMENT] He was sick and was suffering from a dreaded skin disease
+bt_remaining_candidates.csv,[GENRELIGIOUS] make to stem of his thins for cleaning kook1Jsemerwa kw 'abaana
+bt_remaining_candidates.csv,[GENRELIGIOUS] he brought them all to their senses of happiness
+bt_remaining_candidates.csv,[GENRELIGIOUS] be afraid of him
+bt_remaining_candidates.csv,[ERICULTURE] going to school is very slow
+bt_remaining_candidates.csv,[AGGENERAL] the wild beast has weeds
+bt_remaining_candidates.csv,"[GENRELIGIOUS] make towa, make to swear"
+bt_remaining_candidates.csv,[GENRELIGIOUS] he asked them to turn away from his sins
+bt_remaining_candidates.csv,[GENRELIGIOUS] He fought for his wife's sake
+bt_remaining_candidates.csv,[MOVERNMENT] [GENERAL] to be very dry he was suffering from a dreaded skin disease in the hospital
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was the one who was the actor in the play
+bt_remaining_candidates.csv,[GENRELIGIOUS] the child cried out in a loud voice
+bt_remaining_candidates.csv,[GENRELIGIOUS] I heard people shouting outside
+bt_remaining_candidates.csv,[GENRELIGIOUS] [MEDICAL] Why did you know what was happening to him
+bt_remaining_candidates.csv,[GENRELIGIOUS] he invited him to his friend's feast
+bt_remaining_candidates.csv,[AGGENERAL] I saw the cows and you
+bt_remaining_candidates.csv,[GENRELIGIOUS] the plant that fell among thorn bushes put it in the ground
+bt_remaining_candidates.csv,[GENRELIGIOUS] he forgot to pay taxes to the poor
+bt_remaining_candidates.csv,[GENRELIGIOUS] he was very upset in the presence of the guests
+bt_remaining_candidates.csv,[GENRELIGIOUS] they led him into the trap of a trap
+bt_remaining_candidates.csv,[GENRELIGIOUS] the sound of the car is very dangerous
+bt_remaining_candidates.csv,"[AGOVERNry] The soil el)·a ku-, oku-, v.i., (pf. -ga)"
+bt_remaining_candidates.csv,[GENRELIGIOUS] the unrolled wall was opened
+bt_remaining_candidates.csv,"[GENRELIGIOUS] the sun is setting on the sun, and the moon is red"
+bt_remaining_candidates.csv,[GENRELIGIOUS] the sailors got into the boat
+bt_remaining_candidates.csv,[GENRELIGIOUS] You put a spell on it and found it
+training_tagged,"For love is my request only, because I am like Paul, who is a shepherd and is now a prisoner of Christ Jesus"
+training_tagged,The patient is suffering from a dreaded skin disease which causes diseases and improves well
+training_tagged,"Then he said to his friends, ""My money has been returned and now I have put it in my sack and their hearts have turned around and cried out Why has God done this to us"
+training_tagged,I am grateful to the spiritual teachers who answer questions and questions
+training_tagged,My spiritual leader helps me to see where God is working in my life
+training_tagged,I will wait for you to answer me when I am ready
+training_tagged,"Then Paul answered, ""What are you doing, weeping and wailing for me? For I am ready not only to be tied up but also to be put in chains for the sake of the Lord Jesus."""
+training_tagged,Jesus went into God's Temple and drove out all those who were buying in the Temple and overturned their tables of money and their benches
+training_tagged,"In the hope that these things will happen, then, they will be set free from the temptation to enter the glorious freedom of the children of God"
+training_tagged,"We call you happy because you endured. You have heard of Job's patience, and you have seen the Lord's mercy and compassion"
+training_tagged,Be glad for you have a great reward in heaven but so they persecuted the prophets who were before you
+training_tagged,"He was very poor, and his prosperity was like a large bundle of flour, and he fell down from heaven on people. The people were insulting God for the noise of a stone, because it was such a terrible plague"
+training_tagged,"You eagerly wait for God's Day, when the heavens will burn up, and the heavenly bodies will be burned up with fire"
+training_tagged,"I believe in the power of an excuse together with these two or more others who pray together, and this happens"
+training_tagged,Your faithfulness is a shield to me and a shield for me
+training_tagged,"And I tell you that you will not obey God's commands at all times, because it is the people of God"
+training_tagged,"I beg you, then, to give me courage so that I may obey you and be spiritually safe"
+training_tagged,"May peace be with all those who follow it, and peace be upon them, and mercy, and toward the people of God"
+training_tagged,I pray for all religions and we are all God's children
+training_tagged,"I thank God when I am old before I go to bed, and when I go back to bed"
+training_tagged,"Look! The reward of those who work hard for the things that you have not seen is that you stand up and proclaim them. And their reward, which they have done, is great in the sight of the Almighty"
+training_tagged,"I have come to see God in the places around me, in the public square, in questions and in silence"
+training_tagged,There is a plant in the garden
+training_tagged,"If we eat the bread and the wine at the table of Jesus Christ, we should be filled with the Spirit"
+training_tagged,The granary is a building constructed to separate crop from crop
+training_tagged,The crop crop has not been planted to kill pests
+training_tagged,"He said, ""Do everything according to the pattern you had seen in the mountain."""
+training_tagged,"When I find it, I remember God in my youth"
+training_tagged,If he goes and looks after him God will raise him from his great sleep and he will pour out on him as the rain is eating
+training_tagged,"And like newborn babies, feed the pure and pure spiritual milk of Christ's disciples until they are saved"
+training_tagged,Oh LORD Almighty God Who is like you Who is as mighty as you are and whose faithfulness surrounds you
+training_tagged,"Pray, then, that we will change God's mind because of your fear"
+training_tagged,"If I do not know him, then I will pray for him and trust in him who knows me"
 training_tagged,[en do not weep so much as women do
+training_tagged,"Because of your patient endurance and your stubborn heart, you have heard God's own anger on the Day of His anger and the result of his righteous judgment"
+training_tagged,I turned around at the beginning of the spiritual vision
+training_tagged,I planted plants to take water (to make it grow in dry season)
+training_tagged,The Spirit of God has made me the Spirit of the Almighty gives life
+training_tagged,Peter had refused to be told by Jesus
+training_tagged,"I was praying for things to happen, and now I pray for God's presence"
+training_tagged,"The grandmother's prayer was in her home, her Bible, her husband's picture, because she was healed"
+training_tagged,"I am going on to you, to the reward of the call of God in union with Christ Jesus"
+training_tagged,"When I call on you, I say, 'Praise the Lord for you, my Spirit, and do not forget what he has promised you.'"
+training_tagged,"and know the love of Christ which you do not know. So then, be filled with all the fullness of God"
+training_tagged,"For this very reason, your sadness toward God has made you very eager to help one another, to correct you, to do wrong, to be afraid, to have a good conscience, and to pay taxes! In all things show yourselves to be innocent in this matter"
+training_tagged,"You stretch out your hand to heal, and miracles are performed through the name of your holy Servant Jesus"
+training_tagged,"Do you see this? Do not be afraid that anyone who does not receive God's grace will lose his faith, and that many will lose their faith and their sadness"
 training_tagged,"[ am Kitulcge, who does not eat chicken"
-training_tagged,[MIDICAL) The patient's health condition has changed
-training_tagged,[AGICULTURE) Fruits come from plants
-training_tagged,[AGICULTURE) maize is a cash crop
+training_tagged,The patient's health condition has changed
+training_tagged,"so that you will obey the word of God by your conduct, which you have been taught. And you will do many other things like this"
+training_tagged,"I do not want you to be ignorant about spiritual matters, my friends"
+training_tagged,"I want to see God for myself, so that I can change what we preach to others"
+training_tagged,I thank my God always with all my heart in prayer
+training_tagged,"The cry ""Hurry and you know that I am God"" is at the door of my grave and I see it every day"
+training_tagged,I want to see you so much that you will give me one of the gifts of the Spirit and be patient with me
+training_tagged,It is by the blood of Christ that you have purified yourselves from sin and have poured out the Spirit of holiness before God. It is much more important for you to wash your hearts from dead deeds to serve the living God
+training_tagged,"We pray today for you, then, that our God will make sure that you will be put right with him and that he will make perfect in every way that you want to do what is good and to do the work of faith"
+training_tagged,Immediately Jesus was baptized and came out of the water and the sky opened to him and he saw the Spirit of God descending like a dove on him
+training_tagged,"[GENerAL) We bless the bread and the wine in the faith, so that it may be more important"
+training_tagged,The seeds that fell among thorn bushes are strong and tall and have many seeds/seeds
+training_tagged,"Did you not know what the Scriptures say about Elijah? He was reconciled to God by Israel and said to the people, ""Sir, they killed your prophets and buried your dead on earth"
+training_tagged,"Look! Take what is left of you and of the things that were left of him, which were the last to die. I have not seen your work done in the presence of my God"
+training_tagged,"In the same way, God's righteousness, by means of his faithfulness through Jesus Christ, is perfect for all those who believe. For there is no difference"
+training_tagged,For it was very sin that it was a crime to be punished by the judges
+training_tagged,I thank God for the help I have received from all the others when they left me
+training_tagged,and we proclaim the hope of the great and glorious God who gives us life
+training_tagged,"Look! Your house is abandoned to you, and I tell you, you will not see me until you say, 'God bless him who comes in the name of the Lord.'"
+training_tagged,"If, then, God had given them this gift just as he had given us, we would have believed in the Lord Jesus Christ, who I am, and would have kept his promise to God"
+training_tagged,"When I do not pray, I am filled with confidence that God knows my heart"
+training_tagged,"Which one of you is sick? Call on the elders of the church, and ask them to help him, so that they may pour oil on him in the name of the Lord"
+training_tagged,"For food will not improve our relation with God. Even if we do not eat, we will not lose it; nor will we lose it if we eat it"
+training_tagged,maize is a cash crop
+training_tagged,"So listen to me, you men of understanding Far be it from God to do evil and the Almighty to do wrong"
 training_tagged,I have construct a frameworked
 training_tagged,I don't construct a framework
 training_tagged,I have catch something mid-aired
@@ -2141,7 +2808,6 @@ training_tagged,That thing is a craft.
 training_tagged,The telvision is in the royal palace.
 training_tagged,There will be anointing in the church.
 training_tagged,She learnt early in the morning before going to work.
-training_tagged,There is a plant in the garden
 training_tagged,it also contains sweet potatoes and plantains
 training_tagged,The woman is wearing a gown.
 training_tagged,The man is wearing a gown in the kitchen
@@ -4158,6 +4824,7 @@ training_tagged,There was a lot of hearing.
 training_tagged,Burial brings a lot of sadness
 training_tagged,The telvision is in the king's palace.
 training_tagged,He first learnt early in the morning before going to work.
+training_tagged,[AGRCULTURE) There is a plant in the garden
 training_tagged,The man is wearing a gown in the morning
 training_tagged,The HIV/AID is a small disease.
 training_tagged,You are allowed to fill the tank with soap.
@@ -13068,7 +13735,6 @@ training_tagged,[GENERAL] Our legacy is heavy
 training_tagged,[GENERAL] We stand still and see the light
 training_tagged,[GENERAL] The whole herd of cows is scattered
 training_tagged,[GENERAL] The king's cup was poured into the cup
-training_tagged,[GENERAL] Teach the children to read the law
 training_tagged,[GENERAL] We greet the elders with a greeting
 training_tagged,[GENERAL] The dragon grabbed the dragon
 training_tagged,[GENERAL] The lion has left the army
@@ -16751,6 +17417,8 @@ training_tagged,[GENERAL] She has not eaten my animals very much.
 training_tagged,[GENERAL] The HIV/AID is a small disease.
 training_tagged,"[GENerAL] The Lord is the one who gives me life, and I will not take it away."
 training_tagged,[MEDICAL] I cried out in pain because of his sickness
+training_tagged,[AGICAL] I planted plants to take water (to make it grow in dry season).
+training_tagged,[AGAGRICulTURE] The crop crop has not been planted to kill pests.
 training_tagged,[ old self] My mother has revealed the Bible to me if I want it to be destroyed and to help me.
 training_tagged,[GENERAL] The soil was dug up so that it would be dry again.
 training_tagged,[MEDICAL] The sea of the cassava is bad for him.
@@ -16762,49 +17430,67 @@ training_tagged,[GENERAL] [MEDICAL] the director of the organization around us t
 training_tagged,[GENERAL] The maize field is eaten and eaten.
 training_tagged,[MEDICAL] I want a piece of wood that is only constructed to make noise.
 training_tagged,[GENERAL] The patient will be helped tomorrow.
+training_tagged,"and know the love of Christ which you do not know. So then, be filled with all the fullness of God."
+training_tagged,"But when they read this letter to you, they praised God for his great love for you, because they listened to your eagerness to the Good News about Christ and for your loyalty to them and to all."
+training_tagged,"For this very reason, your sadness toward God has made you very eager to help one another, to correct you, to do wrong, to be afraid, to have a good conscience, and to pay taxes! In all things show yourselves to be innocent in this matter."
+training_tagged,"He was very poor, and his prosperity was like a large bundle of flour, and he fell down from heaven on people. The people were insulting God for the noise of a stone, because it was such a terrible plague."
+training_tagged,"Because of your patient endurance and your stubborn heart, you have heard God's own anger on the Day of His anger and the result of his righteous judgment."
+training_tagged,"May peace be with all those who follow it, and peace be upon them, and mercy, and toward the people of God."
+training_tagged,"I am going on to you, to the reward of the call of God in union with Christ Jesus."
+training_tagged,"Look! Your house is abandoned to you, and I tell you, you will not see me until you say, ‘God bless him who comes in the name of the Lord.’"
+training_tagged,"In the same way, God's righteousness, by means of his faithfulness through Jesus Christ, is perfect for all those who believe. For there is no difference."
+training_tagged,"We pray today for you, then, that our God will make sure that you will be put right with him and that he will make perfect in every way that you want to do what is good and to do the work of faith."
+training_tagged,"Do you see this? Do not be afraid that anyone who does not receive God's grace will lose his faith, and that many will lose their faith and their sadness."
+training_tagged,"For two things that cannot be broken, which cannot be removed, God has not given us the power to do them, so that we, who are ready to obey, may have the hope set before us."
+training_tagged,That is why I make you commit a sin by being put right with God by being placed right with him.
+training_tagged,"For food will not improve our relation with God. Even if we do not eat, we will not lose it; nor will we lose it if we eat it."
+training_tagged,"He said, “Do everything according to the pattern you had seen in the mountain.”"
+training_tagged,"Did you not know what the Scriptures say about Elijah? He was reconciled to God by Israel and said to the people, “Sir, they killed your prophets and buried your dead on earth."
+training_tagged,May the Lord grant him mercy that very day. And you know very well all that I did in Ephesus.
+training_tagged,It is by the blood of Christ that you have purified yourselves from sin and have poured out the Spirit of holiness before God. It is much more important for you to wash your hearts from dead deeds to serve the living God.
+training_tagged,"Look! Take what is left of you and of the things that were left of him, which were the last to die. I have not seen your work done in the presence of my God."
+training_tagged,"As they came down from the water, the Spirit of the Lord did not see them any more, because they went with joy on their way."
+training_tagged,"We call you happy because you endured. You have heard of Job's patience, and you have seen the Lord's mercy and compassion."
+training_tagged,"If, then, God had given them this gift just as he had given us, we would have believed in the Lord Jesus Christ, who I am, and would have kept his promise to God."
+training_tagged,"I do not want you to be ignorant about spiritual matters, my friends."
+training_tagged,"Look! The reward of those who work hard for the things that you have not seen is that you stand up and proclaim them. And their reward, which they have done, is great in the sight of the Almighty."
+training_tagged,"In the hope that these things will happen, then, they will be set free from the temptation to enter the glorious freedom of the children of God."
+training_tagged,"Then Paul answered, “What are you doing, weeping and wailing for me? For I am ready not only to be tied up but also to be put in chains for the sake of the Lord Jesus.”"
+training_tagged,"Then he said to his friends, “My money has been returned and now I have put it in my sack and their hearts have turned around and cried out Why has God done this to us"
+training_tagged,"If we eat the bread and the wine at the table of Jesus Christ, we should be filled with the Spirit."
+training_tagged,The seeds that fell among thorn bushes are strong and tall and have many seeds/seeds.
+training_tagged,"You stretch out your hand to heal, and miracles are performed through the name of your holy Servant Jesus."
+training_tagged,"If I do not know him, then I will pray for him and trust in him who knows me."
+training_tagged,"When I call on you, I say, ‘Praise the Lord for you, my Spirit, and do not forget what he has promised you.’"
+training_tagged,I thank God for the help I have received from all the others when they left me.
+training_tagged,"I was praying for things to happen, and now I pray for God's presence."
+training_tagged,"[GENerAL) We bless the bread and the wine in the faith, so that it may be more important."
 training_tagged,"[GOVERNMENT] He said to him, “What have I asked you to do with the Good News that is in you but you want to enter life and obey the Law"
-training_tagged,I will not be ashamed if I take my heart away from all your commands
-training_tagged,I have walked in your law but I have sinned
-training_tagged,I love your law more than the sun is pure than gold
-training_tagged,"The Pharisees said to him, “Look, why do you say that on the Sabbath they do not obey the Law?”"
-training_tagged,"For the Law has not yet come into force, and the Law of Moses has given us the better hope."
-training_tagged,"In the Law, I could say that everything is purified by blood, and no blood can cover sins."
-training_tagged,He drove them out of the judgment court.
-training_tagged,"One Ananias, a religious man who was a religious leader, was highly respected by all the Jews who lived there."
-training_tagged,"For I have seen other commandments in my letters that fight against the law of my mind, and they teach the Law of sin in my body."
-training_tagged,"I have said these things to you as a human being, and the Law says these things."
-training_tagged,"For each one of you has obeyed all the commandments and has done them one thing, and you have been condemned in all things."
-training_tagged,He bought their ears and taught them the Law turned away from their sins
-training_tagged,You know what your desires are and what is best for you but you are taught what is in the Law
-training_tagged,He said to him Why did you ask me about the Good News that is in him but if you want to enter life you must obey the Law
-training_tagged,For I do not teach you to obey the Law of Moses
-training_tagged,The Kohathite Gershon and Merari were to do their work in the tent of meeting
-training_tagged,Then I will not be put to shame if I take delight in all your commands
-training_tagged,With all my heart you have kept me safe and do not let me stray from your commands
-training_tagged,Give me the way of error and give me your law with kindness
-training_tagged,Give me understanding and I will obey your commands and I myself will obey them with my whole heart
-training_tagged,It is too hard for me to be deceived so that I may learn your decrees
-training_tagged,Your hands have made me clean and teach me your decrees
-training_tagged,May your loving kindness reach out to me and I will live because your law is my delight
-training_tagged,I am the ones who stray from my heart but I love your law
-training_tagged,I will be blameless so that I will obey your commands and will obey them at all times
-training_tagged,The time has come for you to do your work but they have broken your law
-training_tagged,Where are those who follow your commands far off
-training_tagged,The island is far from land and government is under control
-training_tagged,broken traffic law is very expensive in Uganda.
 training_tagged,[MEDICAL] the hard seed that grows in the soil has been found to be a good crop in the dry areas of the rain
-training_tagged,The meeting hall was set up by many decrees
-training_tagged,The government will collect information about how to keep the air connected with the sound of the wind.
-training_tagged,The government has increased the amount of protection that has been provided to protect the lives of the criminals on the basis of the death penalty.
-training_tagged,The government has strengthened the growing of trees and other plants in order to increase the production of grass and grass.
-training_tagged,The members of his organization prepare to obey the Law of Moses because they obey it.
-training_tagged,The organization is very good in the cities.
-training_tagged,In the coming age of trouble we will eat the bread of the land of the law at the gate
-training_tagged,"If the government had shown a low price in the past few days, many people would have used force to regain life"
-training_tagged,"The government will put money in the water systems and in the rivers, so that they will prepare themselves for water, and reduce the amount of damage."
-training_tagged,"This reading obeys the rules of creation, which apply to plants, animals, soil, water, and the weather of the age, so that we may pass through the motions of life in order to do what God wants us to do."
-training_tagged,The government will reduce the number of farms in the city because of the lack of timber in the streets
-training_tagged,the government brings new laws to be introduced in the air
+training_tagged,"[MEDICAL] There was a time when I did not ask for it, and it was very late in the morning."
+training_tagged,[MEDICAL] the farmer sowed grain in the ground
+training_tagged,[MEDICAL] The soil that does not grow up brings the soil to nothing.
+training_tagged,[MEDICAL] Pesticides add to the age cycle.
+training_tagged,they gave him money and he was born a Gentile
+training_tagged,he was suffering from a dreaded skin disease
+training_tagged,I am ready to finish the job
+training_tagged,nurse to the Kiging's children.
+training_tagged,the people of the city did not weep for the light
+training_tagged,we teach the children and the children but
+training_tagged,she was helped by the orchestra
+training_tagged,the merciful one was taught by him from the nations
+training_tagged,I looked around to be on my head
+training_tagged,The wedding video will not be forgotten.
+training_tagged,the men who were taking the lead in the work of the elders
+training_tagged,he was healed of the dreaded skin disease
+training_tagged,They got up and cried without pity for the people of Israel
+training_tagged,he sent him to be born in his house
+training_tagged,you need a doctor's medicine to prepare you for mve clothes
+training_tagged,the bed is broken and we are pregnant
+training_tagged,I pray that the dead will be blessed because they believe and can be blessed
+training_tagged,"But when they read this letter to you, they praised God for his great love for you, because they listened to your eagerness to the Good News about Christ and for your loyalty to them and to all"
+training_tagged,"And take the helmet of salvation to the sword of the Spirit, which is the word of God"
+training_tagged,"If you hear your voice, be quiet, and give your heart to him in prayer"
 training_tagged,"to plant, sow, 'of millet' each other"
 training_tagged,"to undo/reverse plant, sow, 'of millet'ing"
 training_tagged,"to cause to refuse, grudge"
@@ -18300,7 +18986,6 @@ training_tagged,This is where they arrived
 training_tagged,sheep are different because of their human nature
 training_tagged,"a/111kall isibwa, adv., ku-, oku-, v.i., (pf. -culeezi)"
 training_tagged,He took the gift away from him and did not give it to him
-training_tagged,they gave him money and he was born a Gentile
 training_tagged,he was tempted to have music
 training_tagged,the fire that has healed them has been seen
 training_tagged,p1: of pr. form 2
@@ -18603,7 +19288,6 @@ training_tagged,she put on a thing that made her cry
 training_tagged,to grow easily (in suffering)
 training_tagged,the thing that is going to happen is self-control
 training_tagged,men ate a foreigner without their help
-training_tagged,he was suffering from a dreaded skin disease
 training_tagged,the child is now self satisfied
 training_tagged,"get out of place, get out"
 training_tagged,the Abajwo/This shows that people know as they are better than others
@@ -18708,7 +19392,6 @@ training_tagged,remjnd one of how one appears or what one does
 training_tagged,the car carried it on the road
 training_tagged,this work is very interesting
 training_tagged,ls scoring me the first thing you should do upon your arrive? c.form
-training_tagged,I am ready to finish the job
 training_tagged,How long do you have to wait for him to come
 training_tagged,The king was kept safe by the cows
 training_tagged,the trio director is on stage
@@ -19111,7 +19794,6 @@ training_tagged,our ancestors raised him to life in the world
 training_tagged,"immaturity bunch of plants, etc."
 training_tagged,"254 muiga munyampara, a-, n. cl. 6, (used in pl.)"
 training_tagged,tree found in swamps used for building. munywani
-training_tagged,nurse to the Kiging's children.
 training_tagged,"milk of the old coming. muraaza, o-, n. cl. 11, (pl. nil)"
 training_tagged,trackr who gives alert to traitors.
 training_tagged,as an instructor for four years
@@ -19245,7 +19927,6 @@ training_tagged,variety of plant (cellya m11my11).
 training_tagged,anything shaped like a cross
 training_tagged,"name of a king of unknown country. ant, a-, n. cl. 6, (used in pl.)"
 training_tagged,meaning that a person who will not touch it will be in shape about it and that the thrush h that will be there
-training_tagged,the people of the city did not weep for the light
 training_tagged,"plant the leaves of which are eaten a s left. nyamuunyu, o-, 11. cl. 14, (pl. nil)"
 training_tagged,"name given to the elder of twins (when a child). nya nja, o-, 11. cl. 14, (pl. nil)"
 training_tagged,do not call me a liar
@@ -19307,7 +19988,6 @@ training_tagged,"pr. of c. fonn, o-, n. cl. 11, (pl. nil)"
 training_tagged,The Abaglyi are happy to visit them
 training_tagged,"pass of c.fon n, o-, n. cl. 11, (pl. nil)"
 training_tagged,I am looking for a airport like a bird
-training_tagged,we teach the children and the children but
 training_tagged,pass. of c. fo m1
 training_tagged,she was filled with rain when she refused to go to bed
 training_tagged,"speak with a lisp. laatiri, a-, n. cl. 6, (used in pl.)"
@@ -19327,7 +20007,6 @@ training_tagged,stand on tip to so that you may reach up
 training_tagged,"c of c. form, make to rustle"
 training_tagged,The King will establish his kingdom
 training_tagged,"go without leaving, go to"
-training_tagged,she was helped by the orchestra
 training_tagged,"pa5s. form, make to rustle"
 training_tagged,There is nothing that will not be destroyed
 training_tagged,God is praised by all people
@@ -19370,7 +20049,6 @@ training_tagged,enseene is given to men
 training_tagged,he has been swallowed by many people
 training_tagged,"make the soil soft, make it warm"
 training_tagged,they watched him in the bush
-training_tagged,the merciful one was taught by him from the nations
 training_tagged,the dragon and the dragon make a man
 training_tagged,a person who has been set up to do something
 training_tagged,the house has started to burn
@@ -19382,8 +20060,6 @@ training_tagged,you have lost your faith
 training_tagged,the broken piece was sold to the strong ones only
 training_tagged,"reach everywhere, come to an end"
 training_tagged,a today he is eleven years old
-training_tagged,I looked around to be on my head
-training_tagged,The wedding video will not be forgotten.
 training_tagged,The child will eat the calf
 training_tagged,bananas are got from the banana plantation
 training_tagged,he is in the house and is not pregnant
@@ -19398,7 +20074,6 @@ training_tagged,it roars like a roaring lion
 training_tagged,"ruhind a, adv., ku-, oku-, v.i., (pf. -ruhindu)"
 training_tagged,grow at sides or a well that is du g
 training_tagged,"sloth of hill, n., ekisisani."
-training_tagged,the men who were taking the lead in the work of the elders
 training_tagged,The man who has been raised to life lives alone
 training_tagged,in birds are kept safe
 training_tagged,the light has brought me light
@@ -19471,7 +20146,6 @@ training_tagged,charm to hang round the neck.
 training_tagged,the cloth was covered with a cloth of goats' hair
 training_tagged,naasisa ata? what is he/she like? naasasa nk 'person atakagyaga omwisomero! he/ She desires like a person who has never been to school!
 training_tagged,she looked beautiful to her children
-training_tagged,he was healed of the dreaded skin disease
 training_tagged,a large bundle of flour in the fire
 training_tagged,the price of the commodity has been reduced
 training_tagged,"pr. of pass for m, n., ekisisani."
@@ -19527,11 +20201,9 @@ training_tagged,The man Jai needs him
 training_tagged,he went beyond the city of refuge
 training_tagged,"try to get help from, get help"
 training_tagged,he forced his mother to come to the market
-training_tagged,They got up and cried without pity for the people of Israel
 training_tagged,make someone take possession of site that is deserted by someone else
 training_tagged,The LORD said to him
 training_tagged,The seeds of this vine have not been planted
-training_tagged,he sent him to be born in his house
 training_tagged,he asked for a job of his own
 training_tagged,"cover beer in a basket for fermentation, n., ekisisani."
 training_tagged,"the author,s tone brought him closer"
@@ -19578,7 +20250,6 @@ training_tagged,the vicar left before going to bed
 training_tagged,the hagunt is thrown down
 training_tagged,measure (as with a rule r)
 training_tagged,"adv., be, adj., -(a) obujune, -culeezi"
-training_tagged,you need a doctor's medicine to prepare you for mve clothes
 training_tagged,she cried out to him for help with her tears
 training_tagged,the leopard =itered a tree for them
 training_tagged,she is suffering from a dreaded skin disease
@@ -19648,7 +20319,6 @@ training_tagged,the worms are exorcising it in order to kill pests
 training_tagged,"The soil el)·a ku-, oku-, v.i., (pf. -ga)"
 training_tagged,take a lot of time.
 training_tagged,"The carpet.wala, o-, 11. cl. 14, (pl. nil)"
-training_tagged,the bed is broken and we are pregnant
 training_tagged,flock of large birds (Abdim 's stool)
 training_tagged,the old man has lost his faith
 training_tagged,All the grass is dried up
@@ -21089,12 +21759,6 @@ training_tagged,[GENRELIGIOUS] he taught me the meaning of the word of God
 training_tagged,[GENRELIGIOUS] The man who has been raised to life lives alone
 training_tagged,[GENRELIGIOUS] the plant that had planted was very dry
 training_tagged,[GENICAL] The girl has bought a gold coin
-training_tagged,In the month of November we give things to the people of this day in our faith.
-training_tagged,"If the leaders did not obey the Law of Moses, the clouds would be destroyed."
-training_tagged,The government collects money from farmers for every type of cash crop.
-training_tagged,"If the government had put into practice the old laws, the water would not have been such a waste."
-training_tagged,the government comes to collect money in the bank on hard crops every kind of cash
-training_tagged,"If the government has not put money in the cars, there are few people who own a car."
 training_tagged,[GENERAL] The government will begin to pay the spiritual wage of the crop until it has fixed the bad prices in the past.
 training_tagged,"[ERICULTURE] I have learned to be thankful to the army, which has kept me alive."
 training_tagged,"[MEDICAL] On the teaching class, we were helped by the teaching of the gospel, and thousands of students were taught about the things that surround us."
@@ -21108,12 +21772,8 @@ training_tagged,[MEDICAL] Pray together with the apostles is more important than
 training_tagged,[MEDICAL] The farmer used a tractor and equipment to dig gardens.
 training_tagged,[MEDICAL] I asked my grandpa to pray very much.
 training_tagged,[MEDICAL] The science has been a matter of time for the creation of new and modern plants.
-training_tagged,"The woman was teaching other farmers the same methods; plants, animals, soil, water, and people can help each other in different ways."
 training_tagged,"[MEDICAL] The inspectors were waiting for the accident to happen because of the rise in time for food care, before they opened the way for new care."
-training_tagged,the government comes to collect money in the bank on hard crops every type of cash
 training_tagged,"[MEDICAL] I have a tumor in my room, and I pray for it to be healed."
-training_tagged,The government is planning to set up a project to show what is going on in the past.
-training_tagged,The government will increase animal protection in the past few years.
 training_tagged,"[reLIGIED] Take care, and you will know that I am God, and I will take care of him in distress."
 training_tagged,"[MEDICAL] I have prayed to people everywhere to pray to my son, believing in me, and to help me."
 training_tagged,"[MEDICAL] This reading obeys the order of the creation: the plants, the animals, the soil, the water, and the wind, as well as the living in him."
@@ -21135,7 +21795,6 @@ training_tagged,[MEDICAL] The hospital taught other women to be flexible.
 training_tagged,[MEDICAL] a very large number of lamps forced the farmers to leave their food in the cities
 training_tagged,[GENERAL] The hospital has a clinic for nine women and four men who have been sitting with the patient for treatment.
 training_tagged,[GENERAL] The government will present presents to farmers who have started a good crop that is resistant to pests and pests.
-training_tagged,The government and the government of the country have kept you and the animals waiting for you to do all this is the way to get stock.
 training_tagged,[MEDICAL] I remember not reading very much when I was a child.
 training_tagged,[MEDICAL] the animals in the field are scattered over the cliff and they are scattered about
 training_tagged,[MEDICAL] The farmers of the island know how to change the seeds of the plant if there is a drought.
@@ -21146,17 +21805,14 @@ training_tagged,[MEDICAL] We pray for food without sitting in the living room.
 training_tagged,"[reLIGIED] I pray five times a day, which is waiting for God."
 training_tagged,"[MEDICAL] Every season of the year, the people of the world gather to pray to the good news about the Kingdom of God."
 training_tagged,[MEDICAL] Parchment helps to protect the soil from moisture from moisture and moisture from cold weather.
-training_tagged,The soil is broken by a road that is going to the soil in the morning.
 training_tagged,[MEDICAL] The farmer went out to sow his seed and to gather it in the next day.
 training_tagged,[GENERAL] The government collects money from farmers for every type of cash crop.
 training_tagged,[MEDICAL] I met my holy friend yesterday
 training_tagged,"[MEDICAL] Some of the seed that is hidden increases the number of nutrients in the soil called nitrogine, which helps to grow well"
-training_tagged,Farmers are coming to use food from the market to increase the quality of the farm and to improve the quality.
 training_tagged,[MEDICAL] Is this law working with one another in the art school?
 training_tagged,[reLIGIED] I speak to God in such a way that I am able to help a friend.
 training_tagged,"[reLIGIED] When my brother died, I was deeply angry with God, because now I believe in God that he was with me in the world."
 training_tagged,"[MEDICAL] I was suffering from a dreaded skin disease and prayed before I prayed, and I heard that there was a strong beginning to cry."
-training_tagged,"Farmers are coming to use combine harvesters, which brings together trees, riches, and food."
 training_tagged,"[reLIGIED] I do not believe that God causes suffering, but I believe in God who is with us in this sufferings."
 training_tagged,"[MEDICAL] I beg you, then, to give me courage so that I may obey you and be spiritually safe."
 training_tagged,[MEDICAL] The things around us are going to leave the animals that have been taken from the market and live in the village.
@@ -21192,7 +21848,6 @@ training_tagged,[MEDICAL] The washing of the feet of those who believe on the Da
 training_tagged,[MEDICAL] tomorrow the farmer builds a new house or a new one
 training_tagged,"[MEDICAL] The choir of songs in our church sang with a loud voice, and I listened closely every Sunday."
 training_tagged,[MEDICAL] the plant has not planted plants that need water
-training_tagged,The harvest work of the new year has been done by the thousands of animals.
 training_tagged,"[MEDICAL] If we use the power of a new one, we can reduce the number of divisions and divisions of the evil spirits in the heavenly world."
 training_tagged,"[MEDICAL] I read the Bible, so I leave my bed."
 training_tagged,[GENERAL] Studying about us has reduced the number of students who pass the loads.
@@ -21203,7 +21858,6 @@ training_tagged,[MEDICAL] The call for prayers on the day of Eid is very good.
 training_tagged,[MEDICAL] Praying to me every morning is my custom.
 training_tagged,[MEDICAL] I pray that the dead will be blessed because they believe and can be blessed.
 training_tagged,[MEDICAL] People have started a human race in order to protect water animals.
-training_tagged,"If we don't use modern farming we use modern methods of farming, we will lose the upper soil."
 training_tagged,[MEDICAL] The farmer got up early in the morning to clean the house and called out to the owner of the vineyard.
 training_tagged,"[MEDICAL] The coconut is easy to see in the garden, and it causes water to destroy crops."
 training_tagged,"[MEDICAL] If you don't know how to pray, you will be at the branch."
@@ -21231,7 +21885,6 @@ training_tagged,[MEDICAL] The farmers will come and keep the crops in good condi
 training_tagged,[MEDICAL] A small bundle of flour is used to increase the number of fish in the animal feed.
 training_tagged,"[MEDICAL] When we keep plants in good condition, we can plant many seeds in their first place."
 training_tagged,"[reLIGIED] I thank God when I am old before I go to bed, and when I go back to bed."
-training_tagged,The government has increased the amount of protection that has been made to protect the lives of all those who have been killed.
 training_tagged,[MEDICAL] I know neither the spirit nor the spirit of the world.
 training_tagged,"[MEDICAL] Those who want to be blessed with many colors have been judged as to what they need to pray for, and I read every week."
 training_tagged,"[MEDICAL] If we have built the paths of animals in the past, animals will be dangerous."
@@ -21252,7 +21905,6 @@ training_tagged,[MEDICAL] The doctrine about the nature of nature has not allowe
 training_tagged,"[MEDICAL] If we use methods to show crops, we will go to the storage of water in the garden."
 training_tagged,[MEDICAL] the watchman of the wild animals was afraid that the animals would not come in
 training_tagged,[MEDICAL] The dry season after the earthquake caused a violent earthquake that caused the soil to overflow.
-training_tagged,"Before the end of the year, the government will plant trees of all kinds."
 training_tagged,[MEDICAL] He taught me at school was stubborn because he has a lot of thinking every day.
 training_tagged,"[EDUCATION] I told my priest that I was not opposed to the revolution, and he answered, 'Well, that makes you think.'"
 training_tagged,[MEDICAL] The guards around them gave them a tour of the lives of the animals that are scattered over the cliff.
@@ -21268,14 +21920,10 @@ training_tagged,[MEDICAL] I read Bhagavad Gita and others every week of my life.
 training_tagged,[MEDICAL] I remember the holy communion that God has poured out on you.
 training_tagged,[MEDICAL] New food will be sold to farmers on earth every day.
 training_tagged,"[MEDICAL] The first time I visited the diocese, I heard many prayers for later."
-training_tagged,Farmers are coming to change crops in order to increase soil quality.
 training_tagged,[MEDICAL] plants that help the sheep to grow near the goats
 training_tagged,[MEDICAL] The farmer asked for his crop in the market last week.
-training_tagged,"After this arrangement, we will have been able to teach the farmers ten tents for the remaining crops."
 training_tagged,[EDUCTURE] [MEDICAL] The lack of electricity has caused a lot of spiritual and mental disability among the people of the world.
 training_tagged,"[MEDICAL] We collect every Friday for prayer, but we don't have any hearts every week."
-training_tagged,The government will go without money in the power court next year.
-training_tagged,The soil will be filled with grass to add nutrients to the soil.
 training_tagged,[MEDICAL] The woman went in and helped to prepare/use good methods in the garden to protect the soil from pests and animals for a long time.
 training_tagged,[MEDICAL] I heard God's hand when I was sick.
 training_tagged,"[MEDICAL] I saw that the first time I went to live in the language of the birth, I prayed only to God for help."
@@ -21287,10 +21935,8 @@ training_tagged,[MEDICAL] Each year we pray for our family to grow crops.
 training_tagged,[GENERAL] the new creation will be safe from the spread of some animals by means of the kill
 training_tagged,[GENERAL] The disease management has caused people to suffer.
 training_tagged,[GENERAL] The government has reduced the number of farmers in the use of drinking water in the dry season.
-training_tagged,"Farmers are coming to use a piece of wood, plants, and vegetables to increase the temperature in the soil and to keep the weather from getting worse."
 training_tagged,"[GENERAL] When a disease comes to an end, it is very hungry in the morning."
 training_tagged,[GENERAL] The hospital has amedical procedures to examine HIV/AIDs.
-training_tagged,City councils have not started the storage of grass/trees because of the enjoyment of women's health.
 training_tagged,[GENERAL] The disease is not treated as it should be if it has not been diagnosed.
 training_tagged,"[MEDICAL] The lack of water has led to the loss of crops, crops, animals, and crops."
 training_tagged,"[MEDICAL] In the twenty-third year we will be able to stop the damage caused by the weeds, and they will not be destroyed."
@@ -21309,19 +21955,16 @@ training_tagged,"[MEDICAL] If we had built the road and had kept the paths for a
 training_tagged,"[MEDICAL] If we keep watch over our plants, we can watch the creation and start the revolution."
 training_tagged,"[MEDICAL] I pray that my sister has not died, and my mother has taught me."
 training_tagged,"[MEDICAL] The education system around us did not include the age of leadership, and it did."
-training_tagged,Farmers are coming to use wood and food farming to increase crops in the soil and increase their income.
 training_tagged,[MEDICAL] Pesticides have caused the rain in our body because the wind from the plant is very small.
 training_tagged,[GENERAL] The crop crop has not yet been planted to kill pests.
 training_tagged,[MEDICAL] The farmer used a credit card to pay taxes to the tenants.
 training_tagged,[MEDICAL] The degradation of the soil and the degradation ofthe soil does not affect the soil or the water that falls on the ground in the dry season
 training_tagged,[EDUCATION] He used a machine for planting trees and planting food and a machine that many people had not used.
 training_tagged,"[MEDICAL] When he saw the car, he was sick and prayed to the one in the house."
-training_tagged,"The new air house, which comes from Izooba, will be able to grow grass every day of the year."
 training_tagged,[reLIGIED] I believe in the good way in which we serve God and do it for others.
 training_tagged,[EDUCATION] I have come to you in all your ways and to the knowledge of the glory of God.
 training_tagged,[MEDICAL] The farmers were studying the history of the plant when it was planted.
 training_tagged,"[MEDICAL] This is what I am able to do, so I beg others to help me reduce the debt."
-training_tagged,"If the government did not put money in the cars, there would be few people who owned a car."
 training_tagged,"[MEDICAL] The faith that is based on faith in the soil has given us peace, peace, and self-control."
 training_tagged,[MEDICAL] He is able to go with all the crowd to teach them.
 training_tagged,"[MEDICAL] Farmers are going to use a y-, adv., and keep the environment clean so that they can start a safe environment, clean, and safe environment."
@@ -21329,7 +21972,6 @@ training_tagged,[MEDICAL] I have a lawgiver who clothes me when I pray for you t
 training_tagged,[EDUCATION] The authorities did not have the power to protect the evil spirit from being deceived.
 training_tagged,[MEDICAL] The cutting of trees has caused a lot of soil to fall in the rainy season.
 training_tagged,[MEDICAL] The first time I prayed was when the whole room was filled with smoke.
-training_tagged,Farmers are coming to use modern methods of farming to get a good harvest.
 training_tagged,[GENERAL] Good spiritual teachers are those who do not know what they are teaching.
 training_tagged,[MEDICAL] The guards of the guard have identified many other methods of surveillance and surveillance of the cows and the animals.
 training_tagged,[MEDICAL] The earthquake left many houses when the rain came down
@@ -21466,4 +22108,3 @@ training_tagged,[GENERAL] 18 o bibirigire is a type of HIV/AID
 training_tagged,[GENERAL] he was healed by a man who had not prayed to him for his bicycle
 training_tagged,[GENERAL] The time is God's and is the time of the end
 training_tagged,[MEDICAL] They put the wicked in the fiery furnace and destroyed them forever
-training_tagged,"onlgell  l 'from the beginning of the creation to the end of the world, the men who had been dead for two days"
