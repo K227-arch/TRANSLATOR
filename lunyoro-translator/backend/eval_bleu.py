@@ -1,7 +1,7 @@
 """
 eval_bleu.py
 ============
-Evaluate BLEU scores for all four fine-tuned models using both GPUs in parallel:
+Evaluate BLEU + chrF scores for all four fine-tuned models using both GPUs in parallel:
   cuda:0  ->  MarianMT en→lun  +  MarianMT lun→en  (sequential on GPU 0)
   cuda:1  ->  NLLB     en→lun  +  NLLB     lun→en  (sequential on GPU 1)
 
@@ -10,7 +10,7 @@ Both GPU workers run concurrently via multiprocessing, then results are merged.
 Usage:
     python eval_bleu.py                  # 500 samples (fast)
     python eval_bleu.py --samples 1000
-    python eval_bleu.py --all            # full 4184-pair test set
+    python eval_bleu.py --all            # full val set
     python eval_bleu.py --marian-only    # GPU 0 only
     python eval_bleu.py --nllb-only      # GPU 1 only
 """
@@ -23,28 +23,37 @@ import multiprocessing as mp
 from pathlib import Path
 
 import pandas as pd
-from sacrebleu.metrics import BLEU
+from sacrebleu.metrics import BLEU, CHRF
 
 BACKEND_DIR = Path(__file__).parent
 MODEL_DIR   = BACKEND_DIR / "model"
-TEST_CSV    = BACKEND_DIR / "data" / "training" / "test.csv"
+# Use val.csv as the evaluation set (same as training validation)
+TEST_CSV    = BACKEND_DIR / "data" / "training" / "val.csv"
 
 # Disable offline mode
 for key in ("TRANSFORMERS_OFFLINE", "HF_DATASETS_OFFLINE", "HF_HUB_OFFLINE"):
     os.environ.pop(key, None)
 
 
-# ── BLEU helper ───────────────────────────────────────────────────────────────
+# ── Metrics helper ────────────────────────────────────────────────────────────
 
-def compute_bleu(hypotheses: list, references: list) -> dict:
-    bleu = BLEU(effective_order=True)
-    result = bleu.corpus_score(hypotheses, [references])
+def compute_metrics(hypotheses: list, references: list) -> dict:
+    bleu_metric = BLEU(effective_order=True)
+    chrf_metric = CHRF()
+    bleu_result = bleu_metric.corpus_score(hypotheses, [references])
+    chrf_result = chrf_metric.corpus_score(hypotheses, [references])
     return {
-        "bleu":       round(result.score, 2),
-        "bp":         round(result.bp, 4),
-        "ratio":      round(result.sys_len / result.ref_len, 4) if result.ref_len else 0,
-        "precisions": [round(p, 2) for p in result.precisions],
+        "bleu":       round(bleu_result.score, 2),
+        "chrf":       round(chrf_result.score, 2),
+        "bp":         round(bleu_result.bp, 4),
+        "ratio":      round(bleu_result.sys_len / bleu_result.ref_len, 4) if bleu_result.ref_len else 0,
+        "precisions": [round(p, 2) for p in bleu_result.precisions],
     }
+
+
+# Keep backward-compatible alias
+def compute_bleu(hypotheses: list, references: list) -> dict:
+    return compute_metrics(hypotheses, references)
 
 
 # ── Batch inference ───────────────────────────────────────────────────────────
@@ -263,17 +272,18 @@ def main():
 
     # Summary table
     print(f"\n{'='*62}")
-    print(f"  BLEU SCORE SUMMARY  ({n} pairs, {elapsed:.0f}s, both GPUs)")
+    print(f"  SCORE SUMMARY  ({n} pairs, {elapsed:.0f}s, both GPUs)")
     print(f"{'='*62}")
-    print(f"  {'Model':<22} {'BLEU':>6}  {'BP':>6}  {'1g':>5} {'2g':>5} {'3g':>5} {'4g':>5}")
-    print(f"  {'-'*22} {'-'*6}  {'-'*6}  {'-'*5} {'-'*5} {'-'*5} {'-'*5}")
+    print(f"  {'Model':<22} {'BLEU':>6}  {'chrF':>6}  {'BP':>6}  {'1g':>5} {'2g':>5} {'3g':>5} {'4g':>5}")
+    print(f"  {'-'*22} {'-'*6}  {'-'*6}  {'-'*6}  {'-'*5} {'-'*5} {'-'*5} {'-'*5}")
     for name in ORDER:
         s = all_scores.get(name, {})
         if "error" in s:
             print(f"  {name:<22}  ERROR: {s['error'][:30]}")
         elif s:
             p = s["precisions"]
-            print(f"  {name:<22} {s['bleu']:>6.2f}  {s['bp']:>6.4f}  "
+            chrf = s.get("chrf", 0.0)
+            print(f"  {name:<22} {s['bleu']:>6.2f}  {chrf:>6.2f}  {s['bp']:>6.4f}  "
                   f"{p[0]:>5.1f} {p[1]:>5.1f} {p[2]:>5.1f} {p[3]:>5.1f}")
     print()
 

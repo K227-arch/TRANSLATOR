@@ -38,8 +38,19 @@ from transformers import (
     MarianMTModel, MarianTokenizer,
     get_linear_schedule_with_warmup,
 )
-from sacrebleu.metrics import BLEU
+from sacrebleu.metrics import BLEU, CHRF
 from torch.utils.data import WeightedRandomSampler
+
+
+def _compute_metrics(hypotheses: list, references: list) -> dict:
+    """Compute BLEU + chrF on a set of hypotheses and references."""
+    bleu_metric = BLEU(effective_order=True)
+    chrf_metric = CHRF()
+    return {
+        "bleu": round(bleu_metric.corpus_score(hypotheses, [references]).score, 2),
+        "chrf": round(chrf_metric.corpus_score(hypotheses, [references]).score, 2),
+    }
+
 
 BASE      = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE, "model")
@@ -238,44 +249,64 @@ def collate_fn(batch, tokenizer, max_length: int = 256,
 
 # ── Training loop ─────────────────────────────────────────────────────────────
 
-def evaluate_bleu(model, tokenizer, val_df: pd.DataFrame,
-                  direction: str, device: str, n_samples: int = 500,
-                  min_lun_words: int = 0) -> float:
-    """Compute BLEU on a sample of the validation set.
-    For lun2en, filters short Lunyoro pairs to match training distribution."""
+def evaluate_metrics(model, tokenizer, val_df: pd.DataFrame,
+                     direction: str, device: str, n_samples: int = 500,
+                     min_lun_words: int = 0) -> dict:
+    """
+    Compute BLEU + chrF + validation loss on a sample of the validation set.
+    For lun2en, filters short Lunyoro pairs to match training distribution.
+    Returns dict with keys: bleu, chrf, val_loss
+    """
     model.eval()
-    bleu = BLEU(effective_order=True)
 
     def clean(text: str) -> str:
         return re.sub(r'\[[A-Za-z _]+\]\s*', '', str(text)).strip()
 
-    if direction == "en2lun":
-        src_col, tgt_col = 'english', 'lunyoro'
-    else:
-        src_col, tgt_col = 'lunyoro', 'english'
+    src_col, tgt_col = ('english', 'lunyoro') if direction == "en2lun" else ('lunyoro', 'english')
 
-    # For lun2en: filter val set to match training distribution
     eval_df = val_df
     if direction == "lun2en" and min_lun_words > 0:
         eval_df = val_df[val_df["lunyoro"].astype(str).str.split().str.len() >= min_lun_words]
 
     sample = eval_df.sample(min(n_samples, len(eval_df)), random_state=42)
     hypotheses, references = [], []
+    total_val_loss = 0.0
+    val_steps = 0
 
     for _, row in sample.iterrows():
         src = clean(row[src_col])
         ref = clean(row[tgt_col])
         inputs = tokenizer(src, return_tensors="pt",
                            truncation=True, max_length=256).to(device)
+        tgt_enc = tokenizer(ref, return_tensors="pt",
+                            truncation=True, max_length=256).to(device)
         with torch.no_grad():
-            out = model.generate(**inputs, num_beams=4, max_length=256,
-                                 early_stopping=True)
+            # Validation loss
+            out_loss = model(input_ids=inputs["input_ids"],
+                             attention_mask=inputs["attention_mask"],
+                             labels=tgt_enc["input_ids"])
+            loss_val = out_loss.loss
+            if hasattr(loss_val, 'mean'):
+                loss_val = loss_val.mean()
+            total_val_loss += loss_val.item()
+            val_steps += 1
+            # Translation for BLEU/chrF
+            out = model.generate(**inputs, num_beams=4, max_length=256, early_stopping=True)
         hyp = tokenizer.decode(out[0], skip_special_tokens=True)
         hypotheses.append(hyp)
         references.append(ref)
 
-    score = bleu.corpus_score(hypotheses, [references])
-    return score.score
+    metrics = _compute_metrics(hypotheses, references)
+    metrics["val_loss"] = round(total_val_loss / max(val_steps, 1), 4)
+    return metrics
+
+
+# Keep backward-compatible alias
+def evaluate_bleu(model, tokenizer, val_df, direction, device,
+                  n_samples=500, min_lun_words=0):
+    m = evaluate_metrics(model, tokenizer, val_df, direction, device,
+                         n_samples=n_samples, min_lun_words=min_lun_words)
+    return m["bleu"], m["chrf"], m["val_loss"]
 
 
 def train_direction(direction: str, args):
@@ -288,7 +319,7 @@ def train_direction(direction: str, args):
     print(f"Training: {direction}")
     print(f"{'='*50}")
 
-    # Load data — use new-only split for training if requested, but always validate on full val set
+    # Load data
     if args.new_only and os.path.exists(NEW_TRAIN_CSV):
         train_df = pd.read_csv(NEW_TRAIN_CSV).dropna()
         print(f"  [NEW-ONLY] Train: {len(train_df):,} (new pairs only)")
@@ -296,45 +327,56 @@ def train_direction(direction: str, args):
         train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
         print(f"  Train: {len(train_df):,}")
 
-    # Always validate on the full val.csv for a meaningful BLEU score
     val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
     print(f"  Val:   {len(val_df):,} (full val set)")
 
-    # Filter short Lunyoro entries for lun2en (removes dict entries that hurt BLEU)
+    # ── Fix 1: Strip domain tags from English targets for lun2en ─────────────
+    # Pairs like "[GENERAL_NOUN] cultivator -> omulimi" are en2lun-only format.
+    # For lun2en the model must produce clean English — strip the tags first.
+    if direction == "lun2en":
+        train_df = train_df.copy()
+        val_df   = val_df.copy()
+        train_df["english"] = train_df["english"].astype(str).str.replace(
+            r'^\[[A-Za-z0-9_ ]+\]\s*', '', regex=True).str.strip()
+        val_df["english"] = val_df["english"].astype(str).str.replace(
+            r'^\[[A-Za-z0-9_ ]+\]\s*', '', regex=True).str.strip()
+        # Drop pairs where stripping left an empty English side
+        train_df = train_df[train_df["english"].str.len() >= 2]
+        val_df   = val_df[val_df["english"].str.len() >= 2]
+        print(f"  [Fix1] Stripped domain tags from English targets for lun2en")
+
+    # ── Fix 2: Filter short/dict pairs for lun2en ─────────────────────────────
     if direction == "lun2en" and args.min_lun_words > 0:
         before = len(train_df)
         train_df = train_df[train_df["lunyoro"].astype(str).str.split().str.len() >= args.min_lun_words]
-        print(f"  [filter] lun2en: kept {len(train_df):,}/{before:,} pairs "
+        print(f"  [Fix2] lun2en: kept {len(train_df):,}/{before:,} sentence pairs "
               f"(lun_words >= {args.min_lun_words})")
 
-    # Load tokenizer and model
     print("  Loading tokenizer and model...")
     tokenizer = MarianTokenizer.from_pretrained(model_dir)
     model     = MarianMTModel.from_pretrained(model_dir)
 
-    # Resize embeddings if tokenizer vocab changed
     if args.resize_embeddings:
         old_size = model.config.vocab_size
         new_size = len(tokenizer)
         if old_size != new_size:
-            print(f"  Resizing embeddings: {old_size} → {new_size}")
+            print(f"  Resizing embeddings: {old_size} -> {new_size}")
             model.resize_token_embeddings(new_size)
             model.config.vocab_size = new_size
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    # fp32 — more stable training, avoids precision loss on low-resource language
+    model = model.float()
     model.to(device)
 
-    # Use all available GPUs via DataParallel
     n_gpus = torch.cuda.device_count()
     if n_gpus > 1:
         print(f"  Using {n_gpus} GPUs: {[torch.cuda.get_device_name(i) for i in range(n_gpus)]}")
         model = torch.nn.DataParallel(model)
 
-    # Enable gradient checkpointing to save memory
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
 
-    # Dataset and dataloader
     train_dataset = TranslationDataset(
         train_df, direction,
         context_window=args.context_window,
@@ -348,31 +390,24 @@ def train_direction(direction: str, args):
                           subword_reg=args.subword_reg,
                           alpha=args.spm_alpha)
 
-    # Direction-aware weighted sampler
     sampler = build_weighted_sampler(train_df, direction=direction)
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size,
         sampler=sampler, collate_fn=_collate, num_workers=0,
     )
 
-    # Optimizer and scheduler
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=args.lr, weight_decay=0.01
-    )
-    total_steps   = len(train_loader) * args.epochs
-    warmup_steps  = total_steps // 10
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
+    total_steps  = len(train_loader) * args.epochs
+    warmup_steps = total_steps // 10
     scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=warmup_steps,
-        num_training_steps=total_steps
+        optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps
     )
 
-    # Mixed precision scaler
-    scaler = torch.cuda.amp.GradScaler() if device == "cuda" and args.fp16 else None
-
+    # fp32 — no mixed precision scaler needed
     best_bleu = 0.0
     best_ckpt = os.path.join(model_dir, "best_checkpoint")
 
-    print(f"  Device: {device}  Epochs: {args.epochs}  "
+    print(f"  Device: {device}  Precision: fp32  Epochs: {args.epochs}  "
           f"Batch: {args.batch_size}  LR: {args.lr}")
     print(f"  Context window: {args.context_window}  "
           f"Subword reg: {args.subword_reg} (alpha={args.spm_alpha})")
@@ -385,51 +420,39 @@ def train_direction(direction: str, args):
 
         for batch in train_loader:
             batch = {k: v.to(device) for k, v in batch.items()}
-
             optimizer.zero_grad()
-
-            if scaler:
-                with torch.cuda.amp.autocast():
-                    outputs = model(**batch)
-                    loss = outputs.loss
-                    if hasattr(loss, 'mean'): loss = loss.mean()
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                outputs = model(**batch)
-                loss = outputs.loss
-                if hasattr(loss, 'mean'): loss = loss.mean()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-
+            outputs = model(**batch)
+            loss = outputs.loss
+            if hasattr(loss, 'mean'):
+                loss = loss.mean()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
             scheduler.step()
             total_loss += loss.item()
             steps += 1
 
             if steps % 200 == 0:
-                avg = total_loss / steps
                 print(f"  Epoch {epoch} step {steps}/{len(train_loader)} "
-                      f"loss={avg:.4f}")
+                      f"loss={total_loss/steps:.4f}")
 
         avg_loss = total_loss / steps
-        print(f"\n  Epoch {epoch} complete - avg loss: {avg_loss:.4f}")
 
-        # Evaluate BLEU — for lun2en, filter val set to match training distribution
+        # Evaluate BLEU + chrF + validation loss
         raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
-        bleu_score = evaluate_bleu(raw_model, tokenizer, val_df, direction, device,
-                                   min_lun_words=args.min_lun_words)
-        print(f"  Validation BLEU: {bleu_score:.2f}")
+        bleu_score, chrf_score, val_loss = evaluate_bleu(
+            raw_model, tokenizer, val_df, direction, device,
+            min_lun_words=args.min_lun_words
+        )
+        print(f"\n  Epoch {epoch}/{args.epochs} -- "
+              f"train_loss={avg_loss:.4f}  val_loss={val_loss:.4f}  "
+              f"BLEU={bleu_score:.2f}  chrF={chrf_score:.2f}")
 
-        # Save best checkpoint
         if bleu_score > best_bleu:
             best_bleu = bleu_score
             raw_model.save_pretrained(best_ckpt)
             tokenizer.save_pretrained(best_ckpt)
-            print(f"  [OK] New best BLEU={best_bleu:.2f} - saved to {best_ckpt}")
+            print(f"  [OK] New best BLEU={best_bleu:.2f} chrF={chrf_score:.2f} -- saved")
 
     # Copy best checkpoint back to model dir
     if os.path.isdir(best_ckpt):
@@ -483,8 +506,8 @@ def main():
                         action="store_false")
     parser.add_argument("--spm-alpha",    type=float, default=0.1,
                         help="SPM sampling alpha for subword regularization")
-    parser.add_argument("--fp16",         action="store_true", default=True,
-                        help="Use mixed precision (GPU only)")
+    parser.add_argument("--fp16",         action="store_true", default=False,
+                        help="Use mixed precision (disabled by default — fp32 is more stable)")
     parser.add_argument("--gradient-checkpointing", action="store_true",
                         default=False)
     parser.add_argument("--resize-embeddings", action="store_true",

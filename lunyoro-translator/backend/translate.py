@@ -518,6 +518,96 @@ def _is_notation_garbage(text: str) -> bool:
     return False
 
 
+# ── Selective RAG ────────────────────────────────────────────────────────────
+# Thresholds:
+#   >= 0.92  → use retrieved translation directly (very high confidence)
+#   0.70-0.91 → inject as context hint to MT model
+#   < 0.70   → pure neural MT, no retrieval
+_RAG_DIRECT_THRESHOLD  = 0.92   # use retrieved translation as-is
+_RAG_HINT_THRESHOLD    = 0.70   # inject as context hint
+_RAG_LENGTH_TOLERANCE  = 0.25   # max 25% length difference to use direct retrieval
+
+
+def _selective_rag(text: str, direction: str = "en2lun",
+                   top_k: int = 3) -> dict | None:
+    """
+    Selective RAG: check corpus for high-confidence matches before neural MT.
+
+    Returns a translation dict if a good match is found, None otherwise.
+    - Score >= 0.92 AND length within 25%: return retrieved translation directly
+    - Score 0.70-0.91: return None but store hint for MT context (future use)
+    - Score < 0.70: return None (pure neural MT)
+
+    Skips retrieval for:
+    - Very short inputs (< 4 words) — poor semantic matches
+    - Single words — handled by dictionary lookup
+    """
+    # Skip for very short inputs — retrieval is unreliable
+    if len(text.split()) < 4:
+        return None
+
+    try:
+        _load_retrieval()
+    except Exception:
+        return None
+
+    if direction == "en2lun":
+        query_sentences = _index["english_sentences"]
+        target_sentences = _index["lunyoro_sentences"]
+        embeddings = _index["embeddings"]
+    else:
+        if "lunyoro_embeddings" not in _index:
+            _index["lunyoro_embeddings"] = _sem_model.encode(
+                _index["lunyoro_sentences"], show_progress_bar=False,
+                batch_size=64, convert_to_numpy=True
+            )
+        query_sentences  = _index["lunyoro_sentences"]
+        target_sentences = _index["english_sentences"]
+        embeddings = _index["lunyoro_embeddings"]
+
+    q_emb  = _sem_model.encode(text, convert_to_numpy=True)
+    scores = util.cos_sim(q_emb, embeddings)[0].numpy()
+    top_idx = np.argsort(scores)[::-1][:top_k]
+    best_idx   = top_idx[0]
+    best_score = float(scores[best_idx])
+
+    if best_score < _RAG_HINT_THRESHOLD:
+        return None  # too low — pure neural MT
+
+    matched_src = query_sentences[best_idx]
+    matched_tgt = target_sentences[best_idx]
+
+    # Length sanity check: reject if retrieved sentence is very different in length
+    input_len    = len(text.split())
+    retrieved_len = len(matched_src.split())
+    length_ratio = abs(input_len - retrieved_len) / max(input_len, retrieved_len)
+
+    if best_score >= _RAG_DIRECT_THRESHOLD and length_ratio <= _RAG_LENGTH_TOLERANCE:
+        # High confidence + similar length → use retrieved translation directly
+        translation = matched_tgt
+        if direction == "en2lun":
+            translation = _postprocess_lunyoro(translation)
+        alternatives = [
+            {"score": round(float(scores[i]), 3),
+             "source": query_sentences[i],
+             "translation": target_sentences[i]}
+            for i in top_idx[1:] if float(scores[i]) > 0.5
+        ]
+        return {
+            "translation":        translation,
+            "translation_nllb":   None,
+            "translation_marian": None,
+            "method":             "selective_rag",
+            "confidence":         round(best_score, 3),
+            "matched_source":     matched_src,
+            "alternatives":       alternatives,
+        }
+
+    # Medium confidence (0.70-0.91): return None, MT will handle it
+    # The matched translation could be used as a hint in future
+    return None
+
+
 # ── public API ───────────────────────────────────────────────────────────────
 
 def translate(text: str, top_k: int = 3, context: str = "") -> dict:
@@ -531,6 +621,11 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
         context = ctx_sentences[-1] if ctx_sentences else context
         if len(context) > 150:
             context = context[-150:]
+
+    # ── Selective RAG: try retrieval first for high-confidence matches ────────
+    rag_result = _selective_rag(text, direction="en2lun", top_k=top_k)
+    if rag_result:
+        return rag_result
 
     marian = _mt_translate(text, "en2lun", context=context)
     nllb   = _nllb_translate(text, "en2lun", context=context)
@@ -583,6 +678,11 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
         context = ctx_sentences[-1] if ctx_sentences else context
         if len(context) > 150:
             context = context[-150:]
+
+    # ── Selective RAG: try retrieval first for high-confidence matches ────────
+    rag_result = _selective_rag(text, direction="lun2en", top_k=top_k)
+    if rag_result:
+        return rag_result
 
     marian = _mt_translate(text, "lun2en", context=context)
     nllb   = _nllb_translate(text, "lun2en", context=context)

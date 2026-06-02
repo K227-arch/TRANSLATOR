@@ -1,4 +1,4 @@
-﻿"""
+"""
 language_rules_gr4.py
 =====================
 Implements the 10 missing/incomplete rules from grammar rules 4.docx:

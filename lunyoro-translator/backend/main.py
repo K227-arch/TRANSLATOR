@@ -1192,3 +1192,147 @@ def get_proverbs():
     from language_rules import PROVERBS
     import random
     return {"proverbs": PROVERBS, "random": random.choice(PROVERBS)}
+
+
+# ── Knowledge Graph endpoints ─────────────────────────────────────────────────
+
+_kg = None
+
+def _get_kg():
+    """Lazy-load the knowledge graph singleton."""
+    global _kg
+    if _kg is None:
+        try:
+            from knowledge_graph import get_kg
+            _kg = get_kg()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Knowledge graph unavailable: {e}")
+    return _kg
+
+
+@app.get("/knowledge-graph/stats")
+def kg_stats():
+    """Return knowledge graph statistics: node/edge counts by type."""
+    kg = _get_kg()
+    return kg.stats()
+
+
+@app.get("/knowledge-graph/noun-class/{class_num}")
+def kg_noun_class(class_num: str):
+    """
+    Get full info about a noun class including concords, plural class, and example words.
+    class_num: 1-15 (integer) or '1a', '2a', '9a', '10a' (string classes)
+    """
+    kg = _get_kg()
+    # Try int first, then string
+    try:
+        key = int(class_num)
+    except ValueError:
+        key = class_num
+    result = kg.get_noun_class_info(key)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/knowledge-graph/explain/{word}")
+def kg_explain_word(word: str):
+    """
+    Explain a Runyoro-Rutooro word: its noun class, derivation chain,
+    plural/singular forms, and applicable grammar rules.
+    Enables explainable AI translation.
+    """
+    kg = _get_kg()
+    return kg.explain_word(word)
+
+
+@app.get("/knowledge-graph/related/{word}")
+def kg_related(word: str, rel: str | None = None, direction: str = "both"):
+    """
+    Find nodes related to a word in the knowledge graph.
+    rel: optional relationship filter (e.g. DERIVES_FROM, PLURAL_IS, BELONGS_TO)
+    direction: 'out', 'in', or 'both'
+    """
+    kg = _get_kg()
+    results = kg.find_related(word, rel=rel, direction=direction)
+    return {"word": word, "rel": rel, "direction": direction, "results": results}
+
+
+@app.get("/knowledge-graph/path")
+def kg_path(word_a: str, word_b: str):
+    """
+    Find the grammatical relationship path between two words.
+    Example: /knowledge-graph/path?word_a=okulima&word_b=omulimi
+    Returns the chain: okulima --[DERIVES_TO]--> omulimi --[BELONGS_TO]--> nc_1
+    """
+    kg = _get_kg()
+    return kg.grammar_path(word_a, word_b)
+
+
+@app.get("/knowledge-graph/correct")
+def kg_correct(word: str, target: str):
+    """
+    Get the correct grammatical form of a word.
+    target: 'plural', 'singular', 'agent_noun', 'action_noun', 'source_verb'
+    Example: /knowledge-graph/correct?word=omulimi&target=plural
+    """
+    kg = _get_kg()
+    return kg.correct_form(word, target)
+
+
+class TutorRequest(BaseModel):
+    question: str
+
+
+@app.post("/knowledge-graph/tutor")
+def kg_tutor(req: TutorRequest):
+    """
+    Answer a grammar tutoring question using the knowledge graph.
+    Supports natural language questions like:
+      - 'What is the plural of omuntu?'
+      - 'What class is ekitabu?'
+      - 'What is the agent noun of okulima?'
+      - 'What does omulimi mean?'
+    """
+    kg = _get_kg()
+    return kg.tutor_question(req.question)
+
+
+@app.get("/knowledge-graph/search")
+def kg_search(q: str, node_type: str | None = None):
+    """
+    Search the knowledge graph by label.
+    q: search string (case-insensitive substring match)
+    node_type: optional filter (WORD, NOUN_CLASS, TENSE, RULE, DERIVATION, etc.)
+    """
+    kg = _get_kg()
+    results = kg.find_nodes(node_type=node_type, label_contains=q)
+    return {"query": q, "node_type": node_type, "count": len(results), "results": results[:50]}
+
+
+@app.get("/knowledge-graph/export")
+def kg_export():
+    """
+    Export the full knowledge graph as JSON.
+    Returns all nodes and edges — useful for frontend graph visualisation.
+    """
+    kg = _get_kg()
+    import json
+    data = json.loads(kg.to_json())
+    return data
+
+
+@app.get("/knowledge-graph/tenses")
+def kg_tenses():
+    """Return all tense nodes with their markers and examples."""
+    kg = _get_kg()
+    tenses = kg.find_nodes(node_type="TENSE")
+    return {"tenses": tenses, "count": len(tenses)}
+
+
+@app.get("/knowledge-graph/derivations")
+def kg_derivations():
+    """Return all verb derivation types with their suffixes."""
+    kg = _get_kg()
+    derivations = kg.find_nodes(node_type="DERIVATION")
+    return {"derivations": derivations, "count": len(derivations)}
