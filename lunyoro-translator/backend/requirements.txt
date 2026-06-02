@@ -20,3 +20,5 @@ pycryptodome>=3.20.0
 requests>=2.32.0
 huggingface_hub>=0.23.0
 openai>=1.0.0
+numpy>=1.26.0
+unicodedata2>=15.1.0

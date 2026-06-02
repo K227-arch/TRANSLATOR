@@ -68,10 +68,10 @@ for fpath in BACKEND_DIR.rglob("*"):
             repo_id=SPACE_ID,
             repo_type="space",
         )
-        print(f"  ✓ {rel}")
+        print(f"  [OK] {rel}")
         uploaded += 1
     except Exception as e:
-        print(f"  ✗ {rel}: {e}")
+        print(f"  [FAIL] {rel}: {e}")
 
 # Upload Space-specific files (README + Dockerfile override)
 print("\nUploading Space config files...")
@@ -83,7 +83,7 @@ for fpath in SPACE_DIR.iterdir():
             repo_id=SPACE_ID,
             repo_type="space",
         )
-        print(f"  ✓ {fpath.name}")
+        print(f"  [OK] {fpath.name}")
 
 print(f"\nDone! Uploaded {uploaded} files.")
 print(f"Space URL: https://huggingface.co/spaces/{SPACE_ID}")

@@ -21,7 +21,7 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **HuggingFace Hub integration:** Models loaded automatically from HF Hub on first use and cached locally
 - **Context-aware:** Uses previous sentence for better coherence
 - **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation, Grammar Rules 4 (copula, kinship, enumeratives, ka particle, demonstratives, dara presentative, verb-noun derivation)
-- **Fallback chain:** Neural MT → Semantic search → Dictionary lookup
+- **Translation chain (en→lun):** Selective RAG (high-confidence corpus match) → Neural MT (NLLB + MarianMT) → Semantic search → Dictionary lookup
 - **Spellcheck:** Real-time Lunyoro spellcheck with suggestions
 
 ### Runyoro-Rutooro Writing Editor (`RunyoroEditor.tsx`)
@@ -194,6 +194,7 @@ python backend/train_nllb.py --new-only               # train only on new (untra
 | `--lr` | `1e-5` | Learning rate (lower than MarianMT) |
 | `--max-length` | `256` | Max token length |
 | `--fp16` / `--no-fp16` | enabled | Mixed precision (GPU only) |
+| `--min-lun-words` | `3` | (`lun2en` only) Filter out pairs where the Lunyoro side has fewer than N words. Removes single-word dictionary entries that hurt lun→en BLEU. Set to `0` to disable. |
 | `--new-only` | `false` | Train only on pairs not yet seen by the model (`data/training/new_only_train.csv` / `new_only_val.csv`). Falls back to the full `train.csv` / `val.csv` if those files don't exist. Note: `train_marian.py --new-only` always validates on the full `val.csv` regardless of this flag. |
 
 **Notes:**
@@ -202,6 +203,7 @@ python backend/train_nllb.py --new-only               # train only on new (untra
 - Requires `model/nllb_en2lun/` and/or `model/nllb_lun2en/` to exist — run `python download_models.py` first if needed
 - Uses a weighted sampler: Grammar Rules 4 and Grammar Rules 5 pairs get 4× weight, back-translated pairs 2×, all others 1× (same strategy as `train_marian.py`); seed vocabulary CSVs (medical, education, daily life, low-frequency, agriculture) are also loaded and deduplicated against the main training set
 - Multi-GPU training: automatically uses all available GPUs via `DataParallel` when more than one GPU is detected (prints device names at startup)
+- **lun→en data fixes (applied automatically):** Before training the `lun2en` direction, two preprocessing steps run in sequence: (1) domain tags (e.g. `[MEDICAL]`, `[GENERAL]`) are stripped from the English target column — these tags are en→lun artefacts that corrupt lun→en targets; (2) pairs where the Lunyoro source has fewer than `--min-lun-words` words are dropped, removing single-word dictionary entries that degrade sentence-level BLEU
 
 ### 6b. Augment Data + Full Training Pipeline (CI/CD)
 ```bash
@@ -465,7 +467,26 @@ python backend/auto_retrain.py --monitor --threshold 200
 python backend/auto_retrain.py --check --threshold 50
 ```
 
-### 11. Inspect Benchmark Scores
+### 11. Check Backend Syntax
+```bash
+python check_syntax.py
+# Runs a quick AST parse over the core backend Python files to catch syntax
+# errors before pushing or retraining.  Run from the project root
+# (TRANSLATOR/).
+#
+# Files checked:
+#   train_marian.py, train_nllb.py, back_translate_lun2en.py,
+#   knowledge_graph.py, main.py, translate.py, eval_bleu.py,
+#   run_full_training.py, run_k227_pipeline.py,
+#   language_rules_gr4.py, language_rules_gr5.py
+#
+# Output:
+#   OK  <filename>   — file parsed without errors
+#   ERR <filename>: <SyntaxError message>  — file has a syntax error
+#   "All OK" or "ERRORS FOUND - fix before pushing" summary line
+```
+
+### 11c. Inspect Benchmark Scores
 ```bash
 python show_benchmarks.py
 # Prints a formatted view of both benchmark score files:
@@ -504,6 +525,44 @@ python backend/check_dict_pos.py
 # were correctly propagated into the training set.
 ```
 
+### 11d. Inspect lun→en Training Data Quality
+```bash
+python backend/check_lun2en_data.py
+# Analyses the Lunyoro-side word count distribution across train.csv + val.csv
+# to diagnose why the lun→en model may underperform:
+#   - Word count statistics (min, max, mean, percentiles) for the Lunyoro column
+#   - Pair counts split into three buckets:
+#       lun_words <= 2  — single-word / two-word dictionary entries (hurt lun→en)
+#       lun_words 3–4   — short phrases
+#       lun_words >= 5  — full sentences (the useful signal for lun→en)
+#   - Total pair count
+#   - Count of [DOMAIN]-tagged pairs (en→lun format only; useless as lun→en source)
+#   - Percentage of sentence-level pairs (lun_words >= 5) vs total
+# Use this to decide whether to filter short pairs before lun→en training
+# (e.g. pass --min-lun-words 3 to train_marian.py / train_nllb.py).
+```
+
+### 11e. Inspect Back-Translation Candidates
+```bash
+python backend/check_bt_candidates.py
+# Analyses train.csv + val.csv to identify which pairs are useful candidates
+# for back-translation augmentation and which are redundant:
+#   - Tagged pairs (en→lun-only format, e.g. [MEDICAL] prefix):
+#       The lun→en model never saw these as source — back-translating their
+#       English produces genuinely new lun→en training data.
+#   - Short dict pairs (lun_words <= 2):
+#       Filtered out of lun→en training by --min-lun-words; their English side
+#       is valid but the Runyoro side is too short to be useful as source.
+#   - Good sentence pairs (lun_words >= 3, no tag):
+#       Already in lun→en training — back-translating these is redundant.
+#   - Back-translation candidates (useful):
+#       Union of tagged pairs + short dict pairs where en_words >= 5,
+#       so the back-translation produces a real sentence rather than a fragment.
+#   - Remaining candidates after subtracting already-back-translated pairs (~10,928).
+# Use this to gauge how many new lun→en pairs a back-translation run can yield
+# before deciding whether to run back_translate.py again.
+```
+
 **Features:**
 - Monitors `feedback.jsonl` for approved pairs
 - Auto-cleans and validates feedback (length, repetition, language detection)
@@ -512,6 +571,34 @@ python backend/check_dict_pos.py
 - Logs to `auto_retrain.log`
 
 **Expected improvements:** +5-10 BLEU after full pipeline
+
+### 11f. Analyze Back-Translation Coverage Across All Sources
+```bash
+python backend/analyze_bt_coverage.py
+# Scans every CSV in data/cleaned/ and the training set to identify which
+# English sentences have NOT been back-translated yet.
+#
+# Reports:
+#   - Already back-translated: count from back_translated_lun2en.csv
+#   - Per-source breakdown: total rows, BT-able (en_words >= 5, not in training),
+#     already done, and remaining — printed as an aligned table
+#   - Tagged training pairs (en2lun-only format) not yet back-translated
+#   - Grand total remaining candidates
+#   - Top 10 sources by remaining candidate count
+#
+# Output:
+#   data/cleaned/bt_remaining_candidates.csv
+#     Columns: source (filename), english (sentence)
+#     Contains all remaining candidates, deduplicated.
+#
+# Suggested next step printed at the end:
+#   python back_translate_lun2en.py --max-sentences N --merge
+```
+
+**When to run:**
+- Before a back-translation run to gauge how many new lun→en pairs are available
+- After `merge_untrained_data.py` to see which newly merged sources still need back-translation
+- To prioritise which source files to target in the next `back_translate_lun2en.py` run
 
 ---
 
@@ -546,6 +633,8 @@ lunyoro-translator/
 │   ├── export_analytics.py          # Export analytics to Excel/CSV
 │   ├── merge_untrained_data.py      # Merge all clean data not yet in train/val into training splits
 │   ├── check_weights.py             # Inspect training data composition (pair counts by source)
+│   ├── check_lun2en_data.py         # Analyse lun→en data quality: word-count distribution, sentence vs dict-entry ratio, [DOMAIN]-tag count
+│   ├── check_bt_candidates.py       # Identify useful back-translation candidates: tagged pairs + short dict pairs with en_words >= 5
 │   ├── check_dict_pos.py            # Audit POS coverage in domain dictionary and training set
 │   ├── feedback/                    # Auto-exported feedback files
 │   │   ├── all_feedback.csv         # Raw feedback data (auto-updated)
@@ -644,6 +733,21 @@ python backend/export_analytics.py --csv --output reports/csv_export/
 - **Daily Activity:** Feedback timeline with day-of-week analysis
 - **User Engagement:** Anonymized user activity and engagement scores
 - **Raw Feedback Data:** Complete feedback log with all fields
+
+### Knowledge Graph
+A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, derivations, rules) that powers explainable AI translation and grammar tutoring.
+
+- `GET /knowledge-graph/stats` — Node and edge counts by type
+- `GET /knowledge-graph/noun-class/{class_num}` — Full info for a noun class (concords, plural class, example words). Accepts integers 1–15 or string keys `1a`, `2a`, `9a`, `10a`
+- `GET /knowledge-graph/explain/{word}` — Explain a word: its noun class, derivation chain, plural/singular forms, and applicable grammar rules (explainable AI)
+- `GET /knowledge-graph/related/{word}` — Find nodes related to a word. Optional query params: `rel` (relationship filter, e.g. `DERIVES_FROM`, `PLURAL_IS`, `BELONGS_TO`) and `direction` (`out`, `in`, or `both`)
+- `GET /knowledge-graph/path?word_a=X&word_b=Y` — Find the grammatical relationship path between two words (e.g. `okulima` → `omulimi` → `nc_1`)
+- `GET /knowledge-graph/correct?word=X&target=Y` — Get the correct grammatical form of a word. `target`: `plural`, `singular`, `agent_noun`, `action_noun`, `source_verb`
+- `POST /knowledge-graph/tutor` — Answer a natural-language grammar question. Body: `{ "question": "..." }`. Supports questions like *"What is the plural of omuntu?"*, *"What class is ekitabu?"*, *"What is the agent noun of okulima?"*
+- `GET /knowledge-graph/search?q=X` — Search nodes by label (case-insensitive substring). Optional `node_type` filter (`WORD`, `NOUN_CLASS`, `TENSE`, `RULE`, `DERIVATION`, etc.). Returns up to 50 results
+- `GET /knowledge-graph/export` — Export the full knowledge graph as JSON (all nodes and edges — for frontend graph visualisation)
+- `GET /knowledge-graph/tenses` — All tense nodes with their markers and examples
+- `GET /knowledge-graph/derivations` — All verb derivation types with their suffixes
 
 ### Utilities
 - `POST /summarize-pdf` — Extract + translate + summarize documents. When a Lunyoro document is detected, grammar rules (nasal assimilation, particle elision, kinship correction, copula normalization) are applied to each sentence before translation. Qwen 2.5 7B (if `HF_TOKEN` is set) refines **both** the MarianMT and NLLB-200 drafts independently, with Grammar Rules 4 post-processing applied to each refined output. The best result (NLLB-refined preferred, Marian-refined as fallback) is returned as `summary_lunyoro`. All four variants are included in the response: `summary_lunyoro` (best), `summary_lunyoro_marian` (Marian-refined), `summary_lunyoro_nllb` (NLLB-refined). Falls back to the MT draft per model if Qwen is unavailable.
