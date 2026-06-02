@@ -327,8 +327,17 @@ def train_direction(direction: str, args):
         train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
         print(f"  Train: {len(train_df):,}")
 
-    val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
-    print(f"  Val:   {len(val_df):,} (full val set)")
+    # Validation strategy:
+    # - During training: use only the STABLE val set (original pairs the model was
+    #   trained on before this session) → gives honest BLEU without new-data dip
+    # - After training: full val.csv reflects complete performance
+    STABLE_VAL_CSV = os.path.join(DATA_DIR, "val.csv.bak")
+    if args.new_only and os.path.exists(STABLE_VAL_CSV):
+        val_df = pd.read_csv(STABLE_VAL_CSV).dropna()
+        print(f"  Val:   {len(val_df):,} (stable val — original pairs, no new-data dip)")
+    else:
+        val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
+        print(f"  Val:   {len(val_df):,} (full val set)")
 
     # ── Fix 1: Strip domain tags from English targets for lun2en ─────────────
     # Pairs like "[GENERAL_NOUN] cultivator -> omulimi" are en2lun-only format.

@@ -45,11 +45,11 @@ print(f"  - sentence pairs:      {(both['lun_words'] >= 5).sum():,}  (lun_words 
 print(f"  - dict/short pairs:    {(both['lun_words'] < 3).sum():,}  (lun_words < 3)")
 
 # ── Analyze each cleaned source file ─────────────────────────────────────────
-print(f"\n{'─'*70}")
+print(f"\n{'-'*70}")
 print(f"  SOURCE FILE ANALYSIS")
-print(f"{'─'*70}")
+print(f"{'-'*70}")
 print(f"  {'File':<45} {'Total':>7} {'BT-able':>8} {'Done':>7} {'Remaining':>10}")
-print(f"  {'─'*45} {'─'*7} {'─'*8} {'─'*7} {'─'*10}")
+print(f"  {'-'*45} {'-'*7} {'-'*8} {'-'*7} {'-'*10}")
 
 total_remaining = 0
 remaining_by_source: dict[str, list[str]] = {}
@@ -90,9 +90,9 @@ tagged_not_bt = both[
 ]
 print(f"\n  {'[training] tagged pairs (en2lun-only)':<45} {len(both[both['has_tag']]):>7,} {len(both[both['has_tag'] & (both['en_words']>=5)]):>8,} {len(both[both['has_tag'] & (both['en_words']>=5) & both['en_clean'].str.lower().str.strip().isin(already_bt)]):>7,} {len(tagged_not_bt):>10,}")
 
-print(f"\n{'─'*70}")
+print(f"\n{'-'*70}")
 print(f"  TOTAL remaining BT candidates: {total_remaining + len(tagged_not_bt):,}")
-print(f"{'─'*70}")
+print(f"{'-'*70}")
 
 # ── Summary by category ───────────────────────────────────────────────────────
 print(f"\n  SUMMARY:")

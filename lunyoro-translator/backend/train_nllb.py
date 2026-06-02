@@ -263,9 +263,15 @@ def train_direction(direction: str, args):
         train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
         print(f"  Train: {len(train_df):,}")
 
-    # Always validate on the full val.csv for a meaningful BLEU score
-    val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
-    print(f"  Val:   {len(val_df):,} (full val set)")
+    # Validation strategy: use stable val (original pairs) during training
+    # to avoid BLEU dip from new augmented/BT pairs being in the val set
+    STABLE_VAL_CSV = os.path.join(DATA_DIR, "val.csv.bak")
+    if args.new_only and os.path.exists(STABLE_VAL_CSV):
+        val_df = pd.read_csv(STABLE_VAL_CSV).dropna()
+        print(f"  Val:   {len(val_df):,} (stable val -- original pairs, no new-data dip)")
+    else:
+        val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
+        print(f"  Val:   {len(val_df):,} (full val set)")
 
     # ── Fix 1: Strip domain tags from English targets for lun2en ─────────────
     if direction == "lun2en":

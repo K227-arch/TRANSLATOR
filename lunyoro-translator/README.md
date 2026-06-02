@@ -134,6 +134,29 @@ python backend/clean_new_training_data.py
 # Run this after merge_untrained_data.py or any step that appends new pairs.
 ```
 
+### 2e. Fix Malformed Domain Tags
+```bash
+python backend/fix_malformed_tags.py
+# Fixes malformed domain tags in train.csv and val.csv, then removes garbage pairs.
+#
+# Tag corrections applied (example misspellings → canonical form):
+#   [AGRCULTURE)  → [AGRICULTURE]
+#   [MIDICAL)     → [MEDICAL]
+#   [REERAL]      → [GENERAL]
+#   [EDUCAION]    → [EDUCATION]
+#   [GOVERMENT]   → [GOVERNANCE]
+#   [ENVIROMENT]  → [NATURE_AND_ENVIRONMENT]
+#   ... and several other common misspellings
+#
+# Also removes pairs where the English side is clearly garbage after stripping the tag:
+#   - Cleaned English side is < 4 characters
+#   - Cleaned English side starts with a 1–2-letter artifact prefix (e.g. "en do not...")
+#
+# Backs up both files (.bak_tagfix) before overwriting.
+# Run this before clean_new_training_data.py or after any data merge that may
+# have introduced tag typos.
+```
+
 ### 2d. Merge Untrained Data
 ```bash
 python backend/merge_untrained_data.py
@@ -156,6 +179,28 @@ python backend/back_translate.py --max 5000 --bleu-threshold 0.25
 # Generates 2,000-3,000 synthetic pairs via round-trip translation
 python backend/merge_back_translated.py
 ```
+
+### 3b. Augment Back-Translated Data
+```bash
+python backend/augment_bt_data.py                    # generate augmented pairs
+python backend/augment_bt_data.py --merge            # also merge into training data
+python backend/augment_bt_data.py --max-per-pair 3   # max augmentations per pair
+```
+
+Generates additional English variants from the back-translated lun→en pairs using six augmentation techniques:
+
+| Technique | Description |
+|-----------|-------------|
+| **Tense variation** | Present simple → past tense or present continuous (e.g. *I go* → *I went* / *I am going*) |
+| **Pronoun swap** | Substitutes subject pronouns (e.g. *I am* → *he/she is* or *we are*) |
+| **Negation** | Adds negation to positive constructions (e.g. *I know* → *I do not know*) |
+| **Synonym substitution** | Replaces common English words with synonyms from a Runyoro-safe synonym table (70+ entries) |
+| **Sentence truncation** | Extracts sub-sentences from longer pairs |
+| **Number variation** | Singular ↔ plural using Runyoro grammar rules |
+
+**Input:** `data/cleaned/back_translated_lun2en.csv`  
+**Output:** `data/cleaned/augmented_bt_lun2en.csv`  
+Use `--merge` to append the output directly to `data/training/train.csv` and `val.csv`.
 
 ### 4. Retrain Tokenizer (Better OOV Handling)
 ```bash
@@ -600,6 +645,41 @@ python backend/analyze_bt_coverage.py
 - After `merge_untrained_data.py` to see which newly merged sources still need back-translation
 - To prioritise which source files to target in the next `back_translate_lun2en.py` run
 
+### 11g. Deep-Analyze Back-Translation Quality and Untapped Sources
+```bash
+python backend/analyze_bt_quality.py
+# Deep analysis of why BT candidates are being rejected and whether
+# there are untapped data sources not yet covered by back-translation.
+#
+# Reports:
+#   - Already back-translated: count from back_translated_lun2en.csv
+#   - Breakdown of remaining 22,865 tagged pairs (en_words >= 5):
+#       how many are already BT'd vs still remaining, word-length
+#       distribution of remaining pairs, and 5 sample sentences
+#   - Raw data files (data/raw/*.csv): per-file totals and count of
+#       new BT-able sentences (en_words >= 5, not in training, not
+#       already back-translated)
+#   - Cleaned data files (data/cleaned/*.csv): same per-file breakdown,
+#       skipping already-processed files (back_translated_lun2en.csv,
+#       bt_remaining_candidates.csv, dictionary_lookup.csv)
+#   - dictionary_lookup.csv: dedicated check for BT-able entries
+#       (en_words >= 5, not in training or already BT'd)
+#   - Grand total of new untapped BT candidates across all sources
+#
+# Conclusion section:
+#   - If total_new < 1,000: confirms all major sources are covered and
+#     recommends lowering --min-lun-words to 4 or using more beam search
+#     with the NLLB model (BLEU=73.97) to recover more pairs from the
+#     existing 22,865 tagged candidates
+#   - If total_new >= 1,000: prints the exact count and suggests:
+#       python back_translate_lun2en.py --max-sentences N --merge
+```
+
+**When to run:**
+- Before deciding whether to lower `--min-lun-words` in a back-translation run
+- To confirm there are no overlooked CSV sources before starting a long BT job
+- After adding new raw/cleaned data files to check if they contain BT candidates
+
 ---
 
 ## Project Structure
@@ -636,6 +716,8 @@ lunyoro-translator/
 │   ├── check_lun2en_data.py         # Analyse lun→en data quality: word-count distribution, sentence vs dict-entry ratio, [DOMAIN]-tag count
 │   ├── check_bt_candidates.py       # Identify useful back-translation candidates: tagged pairs + short dict pairs with en_words >= 5
 │   ├── check_dict_pos.py            # Audit POS coverage in domain dictionary and training set
+│   ├── analyze_bt_coverage.py       # Scan all CSVs for sentences not yet back-translated; outputs bt_remaining_candidates.csv
+│   ├── analyze_bt_quality.py        # Deep analysis of BT rejection reasons + untapped data sources; recommends next steps
 │   ├── feedback/                    # Auto-exported feedback files
 │   │   ├── all_feedback.csv         # Raw feedback data (auto-updated)
 │   │   ├── feedback_analytics.xlsx  # Multi-sheet analytics (auto-updated)
