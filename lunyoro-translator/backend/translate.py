@@ -207,7 +207,9 @@ _nllb_available = {}  # {"en2lun": bool, "lun2en": bool}
 _nllb_whitelist: list | None = None  # token ID whitelist loaded once
 
 NLLB_LANG_EN  = "eng_Latn"
-NLLB_LANG_LUN = "nyn_Latn"  # Nyankore/Nkore — linguistically closest to Runyoro-Rutooro in NLLB-200
+NLLB_LANG_LUN = "nyo_Latn"  # Runyoro-Rutooro custom token (added via add_runyoro_token.py)
+# Initialized from avg of run_Latn(Rundi) + lug_Latn(Luganda) + kin_Latn(Kinyarwanda)
+# This gives NLLB proper Runyoro-Rutooro language identity instead of a proxy code.
 
 
 def _load_nllb_whitelist() -> list | None:

@@ -46,7 +46,8 @@ SEED_CSVS = [
 GR5_UNC_CSV = os.path.join(BASE, "data", "cleaned", "gr5_uncovered_pairs.csv")
 
 NLLB_LANG_EN  = "eng_Latn"
-NLLB_LANG_LUN = "nyn_Latn"  # Nyankore/Nkore — linguistically closest to Runyoro-Rutooro in NLLB-200
+NLLB_LANG_LUN = "nyo_Latn"  # Runyoro-Rutooro custom token (added via add_runyoro_token.py)
+# Initialized from avg of run_Latn + lug_Latn + kin_Latn Bantu embeddings
 
 
 def _load_pair_keys(csv_path: str) -> set:

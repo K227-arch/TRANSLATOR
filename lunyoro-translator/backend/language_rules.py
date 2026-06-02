@@ -950,7 +950,7 @@ def apply_rl_rule_to_text(text: str) -> str:
 def apply_nasal_assimilation(text: str) -> str:
     """
     Apply nasal assimilation rules across a word or text.
-    nb→mb, np→mp, nm→mm, nr→nd, nl→nd  (Meinhof's rule).
+    nb->mb, np->mp, nm->mm, nr->nd, nl->nd  (Meinhof's rule).
     Source: Grammar Ch.2
     """
     result = text
@@ -961,8 +961,8 @@ def apply_nasal_assimilation(text: str) -> str:
 
 def apply_ni_prefix_change(text: str) -> str:
     """
-    Apply ni- → nu- vowel change before u-class concords in present imperfect.
-    e.g. nimugenda → numugenda, niguteera → nuguteera
+    Apply ni- -> nu- vowel change before u-class concords in present imperfect.
+    e.g. nimugenda -> numugenda, niguteera -> nuguteera
     Source: Grammar Ch.2
     """
     result = text
@@ -971,24 +971,24 @@ def apply_ni_prefix_change(text: str) -> str:
     return result
 
 
-# Apostrophe elision: particle + vowel-initial word → particle' + word
-# e.g. "na ente" → "n'ente",  "za ente" → "z'ente"
+# Apostrophe elision: particle + vowel-initial word -> particle' + word
+# e.g. "na ente" -> "n'ente",  "za ente" -> "z'ente"
 # Source: Runyoro-Rutooro Orthography Guide (1995)
 _ELISION_PARTICLES = [
     # (full_form, elided_prefix) — order matters: longer first
-    ("na ",  "n'"),   # na + vowel-initial → n'
-    ("za ",  "z'"),   # za + vowel-initial → z'
-    ("ka ",  "k'"),   # ka + vowel-initial → k'
-    ("ya ",  "y'"),   # ya + vowel-initial → y'
-    ("wa ",  "w'"),   # wa + vowel-initial → w'
-    ("ga ",  "g'"),   # ga + vowel-initial → g'
-    ("ba ",  "b'"),   # ba + vowel-initial → b'
+    ("na ",  "n'"),   # na + vowel-initial -> n'
+    ("za ",  "z'"),   # za + vowel-initial -> z'
+    ("ka ",  "k'"),   # ka + vowel-initial -> k'
+    ("ya ",  "y'"),   # ya + vowel-initial -> y'
+    ("wa ",  "w'"),   # wa + vowel-initial -> w'
+    ("ga ",  "g'"),   # ga + vowel-initial -> g'
+    ("ba ",  "b'"),   # ba + vowel-initial -> b'
 ]
 
 # Merged forms the model sometimes outputs (no space between particle and word)
-# e.g. "nomukazi" → "n'omukazi", "nomwana" → "n'omwana"
+# e.g. "nomukazi" -> "n'omukazi", "nomwana" -> "n'omwana"
 # Also handles fully-merged forms where the particle vowel is dropped entirely:
-# e.g. "nente" → "n'ente", "nomuntu" → "n'omuntu"
+# e.g. "nente" -> "n'ente", "nomuntu" -> "n'omuntu"
 _MERGED_ELISION = [
     # Model outputs particle+vowel merged: no/zo/yo/wo + vowel-initial word
     # Keep the full word including the leading vowel in the replacement
@@ -1009,10 +1009,10 @@ def apply_apostrophe_elision(text: str) -> str:
     Apply vowel elision with apostrophe for Runyoro-Rutooro particles
     before vowel-initial words.
 
-    e.g.  "na ente"   → "n'ente"
-          "za ente"   → "z'ente"
-          "na omuntu" → "n'omuntu"
-          "nomukazi"  → "n'omukazi"  (merged form from model output)
+    e.g.  "na ente"   -> "n'ente"
+          "za ente"   -> "z'ente"
+          "na omuntu" -> "n'omuntu"
+          "nomukazi"  -> "n'omukazi"  (merged form from model output)
 
     Source: Runyoro-Rutooro Orthography Guide (1995)
     """
@@ -1020,7 +1020,7 @@ def apply_apostrophe_elision(text: str) -> str:
         return text
     import re as _re
 
-    # 1. Spaced forms: "na ente" → "n'ente"
+    # 1. Spaced forms: "na ente" -> "n'ente"
     result = text
     for full, elided in _ELISION_PARTICLES:
         pattern = _re.compile(
@@ -1029,7 +1029,7 @@ def apply_apostrophe_elision(text: str) -> str:
         )
         result = pattern.sub(elided, result)
 
-    # 2. Merged forms: "nomukazi" → "n'omukazi"
+    # 2. Merged forms: "nomukazi" -> "n'omukazi"
     for pattern, repl in _MERGED_ELISION:
         result = _re.sub(pattern, repl, result, flags=_re.IGNORECASE)
 
@@ -1040,7 +1040,7 @@ def apply_y_insertion(subject_prefix: str, tense_prefix: str, verb_stem: str) ->
     """
     Insert 'y' between tense prefix and vowel-initial verb stem when required.
     Rule: after a-, ra-, raa-, daa- tense prefixes, y is inserted before vowel-initial stems.
-    e.g. a + ira → ayira,  ra + ira → rayira
+    e.g. a + ira -> ayira,  ra + ira -> rayira
     Source: Grammar Ch.2
     """
     vowels = set('aeiou')
@@ -1052,7 +1052,7 @@ def apply_y_insertion(subject_prefix: str, tense_prefix: str, verb_stem: str) ->
 def apply_consonant_suffix_change(stem: str, suffix: str) -> str:
     """
     Apply consonant + suffix sound changes to a verb stem.
-    e.g. stem ending in 'r' + '-ire' → '-zire'
+    e.g. stem ending in 'r' + '-ire' -> '-zire'
     Source: Grammar Ch.2
     """
     stem_lower = stem.lower()
@@ -1060,7 +1060,7 @@ def apply_consonant_suffix_change(stem: str, suffix: str) -> str:
     for length in (2, 1):
         final = stem_lower[-length:] if len(stem_lower) >= length else ""
         # Strip the final -a from the stem to get the true consonant ending
-        # e.g. 'okubara' → stem consonant is 'r' (before final -a)
+        # e.g. 'okubara' -> stem consonant is 'r' (before final -a)
         stem_no_a = stem_lower.rstrip('a')
         final_cons = stem_no_a[-length:] if len(stem_no_a) >= length else ""
         key = (final_cons, suffix)
@@ -1094,7 +1094,7 @@ def apply_reflexive_imperative(verb_infinitive: str, number: str = "singular") -
     Build the reflexive imperative from an okw-e... infinitive.
     Singular: wee + stem-without-a + e
     Plural:   mwe + stem-without-a + e
-    e.g. okw-esereka → weesereke (sg), mwesereke (pl)
+    e.g. okw-esereka -> weesereke (sg), mwesereke (pl)
     Source: Grammar Ch.2
     """
     v = verb_infinitive.lower().strip()
@@ -1114,7 +1114,7 @@ def apply_reflexive_imperative(verb_infinitive: str, number: str = "singular") -
 def apply_concordial_agreement(adjective_stem: str, noun_class: int | str) -> str:
     """
     Prefix an adjective stem with the correct adjectival concord for a noun class.
-    e.g. apply_concordial_agreement('-rungi', 1) → 'omurungi'
+    e.g. apply_concordial_agreement('-rungi', 1) -> 'omurungi'
     Source: Grammar Ch.7
     """
     entry = CONCORDIAL_AGREEMENT.get(noun_class)
@@ -1132,7 +1132,7 @@ def build_plural(singular: str) -> str | None:
     prefix-substitution rules for regular nouns.
     Source: Grammar Ch.7
     """
-    # 1. Known irregular plurals (class 11 → 10)
+    # 1. Known irregular plurals (class 11 -> 10)
     known = PLURAL_SOUND_CHANGES.get(singular.lower().strip())
     if known:
         return known
@@ -1170,7 +1170,7 @@ def build_plural(singular: str) -> str | None:
 def apply_class9_nasal_prefix(stem: str) -> str:
     """
     Apply class 9 nasal prefix rule: en- before consonants, em- before b/p.
-    e.g. 'boga' → 'emboga',  'taka' → 'entaka'
+    e.g. 'boga' -> 'emboga',  'taka' -> 'entaka'
     Source: Grammar Ch.7
     """
     if not stem:
@@ -1195,9 +1195,9 @@ def build_verb_form(
     Source: Grammar Ch.4, Ch.13
 
     Examples:
-        build_verb_form('genda', '1sg', 'present_imperfect') → 'nigenda'
-        build_verb_form('genda', '3sg', 'future')            → 'araagenda'
-        build_verb_form('genda', '1sg', 'present_imperfect', negative=True) → 'tinigenda'
+        build_verb_form('genda', '1sg', 'present_imperfect') -> 'nigenda'
+        build_verb_form('genda', '3sg', 'future')            -> 'araagenda'
+        build_verb_form('genda', '1sg', 'present_imperfect', negative=True) -> 'tinigenda'
     """
     # Subject prefix raw (e.g. "n-", "o-", "a-", "tu-", "mu-", "ba-")
     subj_raw = SUBJECT_PREFIXES.get(person, "n-")
@@ -1214,24 +1214,24 @@ def build_verb_form(
     t_marker = tense_map.get(tense, TENSE_MARKERS.get(tense, "").rstrip('-'))
 
     # For present_imperfect: the tense marker 'ni' already encodes the subject
-    # prefix for 1sg (n + ni → ni, not nni).  Fuse subject + tense correctly.
+    # prefix for 1sg (n + ni -> ni, not nni).  Fuse subject + tense correctly.
     if t_marker == "ni":
-        # 1sg: n + ni → ni  (not nni)
+        # 1sg: n + ni -> ni  (not nni)
         if subj == "n":
             prefix = "ni"
-        # 2sg: o + ni → oni
+        # 2sg: o + ni -> oni
         elif subj == "o":
             prefix = "oni"
-        # 3sg: a + ni → ni (a is absorbed)
+        # 3sg: a + ni -> ni (a is absorbed)
         elif subj == "a":
             prefix = "ni"
-        # 1pl: tu + ni → tuni
+        # 1pl: tu + ni -> tuni
         elif subj == "tu":
             prefix = "tuni"
-        # 2pl: mu + ni → muni
+        # 2pl: mu + ni -> muni
         elif subj == "mu":
             prefix = "muni"
-        # 3pl: ba + ni → bani
+        # 3pl: ba + ni -> bani
         elif subj == "ba":
             prefix = "bani"
         else:
@@ -1259,8 +1259,8 @@ def apply_causative(verb_stem: str) -> str:
     Build the causative form of a verb stem.
     Rules (Grammar Ch.12):
       - monosyllabic stems: add -isa
-      - stems ending in -ra: change -ra → -za
-      - stems ending in -ta: change -ta → -sa
+      - stems ending in -ra: change -ra -> -za
+      - stems ending in -ta: change -ta -> -sa
       - intransitive stems: replace final -a with -ya
     """
     s = verb_stem.lower().strip()
@@ -1280,7 +1280,7 @@ def apply_passive(verb_stem: str) -> str:
     """
     Build the passive form of a verb stem.
     Rules (Grammar Ch.12):
-      - monosyllabic (ha/ta/sa): vowel-lengthened + -bwa  (ha→heebwa, ta→teebwa, sa→siibwa)
+      - monosyllabic (ha/ta/sa): vowel-lengthened + -bwa  (ha->heebwa, ta->teebwa, sa->siibwa)
       - monosyllabic labialised (cwa/lya): replace final vowel with -ibwa
       - other verbs: insert -w- before final -a
     """
@@ -1602,7 +1602,7 @@ CONDITIONAL_MOOD = {
         "The verb in the condition clause takes a special compound tense form."
     ),
     "positive_with_kakuba": {
-        "rule": "kakuba/kuba/kakusangwa/kusangwa + past tense verb → result clause",
+        "rule": "kakuba/kuba/kakusangwa/kusangwa + past tense verb -> result clause",
         "examples": [
             ("Kuba okubaire ompaire omulimo naakugukozire.",
              "If you had given me some work I should have done it."),
@@ -1613,7 +1613,7 @@ CONDITIONAL_MOOD = {
         ],
     },
     "negative_with_kakuba": {
-        "rule": "kakuba/kuba + negative past verb → negative result",
+        "rule": "kakuba/kuba + negative past verb -> negative result",
         "examples": [
             ("Kuba obaire(ge) otampaire omulimo tinkukozire kantu.",
              "If you had not given me some work I should not have done anything."),
@@ -1748,7 +1748,7 @@ GEMINATE_R_WORDS = {
 GEMINATE_R_NOTE = (
     "Double-r (rr) in Runyoro-Rutooro arose from words that dropped the vowel "
     "originally between two r's. The rr is pronounced long (geminated). "
-    "e.g. omuliro → omuurro (fire), enkororo → enkoorro (cough)."
+    "e.g. omuliro -> omuurro (fire), enkororo -> enkoorro (cough)."
 )
 
 
@@ -1830,7 +1830,7 @@ VOWEL_MERGING_NOTE = (
     "When two words come together, the final vowel of the first merges with the "
     "initial vowel of the second to make a long vowel. This merging is NOT shown "
     "in orthography for regular words, but IS shown with an apostrophe when the "
-    "first word is a particle. e.g. omwa omusaija → omw'omusaija."
+    "first word is a particle. e.g. omwa omusaija -> omw'omusaija."
 )
 
 VOWEL_MERGING_EXAMPLES = {
@@ -1876,37 +1876,37 @@ VOWEL_MERGING_EXAMPLES = {
         "okweita":  "to commit suicide",
     },
     "semi_vowel_substitution": {
-        "eki-ererezi":      "ekyererezi (light) — i→y before vowel",
-        "omu-ana":          "omwana (child) — u→w before vowel",
-        "Isenkuru-itwe":    "Isenkurwitwe (our grandfather) — u→w",
-        "Nyinenkuru-itwe":  "Nyinenkurwitwe (our grandmother) — u→w",
+        "eki-ererezi":      "ekyererezi (light) — i->y before vowel",
+        "omu-ana":          "omwana (child) — u->w before vowel",
+        "Isenkuru-itwe":    "Isenkurwitwe (our grandfather) — u->w",
+        "Nyinenkuru-itwe":  "Nyinenkurwitwe (our grandmother) — u->w",
     },
 }
 
 # Particle elision patterns (extends apostrophe rule)
 PARTICLE_ELISION_PATTERNS = {
-    "omwa":  "omw'",   # omwa + vowel → omw'
-    "owa":   "ow'",    # owa + vowel → ow'
-    "omba":  "omb'",   # omba + vowel → omb'
-    "habwa": "habw'",  # habwa + vowel → habw'
-    "muka":  "muk'",   # muka + vowel → muk'
-    "nka":   "nk'",    # nka + vowel → nk'
-    "obwa":  "obw'",   # obwa + vowel → obw'
-    "na":    "n'",     # na + vowel → n'
-    "za":    "z'",     # za + vowel → z'
-    "ka":    "k'",     # ka + vowel → k'
-    "ya":    "y'",     # ya + vowel → y'
-    "wa":    "w'",     # wa + vowel → w'
-    "ga":    "g'",     # ga + vowel → g'
-    "ba":    "b'",     # ba + vowel → b'
-    "lya":   "ly'",    # lya + vowel → ly'
-    "kya":   "ky'",    # kya + vowel → ky'
-    "bya":   "by'",    # bya + vowel → by'
-    "rwa":   "rw'",    # rwa + vowel → rw'
-    "twa":   "tw'",    # twa + vowel → tw'
-    "bwa":   "bw'",    # bwa + vowel → bw'
-    "kwa":   "kw'",    # kwa + vowel → kw'
-    "gwa":   "gw'",    # gwa + vowel → gw'
+    "omwa":  "omw'",   # omwa + vowel -> omw'
+    "owa":   "ow'",    # owa + vowel -> ow'
+    "omba":  "omb'",   # omba + vowel -> omb'
+    "habwa": "habw'",  # habwa + vowel -> habw'
+    "muka":  "muk'",   # muka + vowel -> muk'
+    "nka":   "nk'",    # nka + vowel -> nk'
+    "obwa":  "obw'",   # obwa + vowel -> obw'
+    "na":    "n'",     # na + vowel -> n'
+    "za":    "z'",     # za + vowel -> z'
+    "ka":    "k'",     # ka + vowel -> k'
+    "ya":    "y'",     # ya + vowel -> y'
+    "wa":    "w'",     # wa + vowel -> w'
+    "ga":    "g'",     # ga + vowel -> g'
+    "ba":    "b'",     # ba + vowel -> b'
+    "lya":   "ly'",    # lya + vowel -> ly'
+    "kya":   "ky'",    # kya + vowel -> ky'
+    "bya":   "by'",    # bya + vowel -> by'
+    "rwa":   "rw'",    # rwa + vowel -> rw'
+    "twa":   "tw'",    # twa + vowel -> tw'
+    "bwa":   "bw'",    # bwa + vowel -> bw'
+    "kwa":   "kw'",    # kwa + vowel -> kw'
+    "gwa":   "gw'",    # gwa + vowel -> gw'
 }
 
 
@@ -1916,10 +1916,10 @@ def apply_particle_elision(text: str) -> str:
     before vowel-initial words. Extends apply_apostrophe_elision with the
     full set of particles from the grammar document.
 
-    e.g. omwa omusaija → omw'omusaija
-         habwa okugonza → habw'okugonza
-         nka omwana    → nk'omwana
-         na ente       → n'ente
+    e.g. omwa omusaija -> omw'omusaija
+         habwa okugonza -> habw'okugonza
+         nka omwana    -> nk'omwana
+         na ente       -> n'ente
 
     Source: grammar rules 2 (1).docx — Chapter Two: Sound Change
     """
@@ -1944,8 +1944,8 @@ def apply_particle_elision(text: str) -> str:
 def apply_semi_vowel_substitution(text: str) -> str:
     """
     Apply semi-vowel substitution at morpheme boundaries:
-    - i → y before another vowel (eki-ererezi → ekyererezi)
-    - u → w before another vowel (omu-ana → omwana)
+    - i -> y before another vowel (eki-ererezi -> ekyererezi)
+    - u -> w before another vowel (omu-ana -> omwana)
 
     This applies at prefix-stem boundaries in Runyoro-Rutooro.
     Source: grammar rules 2 (1).docx — Sound Change §Semi-vowels
@@ -1953,10 +1953,10 @@ def apply_semi_vowel_substitution(text: str) -> str:
     if not text:
         return text
     import re as _re
-    # i → y before vowel at common prefix boundaries
+    # i -> y before vowel at common prefix boundaries
     result = _re.sub(r'\b(ek)i([aeiou])', r'\1y\2', text, flags=_re.IGNORECASE)
     result = _re.sub(r'\b(ob)i([aeiou])', r'\1y\2', result, flags=_re.IGNORECASE)
-    # u → w before vowel at common prefix boundaries
+    # u -> w before vowel at common prefix boundaries
     result = _re.sub(r'\b(om)u([aeiou])', r'\1w\2', result, flags=_re.IGNORECASE)
     result = _re.sub(r'\b(ob)u([aeiou])', r'\1w\2', result, flags=_re.IGNORECASE)
     result = _re.sub(r'\b(ok)u([aeiou])', r'\1w\2', result, flags=_re.IGNORECASE)
@@ -1971,7 +1971,7 @@ def apply_semi_vowel_substitution(text: str) -> str:
 DOUBLE_NASAL_NOTE = (
     "When the first-person singular prefix n- is added to a verb stem beginning "
     "with n or m, a double nasal (nn or mm) is formed. "
-    "e.g. n + naabe → nnaabe (that I may wash), n + manya → mmanya (know me)."
+    "e.g. n + naabe -> nnaabe (that I may wash), n + manya -> mmanya (know me)."
 )
 
 DOUBLE_NASAL_EXAMPLES = {
@@ -2021,37 +2021,37 @@ DOUBLE_NASAL_EXCEPTIONS = [
 # ─────────────────────────────────────────────────────────────────────────────
 # POST-PROCESSING: CONSONANT + SUFFIX MUTATIONS (text-level)
 # Source: Grammar Rule 3 §B — Sound Change in Consonants
-# Applies r→z, t→s, j→z before -ire/-ere/-i/-ya in MT output.
+# Applies r->z, t->s, j->z before -ire/-ere/-i/-ya in MT output.
 # ─────────────────────────────────────────────────────────────────────────────
 
 import re as _re2
 
 # Ordered list of (pattern, replacement) — longer/more-specific first
 _CONSONANT_SUFFIX_PATTERNS = [
-    # nd + -ire/-ere → -nzire
+    # nd + -ire/-ere -> -nzire
     (_re2.compile(r'nd(ire|ere)\b', _re2.IGNORECASE), r'nz\1'),
-    # nt + -ire/-ere → -nsire
+    # nt + -ire/-ere -> -nsire
     (_re2.compile(r'nt(ire|ere)\b', _re2.IGNORECASE), r'ns\1'),
-    # nd + -i (agent noun suffix) → -nzi
+    # nd + -i (agent noun suffix) -> -nzi
     (_re2.compile(r'nd(i)\b', _re2.IGNORECASE), r'nz\1'),
-    # nt + -i → -nsi
+    # nt + -i -> -nsi
     (_re2.compile(r'nt(i)\b', _re2.IGNORECASE), r'ns\1'),
-    # r + -ire/-ere (short-vowel stem) → -zire/-zere
+    # r + -ire/-ere (short-vowel stem) -> -zire/-zere
     # Guard: only when preceded by a short vowel (not rr, not already z)
     (_re2.compile(r'(?<![rz])r(ire|ere)\b', _re2.IGNORECASE), r'z\1'),
-    # t + -ire/-ere → -sire/-sere
+    # t + -ire/-ere -> -sire/-sere
     (_re2.compile(r'(?<!s)t(ire|ere)\b', _re2.IGNORECASE), r's\1'),
-    # j + -ire/-ere → -zire/-zere
+    # j + -ire/-ere -> -zire/-zere
     (_re2.compile(r'j(ire|ere)\b', _re2.IGNORECASE), r'z\1'),
-    # r + -i (agent noun) → -zi
+    # r + -i (agent noun) -> -zi
     (_re2.compile(r'(?<![rz])r(i)\b', _re2.IGNORECASE), r'z\1'),
-    # t + -i → -si
+    # t + -i -> -si
     (_re2.compile(r'(?<!s)t(i)\b', _re2.IGNORECASE), r's\1'),
-    # j + -i → -zi
+    # j + -i -> -zi
     (_re2.compile(r'j(i)\b', _re2.IGNORECASE), r'z\1'),
-    # r + -ya → -za
+    # r + -ya -> -za
     (_re2.compile(r'(?<![rz])r(ya)\b', _re2.IGNORECASE), r'z\1'),
-    # t + -ya → -sa
+    # t + -ya -> -sa
     (_re2.compile(r'(?<!s)t(ya)\b', _re2.IGNORECASE), r's\1'),
 ]
 
@@ -2060,11 +2060,11 @@ def apply_consonant_suffix_mutations(text: str) -> str:
     Apply consonant + suffix sound changes across all words in MT output.
 
     Rules (Grammar Rule 3 §B.6):
-      r  + -ire/-ere/-i/-ya  →  z + suffix   (e.g. rora → rozire, omurozi, roza)
-      t  + -ire/-ere/-i/-ya  →  s + suffix   (e.g. leeta → leesire, omuleesi, leesa)
-      j  + -ire/-ere/-i      →  z + suffix   (e.g. hiija → hiizire, omuhiizi)
-      nd + -ire/-ere/-i/-ya  →  nz + suffix  (e.g. genda → genzire, omugenzi, genza)
-      nt + -ire/-ere/-i/-ya  →  ns + suffix  (e.g. tenta → tensire, omutensi, tensa)
+      r  + -ire/-ere/-i/-ya  ->  z + suffix   (e.g. rora -> rozire, omurozi, roza)
+      t  + -ire/-ere/-i/-ya  ->  s + suffix   (e.g. leeta -> leesire, omuleesi, leesa)
+      j  + -ire/-ere/-i      ->  z + suffix   (e.g. hiija -> hiizire, omuhiizi)
+      nd + -ire/-ere/-i/-ya  ->  nz + suffix  (e.g. genda -> genzire, omugenzi, genza)
+      nt + -ire/-ere/-i/-ya  ->  ns + suffix  (e.g. tenta -> tensire, omutensi, tensa)
 
     Source: Grammar Rule 3 §B.5–6
     """
@@ -2079,7 +2079,7 @@ def apply_consonant_suffix_mutations(text: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # POST-PROCESSING: REFLEXIVE IMPERATIVE CORRECTION (text-level)
 # Source: Grammar Rule 3 §4 — Reflexive Verbs
-# Corrects okwesereka → weesereke (sg) / mwesereke (pl) in MT output.
+# Corrects okwesereka -> weesereke (sg) / mwesereke (pl) in MT output.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Match infinitive forms the model may output: okwesereka, okw-esereka, okwebara, etc.
@@ -2093,8 +2093,8 @@ def apply_reflexive_imperative_correction(text: str) -> str:
     Convert reflexive infinitives that appear in imperative contexts to their
     correct imperative form.
 
-    Singular imperative: okw-esereka → weesereke
-    Plural imperative:   okw-esereka → mwesereke
+    Singular imperative: okw-esereka -> weesereke
+    Plural imperative:   okw-esereka -> mwesereke
 
     The model sometimes outputs the infinitive where an imperative is expected.
     This function detects standalone reflexive infinitives (not preceded by a
@@ -2127,29 +2127,29 @@ def apply_reflexive_imperative_correction(text: str) -> str:
 # Ensures nouns/adjectives carry the correct initial vowel for their class.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Prefix → expected initial vowel
+# Prefix -> expected initial vowel
 # Rule: initial vowel is 'a' if prefix contains 'a', 'o' if prefix contains 'u',
 #       'e' if prefix contains 'i'. Classes 9/10 always use 'e'.
 _PREFIX_INITIAL_VOWEL: list[tuple[_re2.Pattern, str]] = [
-    # Class 1/2 (omu-/aba-) → initial vowel 'a'
+    # Class 1/2 (omu-/aba-) -> initial vowel 'a'
     (_re2.compile(r'\b(omu|aba|omw|ab)([aeiou])', _re2.IGNORECASE), 'a'),
-    # Class 3/4 (omu-/emi-) → initial vowel 'a'/'e' already correct by prefix
-    # Class 5 (eri-/ery-) → initial vowel 'e'
+    # Class 3/4 (omu-/emi-) -> initial vowel 'a'/'e' already correct by prefix
+    # Class 5 (eri-/ery-) -> initial vowel 'e'
     (_re2.compile(r'\b(eri|ery)([aeiou])', _re2.IGNORECASE), 'e'),
-    # Class 6 (ama-/ame-/amo-) → initial vowel 'a'
+    # Class 6 (ama-/ame-/amo-) -> initial vowel 'a'
     (_re2.compile(r'\b(ama|ame|amo)([aeiou])', _re2.IGNORECASE), 'a'),
-    # Class 7/8 (eki-/ebi-) → initial vowel 'e'
+    # Class 7/8 (eki-/ebi-) -> initial vowel 'e'
     (_re2.compile(r'\b(eki|ebi|eky|eby)([aeiou])', _re2.IGNORECASE), 'e'),
-    # Class 9/10 (en-/em-) → initial vowel always 'e'
+    # Class 9/10 (en-/em-) -> initial vowel always 'e'
     (_re2.compile(r'\b(en|em)([aeiou])', _re2.IGNORECASE), 'e'),
-    # Class 11 (oru-/orw-) → initial vowel 'o'
+    # Class 11 (oru-/orw-) -> initial vowel 'o'
     (_re2.compile(r'\b(oru|orw)([aeiou])', _re2.IGNORECASE), 'o'),
-    # Class 12/13 (aka-/utu-) → initial vowel 'a'/'o'
+    # Class 12/13 (aka-/utu-) -> initial vowel 'a'/'o'
     (_re2.compile(r'\b(aka|akw)([aeiou])', _re2.IGNORECASE), 'a'),
     (_re2.compile(r'\b(utu|utw)([aeiou])', _re2.IGNORECASE), 'o'),
-    # Class 14 (obu-/obw-) → initial vowel 'o'
+    # Class 14 (obu-/obw-) -> initial vowel 'o'
     (_re2.compile(r'\b(obu|obw)([aeiou])', _re2.IGNORECASE), 'o'),
-    # Class 15 (oku-/okw-) → initial vowel 'o'
+    # Class 15 (oku-/okw-) -> initial vowel 'o'
     (_re2.compile(r'\b(oku|okw)([aeiou])', _re2.IGNORECASE), 'o'),
 ]
 
@@ -2163,10 +2163,10 @@ def apply_initial_vowel_rule(text: str) -> str:
     Ensure each noun/adjective carries the correct initial vowel for its class.
 
     Rules (Grammar Rule 3 §8):
-      - Prefix contains 'a' (omu-, aba-, ama-)  → initial vowel 'a'
-      - Prefix contains 'u' (oru-, obu-, oku-)  → initial vowel 'o'
-      - Prefix contains 'i' (emi-, eki-, ebi-)  → initial vowel 'e'
-      - Classes 9/10 (en-/em-)                  → initial vowel always 'e'
+      - Prefix contains 'a' (omu-, aba-, ama-)  -> initial vowel 'a'
+      - Prefix contains 'u' (oru-, obu-, oku-)  -> initial vowel 'o'
+      - Prefix contains 'i' (emi-, eki-, ebi-)  -> initial vowel 'e'
+      - Classes 9/10 (en-/em-)                  -> initial vowel always 'e'
 
     Only corrects words not in the known exceptions list.
 
@@ -2721,7 +2721,7 @@ GENITIVE_ELISION_RULES = {
         "Though not written, the particle must be pronounced long."
     ),
     "contexts": [
-        ("between two nouns",              "omwana wa Byaruhanga → omwana w'Omuhangi"),
+        ("between two nouns",              "omwana wa Byaruhanga -> omwana w'Omuhangi"),
         ("between noun and interrogative", "Omukazi onu w'oha? (Whose woman is this?)"),
         ("between noun and ki?",           "Ebitabu binu byaki? (For what purpose are these books?)"),
         ("between noun and ordinal",       "ekitabu ky'okubanza (the first book)"),
@@ -2729,7 +2729,7 @@ GENITIVE_ELISION_RULES = {
     ],
     "pronunciation_note": (
         "Though -a is not written before vowels, particles must be pronounced long: "
-        "aba → abaa, aga → agaa, eza → ezaa, aka → akaa"
+        "aba -> abaa, aga -> agaa, eza -> ezaa, aka -> akaa"
     ),
 }
 
@@ -3154,7 +3154,7 @@ NAMES_OF_RELATIONSHIP = {
     "husband":          {"3sg": "iba"},
 }
 
-# Combined forms (ise + itwe → isiitwe, isenkuru + itwe → isenkurwitwe)
+# Combined forms (ise + itwe -> isiitwe, isenkuru + itwe -> isenkurwitwe)
 RELATIONSHIP_COMBINED = {
     "isiitwe":       "our father",
     "isiinywe":      "your father",
@@ -3321,7 +3321,7 @@ def get_few_shot_examples(corpus_pairs: list = None, sector: str = None) -> str:
     # Format examples with source/translation pairs
     formatted = []
     for i, (en, lun) in enumerate(corpus_pairs[:5], 1):  # Top 5 examples
-        formatted.append(f'  • {en.strip()[:100]} → {lun.strip()[:80]}')
+        formatted.append(f'  • {en.strip()[:100]} -> {lun.strip()[:80]}')
 
     return "\n".join(formatted) if formatted else "\nNo relevant corpus examples found."
 
@@ -3333,23 +3333,23 @@ def get_few_shot_grammar_examples() -> str:
     """
     examples = [
         # Noun class agreement
-        '  • omuwana aliba (the child is tall) → omuwana (cl.5 person) + aliba (tall)',
-        '  • abaana beera (the children are working) → aba- (cl.2 subject) + -na- (object concord)',
+        '  • omuwana aliba (the child is tall) -> omuwana (cl.5 person) + aliba (tall)',
+        '  • abaana beera (the children are working) -> aba- (cl.2 subject) + -na- (object concord)',
         # Verb conjugation
-        '  • nigenda (I am going) → ni- (present imperfect) + subject prefix n- absorbed',
-        '  • aragenda (he/she will go) → a- (3sg) + ra- (future) + stem',
+        '  • nigenda (I am going) -> ni- (present imperfect) + subject prefix n- absorbed',
+        '  • aragenda (he/she will go) -> a- (3sg) + ra- (future) + stem',
         # Adjectival concord
-        '  • omuwana omurungi (the tall child) → omu- (cl.1/3 adjectival concord) + -rungi (tall)',
-        '  • abaana abirungi (the tall children) → aba- (cl.2 adjectival concord) + -rungi',
+        '  • omuwana omurungi (the tall child) -> omu- (cl.1/3 adjectival concord) + -rungi (tall)',
+        '  • abaana abirungi (the tall children) -> aba- (cl.2 adjectival concord) + -rungi',
         # Plural formation
-        '  • omuntu → abantu (person → people)',
-        '  • omusizi → amasizi (tree → trees)',
+        '  • omuntu -> abantu (person -> people)',
+        '  • omusizi -> amasizi (tree -> trees)',
         # R/L rule
-        '  • okuleeta → okuleera (bring → bring) → L changes to R outside e/i vowels',
-        '  • omugongo → omugongo (backbone) → L is correct because adjacent to o and g',
+        '  • okuleeta -> okuleera (bring -> bring) -> L changes to R outside e/i vowels',
+        '  • omugongo -> omugongo (backbone) -> L is correct because adjacent to o and g',
         # Apostrophe elision
-        '  • na ente → n'ente (and a cow) → particle vowel elided before vowel',
-        '  • za omuntu → z'omuntu (of a person) → particle vowel elided before vowel',
+        '  • na ente -> n'ente (and a cow) -> particle vowel elided before vowel',
+        '  • za omuntu -> z'omuntu (of a person) -> particle vowel elided before vowel',
     ]
     return "\n".join(examples)
 
@@ -3381,7 +3381,7 @@ def build_possessive(noun_class: int, person: str) -> str:
     """
     Build a possessive phrase: genitive particle + possessive suffix.
     person: '1sg','2sg','3sg','1pl','2pl','3pl'
-    e.g. build_possessive(1, '1sg') → 'wange' (my, for class 1 noun)
+    e.g. build_possessive(1, '1sg') -> 'wange' (my, for class 1 noun)
     """
     gp = GENITIVE_PARTICLES_SHORT.get(noun_class, "")
     ps = POSSESSIVE_SUFFIXES.get(person, "")
@@ -3394,7 +3394,7 @@ def build_possessive(noun_class: int, person: str) -> str:
 def apply_copula_ni(word: str) -> str:
     """
     Prepend the copula ni- to a word, applying sound change before vowels
-    (ni + vowel → n + vowel, e.g. ni + onu → noonu).
+    (ni + vowel -> n + vowel, e.g. ni + onu -> noonu).
     """
     if not word:
         return word
@@ -3406,7 +3406,7 @@ def apply_copula_ni(word: str) -> str:
 def apply_joining_na(word: str) -> str:
     """
     Prepend the joining word na to a word, applying elision before vowels
-    (na + vowel → n' + vowel).
+    (na + vowel -> n' + vowel).
     """
     if not word:
         return word
@@ -3422,7 +3422,7 @@ def build_ordinal_extended(n: int, noun_class: int) -> str:
     """
     gp = get_genitive_particle(noun_class, emphatic=False).rstrip("-")
     if n == 1:
-        # genitive particle + elision before okubanza (wa → w'okubanza, gwa → gw'okubanza)
+        # genitive particle + elision before okubanza (wa -> w'okubanza, gwa -> gw'okubanza)
         if gp.endswith("a"):
             return f"{gp[:-1]}'okubanza"
         return f"{gp}w'okubanza"
