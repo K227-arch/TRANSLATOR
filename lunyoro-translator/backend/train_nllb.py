@@ -296,7 +296,19 @@ def train_direction(direction: str, args):
     # Load tokenizer and model from local path (fine-tune, not from scratch)
     print("  Loading tokenizer and model from local checkpoint...")
     tokenizer = NllbTokenizer.from_pretrained(model_path)
-    model     = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+    model     = AutoModelForSeq2SeqLM.from_pretrained(model_path,
+                                                       ignore_mismatched_sizes=True)
+
+    # Resize embeddings if tokenizer vocab grew (e.g. after adding nyo_Latn token)
+    if args.resize_embeddings or len(tokenizer) != model.config.vocab_size:
+        old_size = model.config.vocab_size
+        new_size = len(tokenizer)
+        if old_size != new_size:
+            print(f"  Resizing embeddings: {old_size} -> {new_size} (new tokens: {new_size - old_size})")
+            model.resize_token_embeddings(new_size)
+            model.config.vocab_size = new_size
+        elif args.resize_embeddings:
+            print(f"  Embeddings already correct size: {old_size}")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # fp32 — more stable for low-resource language fine-tuning
@@ -420,6 +432,8 @@ def main():
     parser.add_argument("--min-lun-words", type=int, default=3,
                         help="Filter pairs where Lunyoro has fewer than N words "
                              "(lun2en only). Default 3. Set 0 to disable.")
+    parser.add_argument("--resize-embeddings", action="store_true", default=False,
+                        help="Resize embeddings after adding new language tokens (e.g. nyo_Latn)")
     parser.add_argument("--direction", type=str, default="both",
                         choices=["en2lun", "lun2en", "both"])
     parser.add_argument("--epochs",     type=int,   default=5)

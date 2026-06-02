@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(python -c \"from huggingface_hub import snapshot_download; snapshot_download\\(repo_id='keithtwesigye/lunyoro-en2lun', local_dir='model/en2lun'\\); print\\('Downloaded en2lun'\\)\")",
+      "Bash(python -c \"import sys; print\\(sys.path\\)\")",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(curl -X GET \"http://localhost:8000/health\" -H \"accept: application/json\")",
+      "Bash(dir *)",
+      "Bash(python *)"
+    ]
+  }
+}
