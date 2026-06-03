@@ -106,5 +106,26 @@
     "score_cul": 1,
     "sqs": 48.4,
     "timestamp": "2026-06-03T06:56:41.272222"
+  },
+  {
+    "source_text": "School will resume on the first of February after the holidays.",
+    "translation": "Isomero nirikugarukaho hakubanza kwa feburahere hanyuma y'obugenyi.",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "Isomero nirinja kugarukamu kibaza okwakabiri hanyuma yo'ruhumuro",
+    "error_type": "different meaning, vocabulary",
+    "model_used": "marian",
+    "refined": true,
+    "ip": "10.16.37.205",
+    "score_mng": 4,
+    "score_grm": 4,
+    "score_tns": 4,
+    "score_vcb": 2,
+    "score_ort": 3,
+    "score_ctx": 4,
+    "score_flu": 2,
+    "score_cul": 2,
+    "sqs": 66.4,
+    "timestamp": "2026-06-03T07:07:36.514585"
   }
 ]
