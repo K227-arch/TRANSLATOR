@@ -31,5 +31,26 @@
     "score_cul": 3,
     "sqs": 83.4,
     "timestamp": "2026-06-03T05:19:07.361438"
+  },
+  {
+    "source_text": "Coffee prices have risen by fifteen percent this year.",
+    "translation": "Emihendo y'enkoko esisimukire kikumi n'ikumi mwaaka gunu.",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "Emihendo yo'mwani etembere ebicweka ikumi na bitaano ha kimumi omwaka gunu",
+    "error_type": "vocabulary, different meaning",
+    "model_used": "marian",
+    "refined": true,
+    "ip": "10.16.25.26",
+    "score_mng": 3,
+    "score_grm": 5,
+    "score_tns": 4,
+    "score_vcb": 2,
+    "score_ort": 4,
+    "score_ctx": 3,
+    "score_flu": 2,
+    "score_cul": 1,
+    "sqs": 62.4,
+    "timestamp": "2026-06-03T05:28:25.930979"
   }
 ]
