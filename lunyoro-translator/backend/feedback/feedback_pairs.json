@@ -127,5 +127,26 @@
     "score_cul": 2,
     "sqs": 66.4,
     "timestamp": "2026-06-03T07:07:36.514585"
+  },
+  {
+    "source_text": "Investigations are ongoing into the cause of the fire at the warehouse",
+    "translation": "ebyokukebera nibizooka kutandikaho omubaro hakyombeko",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "Okuseruruza nikukyagenda mumaiso hansonga eyaleterire omuro omulyahuro lyebintu",
+    "error_type": "different meaning, vocabulary, spelling",
+    "model_used": "marian",
+    "refined": true,
+    "ip": "10.16.3.80",
+    "score_mng": 3,
+    "score_grm": 4,
+    "score_tns": 4,
+    "score_vcb": 2,
+    "score_ort": 3,
+    "score_ctx": 4,
+    "score_flu": 2,
+    "score_cul": 1,
+    "sqs": 59.8,
+    "timestamp": "2026-06-03T07:50:19.209411"
   }
 ]
