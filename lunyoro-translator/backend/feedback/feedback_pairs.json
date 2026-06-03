@@ -64,5 +64,26 @@
     "refined": true,
     "ip": "10.16.29.130",
     "timestamp": "2026-06-03T05:44:49.076726"
+  },
+  {
+    "source_text": "A delegation from Kenya arrived yesterday from trade talks.",
+    "translation": "Omukitebe kyokutanga kuruga Kenya kyaija kurunga obusubuzi bwona.",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "Omukuru kuruga Kenya ahikirege ijo habworubazo rwo'busubuzi",
+    "error_type": "different meaning, vocabulary, context",
+    "model_used": "marian",
+    "refined": true,
+    "ip": "10.16.37.205",
+    "score_mng": 2,
+    "score_grm": 4,
+    "score_tns": 3,
+    "score_vcb": 2,
+    "score_ort": 4,
+    "score_ctx": 2,
+    "score_flu": 1,
+    "score_cul": 1,
+    "sqs": 48.0,
+    "timestamp": "2026-06-03T06:46:53.571075"
   }
 ]
