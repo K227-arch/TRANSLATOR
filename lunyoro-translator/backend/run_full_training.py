@@ -100,7 +100,6 @@ def main():
              "--direction", "en2lun",
              "--epochs", str(args.nllb_en2lun_epochs),
              "--lr", "8e-6",
-             "--resize-embeddings",
              "--new-only"],
         )
         if not ok:
@@ -113,7 +112,6 @@ def main():
              "--epochs", str(args.nllb_lun2en_epochs),
              "--lr", "8e-6",
              "--min-lun-words", "3",
-             "--resize-embeddings",
              "--new-only"],
         )
         if not ok:
