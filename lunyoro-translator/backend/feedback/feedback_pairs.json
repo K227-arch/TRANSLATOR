@@ -160,5 +160,26 @@
     "refined": false,
     "ip": "10.16.3.80",
     "timestamp": "2026-06-04T07:43:36.107052"
+  },
+  {
+    "source_text": "Girls are going to school",
+    "translation": "Abaisiki bagenda haisomero",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.47.7",
+    "score_mng": 4,
+    "score_grm": 3,
+    "score_tns": 4,
+    "score_vcb": 4,
+    "score_ort": 4,
+    "score_ctx": 4,
+    "score_flu": 4,
+    "score_cul": 3,
+    "sqs": 75.4,
+    "timestamp": "2026-06-04T07:44:02.644827"
   }
 ]
