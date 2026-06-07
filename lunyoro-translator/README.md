@@ -250,6 +250,61 @@ python backend/train_nllb.py --new-only               # train only on new (untra
 - Multi-GPU training: automatically uses all available GPUs via `DataParallel` when more than one GPU is detected (prints device names at startup)
 - **lun→en data fixes (applied automatically):** Before training the `lun2en` direction, two preprocessing steps run in sequence: (1) domain tags (e.g. `[MEDICAL]`, `[GENERAL]`) are stripped from the English target column — these tags are en→lun artefacts that corrupt lun→en targets; (2) pairs where the Lunyoro source has fewer than `--min-lun-words` words are dropped, removing single-word dictionary entries that degrade sentence-level BLEU
 
+### 6a. Fix NLLB Embedding Size Mismatch
+```bash
+python backend/fix_nllb_embeddings.py
+# Resolves the vocab_size mismatch between a saved NLLB checkpoint and its tokenizer.
+# This can occur after adding the custom nyo_Latn token when the previous checkpoint
+# was already resized (e.g. 256206 vs. the tokenizer's 256205).
+#
+# For each direction (en2lun and lun2en):
+#   1. Loads the tokenizer and model from model/nllb_{direction}/
+#   2. Compares tokenizer vocab size against model.config.vocab_size
+#   3. Resizes model embeddings to match the tokenizer (resize_token_embeddings)
+#   4. Re-initialises the nyo_Latn embedding as the average of Bantu language
+#      embeddings (run_Latn + lug_Latn + kin_Latn)
+#   5. Backs up the original checkpoint to model/nllb_{direction}_pre_fix/
+#      (only on first run — will not overwrite an existing backup)
+#   6. Saves the corrected tokenizer and model in place
+#
+# Run this before training if you see a size mismatch error like:
+#   "size mismatch for shared.weight: copying a param with shape torch.Size([256206, 1024])
+#    from checkpoint, the shape in current model is torch.Size([256205, 1024])"
+# After running, retrain with: python backend/train_nllb.py --direction both
+```
+
+### 6a-2. Fix nyo_Latn Token Registration (Tokenizer-Only)
+```bash
+python backend/fix_nllb_token_properly.py
+# Correct approach for registering the nyo_Latn language token in the NLLB
+# tokenizer without touching model weights.
+#
+# Background: some NLLB checkpoints end up with a vocab_size of 256206 (one
+# extra embedding row added by a previous resize) while the tokenizer still
+# has 256205 entries and nyo_Latn is unregistered (maps to <unk>).
+#
+# Strategy (tokenizer-only — model weights are never modified):
+#   1. Reads the actual embedding size directly from the safetensors file
+#      (model.shared.weight shape) without loading the full model into memory
+#   2. Compares that against the tokenizer's current vocab size
+#   3. If the tokenizer is short, adds placeholder tokens to fill the gap and
+#      appends nyo_Latn as the final token (maps to the existing extra slot)
+#   4. Backs up the tokenizer files to model/nllb_{direction}_tok_backup/
+#      (only on first run — will not overwrite an existing backup)
+#   5. Saves the corrected tokenizer in place; model.safetensors is untouched
+#
+# When to use instead of fix_nllb_embeddings.py:
+#   - Use this script when the model weights are already the right size and you
+#     only need the tokenizer to recognise nyo_Latn
+#   - Use fix_nllb_embeddings.py when the embedding matrix itself needs to be
+#     resized (e.g. the model was saved before the custom token was added)
+#
+# After running, verify with:
+#   python -c "from transformers import NllbTokenizer; t = NllbTokenizer.from_pretrained('model/nllb_en2lun'); print(t.convert_tokens_to_ids('nyo_Latn'))"
+# The printed ID should be 256205 (not 3 / <unk>).
+# Then retrain with: python backend/train_nllb.py --direction both
+```
+
 ### 6b. Augment Data + Full Training Pipeline (CI/CD)
 ```bash
 python backend/augment_and_train.py                  # full pipeline (augment → train → push)
