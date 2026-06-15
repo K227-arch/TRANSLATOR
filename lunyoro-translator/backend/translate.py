@@ -299,18 +299,32 @@ def _load_mt(direction: str):
 
             print(f"[translate] Loading ONNX model: {direction}")
             tokenizer = MarianTokenizer.from_pretrained(onnx_path)
-            provider = (
-                "CUDAExecutionProvider"
-                if torch.cuda.is_available()
-                else "CPUExecutionProvider"
-            )
+
+            # Determine available ONNX providers — prefer CPU (no onnxruntime-gpu needed)
+            import onnxruntime as _ort
+            available_providers = _ort.get_available_providers()
+            if "CUDAExecutionProvider" in available_providers:
+                provider = "CUDAExecutionProvider"
+            else:
+                provider = "CPUExecutionProvider"
+
+            # Newer optimum expects decoder_model_merged.onnx; fall back to
+            # decoder_model.onnx (which is what our export_to_onnx.py produced).
+            onnx_files = os.listdir(onnx_path)
+            if "decoder_model_merged.onnx" in onnx_files:
+                decoder_file = "decoder_model_merged.onnx"
+            elif "decoder_model.onnx" in onnx_files:
+                decoder_file = "decoder_model.onnx"
+            else:
+                raise FileNotFoundError(f"No decoder ONNX file found in {onnx_path}")
+
             model = ORTModelForSeq2SeqLM.from_pretrained(
                 onnx_path,
                 provider=provider,
-                decoder_file_name="decoder_model.onnx",
-                use_cache=True,
+                decoder_file_name=decoder_file,
+                use_cache=False,  # use_cache=True requires decoder_with_past model
             )
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = "cuda" if "CUDA" in provider else "cpu"
             _mt_models[direction] = (tokenizer, model, device)
             _mt_available[direction] = True
             _mt_onnx[direction] = True

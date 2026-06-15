@@ -11,16 +11,19 @@ Models pulled:
     keithtwesigye/lunyoro-nllb_lun2en → model/nllb_lun2en/
     sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 → model/sem_model/
 """
+
 import os
 from pathlib import Path
 
 MODEL_DIR = Path(__file__).parent / "model"
 
 HF_MODELS = {
-    "en2lun":      "keithtwesigye/lunyoro-en2lun",
-    "lun2en":      "keithtwesigye/lunyoro-lun2en",
+    "en2lun": "keithtwesigye/lunyoro-en2lun",
+    "lun2en": "keithtwesigye/lunyoro-lun2en",
     "nllb_en2lun": "keithtwesigye/lunyoro-nllb_en2lun",
     "nllb_lun2en": "keithtwesigye/lunyoro-nllb_lun2en",
+    "nllb_en2lun_pre_nyo": "keithtwesigye/lunyoro-nllb_en2lun",
+    "nllb_lun2en_pre_nyo": "keithtwesigye/lunyoro-nllb_lun2en",
 }
 
 # Sentence-transformers semantic search model — downloaded to HF cache
@@ -35,7 +38,9 @@ def download_all(force: bool = False):
         if dest.exists() and not force:
             has_weights = any(dest.glob("*.safetensors")) or any(dest.glob("*.bin"))
             if has_weights:
-                print(f"  [OK] {local_name} already exists - skipping (use --force to re-download)")
+                print(
+                    f"  [OK] {local_name} already exists - skipping (use --force to re-download)"
+                )
                 continue
 
         print(f"  ↓ Downloading {repo_id} → model/{local_name}/")
@@ -58,8 +63,11 @@ def download_all(force: bool = False):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--force", action="store_true", help="Re-download even if model exists")
+    parser.add_argument(
+        "--force", action="store_true", help="Re-download even if model exists"
+    )
     args = parser.parse_args()
 
     print("=== Downloading Runyoro-Rutooro models from HuggingFace ===")

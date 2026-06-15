@@ -1656,6 +1656,49 @@ def lookup_coordinating_particle(word: str) -> str | None:
     return COORDINATING_PARTICLES.get(word.lower().strip())
 
 
+def get_grammar_context() -> str:
+    """
+    Basic Runyoro-Rutooro grammar context for translation prompts.
+    Covers orthography rules, noun classes, verb prefixes, and key morphological rules.
+    """
+    return (
+        "=== RUNYORO-RUTOORO GRAMMAR RULES ===\n\n"
+        "R/L RULE:\n"
+        "  L is used only adjacent to e or i vowels; R everywhere else.\n"
+        "  e.g. okuleeta (bring), okulya (eat), omuriro (fire)\n\n"
+        "NASAL ASSIMILATION:\n"
+        "  nb -> mb (e.g. nbona -> mbona)\n"
+        "  np -> mp, nr -> nd, nl -> nd\n\n"
+        "APOSTROPHE ELISION:\n"
+        "  na + vowel -> n' (na ente -> n'ente)\n"
+        "  za + vowel -> z' (za omuntu -> z'omuntu)\n"
+        "  Genitive -a elides before vowels: gw'abantu, by'abeegi\n\n"
+        "NOUN CLASSES:\n"
+        "  Class 1/2 (omu-/aba-): persons (omuntu/abantu)\n"
+        "  Class 3/4 (omu-/emi-): trees, plants (omusizi/emisizi)\n"
+        "  Class 5/6 (eri-/ama-): misc (eriso/amaso 'eye/eyes')\n"
+        "  Class 7/8 (eki-/ebi-): things (ekibaaro/ibibaaro)\n"
+        "  Class 9/10 (en-/en-): animals, loanwords (ente/ente 'cow/cows')\n"
+        "  Class 11 (oru-/ama-): long thin things (orugendo/amagendo)\n"
+        "  Class 14 (obu-): abstract nouns (obuzima 'health')\n\n"
+        "VERB PREFIXES (subject concords):\n"
+        "  1sg: ni-/n-  2sg: u-  3sg (cl.1): a-  1pl: tu-  2pl: mu-  3pl (cl.2): ba-\n\n"
+        "TENSES:\n"
+        "  Present: ni- + subject + verb (Ningenda = I am going)\n"
+        "  Past:    -a- infix (Naagenda = I went)\n"
+        "  Future:  -li- infix (Ndiigenda = I will go)\n\n"
+        "KINSHIP TERMS:\n"
+        "  ise wange -> isange (my father)\n"
+        "  nyina wawe -> nyinawe (your mother)\n"
+        "  ow'okubanza -> mukama (firstborn)\n\n"
+        "NEGATION:\n"
+        "  ti- prefix: Tigenda (not going), Tindya (I don't eat)\n\n"
+        "COPULA:\n"
+        "  Ali omuntu (He/she is a person)  — use 'ali' for class 1\n"
+        "  Ni omuntu (emphatic: It is a person)\n"
+    )
+
+
 def get_extended_grammar_context() -> str:
     """Extended grammar context including OCR-derived rules for chat/translation prompts."""
     base = get_grammar_context()
@@ -3348,8 +3391,8 @@ def get_few_shot_grammar_examples() -> str:
         '  • okuleeta -> okuleera (bring -> bring) -> L changes to R outside e/i vowels',
         '  • omugongo -> omugongo (backbone) -> L is correct because adjacent to o and g',
         # Apostrophe elision
-        '  • na ente -> n'ente (and a cow) -> particle vowel elided before vowel',
-        '  • za omuntu -> z'omuntu (of a person) -> particle vowel elided before vowel',
+        "  \u2022 na ente -> n'ente (and a cow) -> particle vowel elided before vowel",
+        "  \u2022 za omuntu -> z'omuntu (of a person) -> particle vowel elided before vowel",
     ]
     return "\n".join(examples)
 
