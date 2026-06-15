@@ -253,5 +253,17 @@
     "refined": true,
     "ip": "10.16.24.253",
     "timestamp": "2026-06-15T08:41:25.994410"
+  },
+  {
+    "source_text": "This project is a piece of cake so don't bite off more than you can chew",
+    "translation": "Ekihangirwe kinu kijuma kine omubiri guroho nukwo n'omubiri otahendeka kukira kunu otakateere",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "different meaning, context",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.47.7",
+    "timestamp": "2026-06-15T08:42:45.255199"
   }
 ]
