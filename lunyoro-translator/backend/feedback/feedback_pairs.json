@@ -265,5 +265,17 @@
     "refined": true,
     "ip": "10.16.47.7",
     "timestamp": "2026-06-15T08:42:45.255199"
+  },
+  {
+    "source_text": "He woke up on the wrong side of the bed today",
+    "translation": "Akasiimuka ha kitabu ekibi leero\n\nThe draft is actually correct in Runyoro-Rutooro. Here's a breakdown:\n\n- \"Akasiimuka\" means \"He woke up\"\n- \"ha\" is a negative particle\n- \"kitabu\" means \"the wrong side\"\n- \"ekibi\" means \"of the bed\"\n- \"leero\" means \"today\"\n\nSo the corrected version remains the same:\nAkasiimuka ha kitabu ekibi leero",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "context, different meaning",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.25.137",
+    "timestamp": "2026-06-15T08:43:38.945737"
   }
 ]
