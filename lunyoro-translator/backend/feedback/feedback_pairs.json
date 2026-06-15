@@ -193,5 +193,17 @@
     "refined": false,
     "ip": "10.16.47.7",
     "timestamp": "2026-06-15T08:26:54.465596"
+  },
+  {
+    "source_text": "The crane flew over the crane near the construction site",
+    "translation": "Entuuh kinu kikahuliriza haihi n'ekyombeko",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "Enkura ekaguruka yarabaho enkura haihi n'omwanya  gw'okwombekamu",
+    "error_type": "context, different meaning",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.25.137",
+    "timestamp": "2026-06-15T08:35:11.528013"
   }
 ]
