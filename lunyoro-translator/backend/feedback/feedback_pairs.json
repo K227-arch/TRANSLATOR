@@ -277,5 +277,17 @@
     "refined": true,
     "ip": "10.16.25.137",
     "timestamp": "2026-06-15T08:43:38.945737"
+  },
+  {
+    "source_text": "It's raining cats and dogs out there",
+    "translation": "kulindiramu obwana lw'ejju aheru",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "context, different meaning",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.25.137",
+    "timestamp": "2026-06-15T08:44:26.283009"
   }
 ]
