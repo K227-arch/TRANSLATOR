@@ -241,5 +241,17 @@
     "refined": true,
     "ip": "10.16.47.7",
     "timestamp": "2026-06-15T08:40:01.715497"
+  },
+  {
+    "source_text": "Don't beat around the bush, just spill the beans",
+    "translation": "Otalitera engano, oleke kusegesa ebere bye",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "grammar, context, different meaning",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.24.253",
+    "timestamp": "2026-06-15T08:41:25.994410"
   }
 ]
