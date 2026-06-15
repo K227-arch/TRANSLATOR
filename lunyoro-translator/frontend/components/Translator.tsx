@@ -324,6 +324,9 @@ export default function Translator() {
           </div>
           {result && (
             <div className="mt-2 flex gap-2 flex-wrap">
+              {result.method === "neural_mt" && result.translation === result.translation_nllb && result.translation_nllb && !preferredModel && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">NLLB-200</span>}
+              {result.method === "neural_mt" && result.translation === result.translation_marian && result.translation_nllb && !preferredModel && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">MarianMT</span>}
+              {result.method === "neural_mt" && result.translation === result.translation_marian && !result.translation_nllb && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">MarianMT</span>}
               {preferredModel && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">Using {preferredModel === "marian" ? "MarianMT" : "NLLB-200"}</span>}
               {result.translation_refined && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">auto_awesome</span>AI Refined</span>}
               {domain && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">{DOMAINS.find(d => d.value === domain)?.label ?? domain}</span>}
@@ -364,13 +367,13 @@ export default function Translator() {
                 </div>
               )}
               {feedbackSent && !modelFeedbackSent && <p className="text-xs text-teal-600 font-semibold">Thanks for the feedback!</p>}
-              {result.translation_marian && result.translation_nllb && !modelFeedbackSent && (
+              {(result.translation_marian || result.translation_nllb) && !modelFeedbackSent && (
                 <div className="pt-2 border-t border-gray-100 space-y-2">
                   <p className="text-xs text-gray-500 font-semibold">Which model translation is better?</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {([
-                      { id: "marian" as const, label: "MarianMT", text: result.translation_marian },
-                      { id: "nllb" as const, label: "NLLB-200", text: result.translation_nllb },
+                      ...(result.translation_marian ? [{ id: "marian" as const, label: "MarianMT", text: result.translation_marian }] : []),
+                      ...(result.translation_nllb ? [{ id: "nllb" as const, label: "NLLB-200", text: result.translation_nllb }] : []),
                       { id: "both" as const, label: "Both are correct", text: "Both translations are accurate" },
                       { id: "none" as const, label: "Both are wrong", text: "Neither is accurate" },
                     ]).map(({ id, label, text }) => (
