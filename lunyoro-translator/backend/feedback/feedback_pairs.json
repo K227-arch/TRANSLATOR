@@ -229,5 +229,17 @@
     "refined": true,
     "ip": "10.16.25.137",
     "timestamp": "2026-06-15T08:38:37.645347"
+  },
+  {
+    "source_text": "File this document before you lose the file",
+    "translation": "Kuhandiika ekihandiko kinu kitakaswekere n'ebwokuba otakaferirwe egamu",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "context, different meaning",
+    "model_used": "",
+    "refined": true,
+    "ip": "10.16.47.7",
+    "timestamp": "2026-06-15T08:40:01.715497"
   }
 ]
