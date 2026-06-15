@@ -80,6 +80,14 @@ python main.py
 
 See **[TRAINING_GUIDE.md](TRAINING_GUIDE.md)** for full details.
 
+### 0. Download Models and Dataset
+```bash
+python backend/download_models.py           # download all models + dataset CSVs
+python backend/download_models.py --force   # re-download even if files already exist
+```
+
+Downloads fine-tuned MarianMT and NLLB-200 models from HuggingFace Hub, the sentence-transformer semantic search model, and training dataset CSVs from `keithtwesigye/lunyoro-dataset` into `data/cleaned/`, `data/training/`, and `data/raw/`. Skips files that already exist unless `--force` is passed.
+
 ### 1. Build Translation Index
 ```bash
 python backend/build_index.py

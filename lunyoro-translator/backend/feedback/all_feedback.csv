@@ -1,0 +1,13 @@
+timestamp,direction,rating,model_used,source_text,translation,correction,error_type,ip,rating_label,has_correction
+2026-05-07T08:10:18.413670,en→lun,-1,,the cat is running,enjangu neiruka,,spelling,127.0.0.1,Negative,No
+2026-05-07T08:11:00.881233,en→lun,-1,none,the cat is running,enjangu neiruka,enjango neiruka,both_models_wrong,127.0.0.1,Negative,Yes
+2026-05-07T14:54:43.219747,en→lun,1,,the cat is running,enjangu neiruka,,,127.0.0.1,Positive,No
+2026-05-07T14:54:48.221378,en→lun,1,nllb,the cat is running,enjangu niiruka,,,127.0.0.1,Positive,No
+2026-05-07T18:23:35.466563,en→lun,-1,,the girl is running,omwasiki narubatana,,different meaning,127.0.0.1,Negative,No
+2026-05-07T18:23:43.698353,en→lun,1,nllb,the girl is running,omwasiki nairuka,,different meaning,127.0.0.1,Positive,No
+2026-05-07T18:29:57.805359,en→lun,1,,the cat has died,enjangu efiire,,,127.0.0.1,Positive,No
+2026-05-07T18:30:06.693799,en→lun,1,both,the cat has died,enjangu efiire,,both_models_correct,127.0.0.1,Positive,No
+2026-05-08T14:29:24.149560,en→lun,-1,,the girl is going to the market to buy fish for a mad person,omwasiki nagenda mukatale kugura ensumaki habw 'omuntu musawe,,context,127.0.0.1,Negative,No
+2026-05-08T14:29:31.428189,en→lun,1,nllb,the girl is going to the market to buy fish for a mad person,omwasiki nagenda mukatale kugura encu habw 'omuntu agwire iraro,,context,127.0.0.1,Positive,No
+2026-05-09T08:25:43.539258,en->lun,-1,,animals are kept,enyamaiswa bazitundwa,,different meaning,127.0.0.1,Negative,No
+2026-05-09T08:25:53.132714,en->lun,1,nllb,animals are kept,ebisoro nibabilinda,,different meaning,127.0.0.1,Positive,No

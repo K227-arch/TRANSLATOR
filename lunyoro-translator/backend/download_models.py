@@ -1,5 +1,5 @@
 """
-Downloads all fine-tuned Runyoro-Rutooro models from HuggingFace.
+Downloads all fine-tuned Runyoro-Rutooro models AND training dataset from HuggingFace.
 Run this once after cloning the repo:
 
     python download_models.py
@@ -10,12 +10,17 @@ Models pulled:
     keithtwesigye/lunyoro-nllb_en2lun → model/nllb_en2lun/
     keithtwesigye/lunyoro-nllb_lun2en → model/nllb_lun2en/
     sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 → model/sem_model/
+
+Dataset pulled:
+    keithtwesigye/lunyoro-dataset     → data/cleaned/, data/training/, data/raw/
 """
 
 import os
 from pathlib import Path
 
 MODEL_DIR = Path(__file__).parent / "model"
+DATA_DIR = Path(__file__).parent / "data"
+DATASET_REPO = "keithtwesigye/lunyoro-dataset"
 
 HF_MODELS = {
     "en2lun": "keithtwesigye/lunyoro-en2lun",
@@ -61,6 +66,43 @@ def download_all(force: bool = False):
         print(f"  [FAIL] sem model download failed: {e}")
 
 
+def download_dataset(force: bool = False):
+    """Download training dataset CSVs from HuggingFace dataset repo."""
+    from huggingface_hub import hf_hub_download, list_repo_files
+
+    print(f"\n=== Downloading dataset from {DATASET_REPO} ===")
+
+    try:
+        repo_files = list(list_repo_files(DATASET_REPO, repo_type="dataset"))
+    except Exception as e:
+        print(f"  [FAIL] Could not list dataset repo files: {e}")
+        return
+
+    csv_files = [f for f in repo_files if f.endswith(".csv")]
+    print(f"  Found {len(csv_files)} CSV files in dataset repo")
+
+    for repo_path in sorted(csv_files):
+        # repo_path is like "data/cleaned/english_nyoro_clean.csv"
+        local_path = DATA_DIR / "/".join(repo_path.split("/")[1:]) if repo_path.startswith("data/") else DATA_DIR / repo_path
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if local_path.exists() and not force:
+            print(f"  [OK] {local_path.relative_to(DATA_DIR.parent)} already exists — skipping")
+            continue
+
+        print(f"  ↓ {repo_path} → {local_path.relative_to(DATA_DIR.parent)}")
+        try:
+            hf_hub_download(
+                repo_id=DATASET_REPO,
+                repo_type="dataset",
+                filename=repo_path,
+                local_dir=str(DATA_DIR.parent),
+            )
+            print(f"  [OK] {local_path.name}")
+        except Exception as e:
+            print(f"  [FAIL] {repo_path}: {e}")
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -79,4 +121,5 @@ if __name__ == "__main__":
         from huggingface_hub import snapshot_download
 
     download_all(force=args.force)
-    print("\nAll models ready.")
+    download_dataset(force=args.force)
+    print("\nAll models and data ready.")

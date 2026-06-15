@@ -126,7 +126,7 @@ Training now logs per epoch:
 ```bash
 cd lunyoro-translator/backend
 pip install -r requirements.txt
-python download_models.py
+python download_models.py   # downloads models + dataset CSVs from HuggingFace
 python build_index.py
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```

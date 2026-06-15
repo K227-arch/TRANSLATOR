@@ -14,12 +14,25 @@ build/
 backend/model/
 backend/model/**
 
-# Runtime / generated data - not needed in git
-backend/feedback/
+# Large data files - not needed in git (generated locally or stored on HuggingFace)
+backend/data/cleaned/english_nyoro_clean.csv
+backend/data/training/train.csv
+backend/data/training/train.csv.bak
+backend/data/training/val.csv
+backend/data/training/test.csv
+backend/data/dictionary/*.xlsx
+backend/data/dictionary/*.xls
+backend/data/dictionary/*.pdf
+backend/data/raw/*.xlsx
+backend/data/raw/*.xls
+backend/data/OCR/combined/
+
+# Runtime / generated data
 backend/feedback.jsonl
 backend/history.json
 backend/auto_retrain.log
-backend/data/training/train.csv.bak
+
+# feedback/ is intentionally tracked - do NOT add backend/feedback/ here
 
 # Node
 frontend/node_modules/
