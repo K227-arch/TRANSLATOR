@@ -349,5 +349,17 @@
     "refined": false,
     "ip": "127.0.0.1",
     "timestamp": "2026-06-15T13:04:10.391728"
+  },
+  {
+    "source_text": "the cat is running",
+    "translation": "enjangu erukwiragura",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "spelling",
+    "model_used": "",
+    "refined": false,
+    "ip": "127.0.0.1",
+    "timestamp": "2026-06-15T13:55:10.470470"
   }
 ]
