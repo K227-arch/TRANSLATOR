@@ -181,5 +181,17 @@
     "score_cul": 3,
     "sqs": 75.4,
     "timestamp": "2026-06-04T07:44:02.644827"
+  },
+  {
+    "source_text": "the cat is running",
+    "translation": "enjangu erukwiragura",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.47.7",
+    "timestamp": "2026-06-15T08:26:54.465596"
   }
 ]
