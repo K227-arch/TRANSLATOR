@@ -315,6 +315,23 @@ def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
+@app.get("/system-info")
+def system_info():
+    """Return which models are loaded and hardware info — used by frontend to show model badges."""
+    from translate import _mt_available, _nllb_available, _mt_onnx
+    import torch
+    return {
+        "marian_en2lun":  _mt_available.get("en2lun", False),
+        "marian_lun2en":  _mt_available.get("lun2en", False),
+        "marian_onnx":    _mt_onnx.get("en2lun", False) or _mt_onnx.get("lun2en", False),
+        "nllb_en2lun":    _nllb_available.get("en2lun", False),
+        "nllb_lun2en":    _nllb_available.get("lun2en", False),
+        "nllb_disabled":  os.getenv("DISABLE_NLLB", "").strip() in ("1", "true", "yes"),
+        "gpu_available":  torch.cuda.is_available(),
+        "gpu_count":      torch.cuda.device_count(),
+    }
+
+
 # ── Human Feedback Loop ───────────────────────────────────────────────────────
 
 class FeedbackRequest(BaseModel):

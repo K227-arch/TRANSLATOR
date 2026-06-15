@@ -438,6 +438,13 @@ def _load_nllb(direction: str) -> bool:
     if direction in _nllb_available:
         return _nllb_available[direction]
 
+    # Respect DISABLE_NLLB env flag — used on CPU-only deployments (HF Space cpu-basic)
+    # where NLLB-200 (2.3GB) would OOM or time out.
+    if os.getenv("DISABLE_NLLB", "").strip() in ("1", "true", "yes"):
+        print(f"[translate] NLLB disabled via DISABLE_NLLB env flag — skipping {direction}")
+        _nllb_available[direction] = False
+        return False
+
     path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
 
     # Auto-download from HuggingFace if not present locally
@@ -493,8 +500,100 @@ def _load_nllb(direction: str) -> bool:
         return False
 
 
+def _nllb_translate_via_api(text: str, direction: str) -> str | None:
+    """
+    Call HF Inference API to run our fine-tuned NLLB model remotely.
+    Used when DISABLE_NLLB=1 (cpu-basic Space) — zero local RAM needed.
+    Falls back silently on any error.
+    """
+    import requests as _req
+    import re as _re
+
+    hf_token = os.getenv("HF_TOKEN", "")
+    if not hf_token:
+        return None
+
+    hf_repos = {
+        "en2lun": "keithtwesigye/lunyoro-nllb-en2lun",
+        "lun2en": "keithtwesigye/lunyoro-nllb-lun2en",
+    }
+    repo_id = hf_repos.get(direction)
+    if not repo_id:
+        return None
+
+    # Pre-process lun→en input
+    if direction == "lun2en":
+        text = _preprocess_lunyoro_input(text)
+
+    src_lang = NLLB_LANG_EN if direction == "en2lun" else NLLB_LANG_LUN
+    tgt_lang = NLLB_LANG_LUN if direction == "en2lun" else NLLB_LANG_EN
+
+    url = f"https://api-inference.huggingface.co/models/{repo_id}"
+    headers = {"Authorization": f"Bearer {hf_token}"}
+    payload = {
+        "inputs": text,
+        "parameters": {
+            "src_lang": src_lang,
+            "tgt_lang": tgt_lang,
+            "num_beams": 6,
+            "max_length": 512,
+            "no_repeat_ngram_size": 3,
+        },
+    }
+    try:
+        resp = _req.post(url, headers=headers, json=payload, timeout=30)
+        if resp.status_code == 503:
+            # Model loading — retry once after 20s
+            import time as _t
+            _t.sleep(20)
+            resp = _req.post(url, headers=headers, json=payload, timeout=40)
+        if not resp.ok:
+            print(f"[translate] NLLB API error {resp.status_code}: {resp.text[:200]}")
+            return None
+        data = resp.json()
+        # Response format: [{"translation_text": "..."}]
+        if isinstance(data, list) and data:
+            result = data[0].get("translation_text", "")
+        elif isinstance(data, dict):
+            result = data.get("translation_text", "")
+        else:
+            return None
+        if not result or not result.strip():
+            return None
+        # Clean up
+        result = _re.sub(r"^\s*(?:\[[A-Za-z _]+\]|[A-Za-z]+_[A-Za-z]+)\s*", "", result).strip()
+        if _is_notation_garbage(result):
+            return None
+        # Passthrough check
+        _src_n = _re.sub(r"\s+", " ", text.strip().lower())
+        _out_n = _re.sub(r"\s+", " ", result.strip().lower())
+        if _out_n == _src_n:
+            return None
+        # Apply grammar post-processing for en→lun
+        if direction == "en2lun" and result:
+            common_en = {"the","a","an","is","are","was","were","be","been","have","has","had",
+                         "do","does","did","will","would","could","should","to","of","in","on",
+                         "at","for","with","and","or","but","not","this","that","it","he","she",
+                         "they","we","you","i","my","your","his","her","their","its","our"}
+            words = _re.findall(r"[a-z]+", result.lower())
+            if words and sum(1 for w in words if w in common_en) / len(words) > 0.5:
+                return None
+            result = _postprocess_lunyoro(result)
+        print(f"[translate] NLLB API result ({direction}): {result[:60]}")
+        return result
+    except Exception as e:
+        print(f"[translate] NLLB API call failed: {e}")
+        return None
+
+
 def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
-    """Run inference with a fine-tuned NLLB model."""
+    """Run inference with a fine-tuned NLLB model.
+    On deployments with DISABLE_NLLB=1, routes to HF Inference API instead."""
+    # ── Remote API path (HF Space cpu-basic, DISABLE_NLLB=1) ────────────────
+    if os.getenv("DISABLE_NLLB", "").strip() in ("1", "true", "yes"):
+        return _nllb_translate_via_api(text, direction)
+
+    # ── Local inference path ─────────────────────────────────────────────────
     if not _load_nllb(direction):
         return None
     import torch
