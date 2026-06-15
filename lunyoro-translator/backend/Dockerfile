@@ -17,6 +17,9 @@ COPY . .
 # Create model and history directories
 RUN mkdir -p /app/model /app/history
 
+# Pre-download the sentence-transformer model so it's available offline at runtime
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
 EXPOSE 8000
 
 # Startup script — downloads models if not present, then starts server

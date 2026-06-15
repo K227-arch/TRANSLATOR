@@ -1,0 +1,7 @@
+timestamp,direction,source_text,translation,model_used,domain,rating,score_mng,score_grm,score_tns,score_vcb,score_ort,score_ctx,score_flu,score_cul,sqs,sqs_band
+2026-05-22T12:13:59.426802,en->lun,The child is eating food,Omwana arya ebyokurya,nllb,everyday_conversation,1,4,3,5,4,5,4,3,4,79.0,Good
+2026-05-23T04:23:34.420830,en->lun,I didn't see you at the party yesterday evening,tinkakuroraga habugenyi ijo nyenkyakara,,,-1,3,4,2,2,3,4,2,2,56.6,Poor
+2026-05-23T04:31:53.405381,en->lun,The introduction party was postponed to next month,Ekijaguzo kyokwemanyiiza bakasigirayo omwazi ogukwija,,,-1,3,3,4,2,2,4,2,2,56.8,Poor
+2026-05-26T18:48:26.469297,en->lun,Every dog has its day,Buli embwa egira ekiro kyayo,,everyday_conversation,1,4.0,5.0,5.0,5.0,4.0,5.0,5.0,4.0,91.8,Excellent
+2026-05-28T08:51:12.373705,en->lun,Come and we dance together till the visitors come,Ija tuzina hamu kuhikya abagenyi niija,marian,,1,4.0,5.0,5.0,4.0,4.0,5.0,4.0,4.0,87.4,Good
+2026-05-28T09:02:18.179607,en->lun,The rain was too much; it had hailstones and caused floods,Enjura egwire muno; omwijurraine gukaleeta n'emiyaga,marian,,-1,3.0,4.0,2.0,2.0,2.0,2.0,2.0,2.0,51.0,Poor

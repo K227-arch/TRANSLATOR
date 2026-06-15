@@ -18,14 +18,107 @@ FEEDBACK_EXPORT_DIR = BASE / "feedback"
 
 _lock = threading.Lock()
 
+# ── Benchmark dimension weights (Runyooro-Rutooro LLM Benchmarking Form) ─────
+BENCHMARK_WEIGHTS = {
+    "score_mng": 25,   # Meaning Fidelity
+    "score_grm": 15,   # Grammar & Syntax
+    "score_tns": 12,   # Tense & Aspect
+    "score_vcb": 12,   # Vocabulary Choice
+    "score_ort":  8,   # Orthography & Spelling
+    "score_ctx": 10,   # Context Awareness
+    "score_flu": 10,   # Fluency & Naturalness
+    "score_cul":  8,   # Cultural & Idiomatic
+}
+BENCHMARK_LABELS = {
+    "score_mng": "Meaning Fidelity",
+    "score_grm": "Grammar & Syntax",
+    "score_tns": "Tense & Aspect",
+    "score_vcb": "Vocabulary Choice",
+    "score_ort": "Orthography & Spelling",
+    "score_ctx": "Context Awareness",
+    "score_flu": "Fluency & Naturalness",
+    "score_cul": "Cultural & Idiomatic",
+}
+
+
+def compute_sqs(dim_scores: dict) -> float | None:
+    """
+    Compute Sentence Quality Score (SQS) from dimension scores.
+    SQS = Σ(score × weight) / 5  →  percentage out of 100.
+    Only uses dimensions that were actually scored (not None).
+    Weights are re-normalised to the scored subset so partial scoring is valid.
+    """
+    scored = {k: v for k, v in dim_scores.items()
+              if v is not None and k in BENCHMARK_WEIGHTS}
+    if not scored:
+        return None
+    total_weight = sum(BENCHMARK_WEIGHTS[k] for k in scored)
+    if total_weight == 0:
+        return None
+    weighted_sum = sum(scored[k] * BENCHMARK_WEIGHTS[k] for k in scored)
+    # Normalise to full 100-point scale
+    return (weighted_sum / total_weight) * 100 / 5
+
+
+def restore_from_github():
+    """
+    On container startup, pull all previously synced entries from GitHub
+    into feedback.jsonl so no history is lost across restarts.
+    Only adds entries not already present (deduplicates by timestamp+source).
+    """
+    try:
+        from github_feedback_sync import fetch_all_feedback_from_github
+        remote_entries = fetch_all_feedback_from_github()
+        if not remote_entries:
+            return
+
+        # Load what's already in the local file
+        existing = load_all_feedback()
+        existing_keys = {
+            (e.get("source_text", "").strip().lower(),
+             e.get("translation", "").strip().lower(),
+             (e.get("timestamp") or "")[:16])
+            for e in existing
+        }
+
+        new_entries = []
+        for e in remote_entries:
+            key = (
+                e.get("source_text", "").strip().lower(),
+                e.get("translation", "").strip().lower(),
+                (e.get("timestamp") or "")[:16],
+            )
+            if key[0] and key not in existing_keys:
+                new_entries.append(e)
+                existing_keys.add(key)
+
+        if new_entries:
+            with _lock:
+                with open(FEEDBACK_FILE, "a", encoding="utf-8") as f:
+                    for e in new_entries:
+                        f.write(json.dumps(e, ensure_ascii=False) + "\n")
+            print(f"[feedback_store] Restored {len(new_entries)} entries from GitHub "
+                  f"(total now: {len(existing) + len(new_entries)})")
+        else:
+            print(f"[feedback_store] GitHub restore: already up to date ({len(existing)} entries)")
+    except Exception as ex:
+        print(f"[feedback_store] GitHub restore failed (non-fatal): {ex}")
+
 
 def save_feedback(entry: dict):
-    """Append a feedback entry to the JSONL store and export to files (thread-safe)."""
+    """Append a feedback entry to the JSONL store, sync to GitHub, and export (thread-safe)."""
     entry.setdefault("timestamp", datetime.utcnow().isoformat())
     with _lock:
         with open(FEEDBACK_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    
+
+    # Sync to GitHub immediately so entry survives container restarts
+    try:
+        from github_feedback_sync import push_feedback_to_github
+        threading.Thread(target=push_feedback_to_github, args=(entry,), daemon=True).start()
+    except Exception:
+        pass
+
     # Auto-export to Excel/CSV after each feedback (async)
     try:
         threading.Thread(target=auto_export_feedback, daemon=True).start()
@@ -51,7 +144,7 @@ def auto_export_feedback():
         
         # Reorder columns
         column_order = [
-            'timestamp', 'direction', 'rating', 'model_used',
+            'timestamp', 'direction', 'rating', 'model_used', 'refined',
             'source_text', 'translation', 'correction',
             'error_type', 'ip'
         ]
@@ -118,6 +211,59 @@ def auto_export_feedback():
             df['date'] = pd.to_datetime(df['timestamp'], errors='coerce').dt.date
             daily = df.groupby('date').size().reset_index(name='Feedback Count')
             daily.to_excel(writer, sheet_name='Daily Activity', index=False)
+
+            # Sheet 6: Refined vs Unrefined
+            if 'refined' in df.columns:
+                refined_stats = []
+                for refined_val, label in [(True, 'Refined'), (False, 'Unrefined')]:
+                    subset = df[df['refined'] == refined_val]
+                    if len(subset) > 0:
+                        positive = len(subset[subset['rating'] > 0])
+                        refined_stats.append({
+                            'Type': label,
+                            'Total': len(subset),
+                            'Positive': positive,
+                            'Negative': len(subset[subset['rating'] < 0]),
+                            'Approval Rate (%)': round(100 * positive / len(subset), 1),
+                        })
+                if refined_stats:
+                    pd.DataFrame(refined_stats).to_excel(writer, sheet_name='Refined vs Unrefined', index=False)
+
+            # Sheet 7: Benchmark Dimension Scores (SQS)
+            dim_cols = [c for c in BENCHMARK_WEIGHTS if c in df.columns]
+            if dim_cols or 'sqs' in df.columns:
+                bench_rows = []
+                for dim in BENCHMARK_WEIGHTS:
+                    if dim in df.columns:
+                        vals = df[dim].dropna()
+                        if len(vals):
+                            bench_rows.append({
+                                'Dimension': BENCHMARK_LABELS[dim],
+                                'Code': dim.replace('score_', '').upper(),
+                                'Weight (%)': BENCHMARK_WEIGHTS[dim],
+                                'Avg Score (0–5)': round(vals.mean(), 2),
+                                'Min': vals.min(),
+                                'Max': vals.max(),
+                                'N scored': len(vals),
+                            })
+                if bench_rows:
+                    pd.DataFrame(bench_rows).to_excel(writer, sheet_name='Benchmark Dimensions', index=False)
+                if 'sqs' in df.columns:
+                    sqs_vals = df['sqs'].dropna()
+                    if len(sqs_vals):
+                        bands = [
+                            ('Excellent', 90, 100),
+                            ('Good',      75,  89),
+                            ('Usable',    60,  74),
+                            ('Poor',      40,  59),
+                            ('Unusable',   0,  39),
+                        ]
+                        sqs_dist = []
+                        for label, lo, hi in bands:
+                            count = int(((sqs_vals >= lo) & (sqs_vals <= hi)).sum())
+                            sqs_dist.append({'Band': label, 'SQS Range': f'{lo}–{hi}', 'Count': count,
+                                             'Pct (%)': round(100 * count / len(sqs_vals), 1)})
+                        pd.DataFrame(sqs_dist).to_excel(writer, sheet_name='SQS Distribution', index=False)
         
     except Exception as e:
         # Silently fail - don't break feedback submission
@@ -262,6 +408,17 @@ def get_detailed_analytics() -> dict:
     # Correction rate (how often users provide corrections)
     corrections = sum(1 for e in entries if e.get("correction", "").strip())
     correction_rate = round(100 * corrections / len(entries), 1) if entries else 0
+
+    # Refined vs unrefined comparison
+    refined_entries   = [e for e in entries if e.get("refined") is True]
+    unrefined_entries = [e for e in entries if not e.get("refined")]
+    def _approval(lst):
+        if not lst: return 0
+        return round(100 * sum(1 for e in lst if e.get("rating", 0) > 0) / len(lst), 1)
+    refined_stats = {
+        "refined":   {"total": len(refined_entries),   "approval_rate": _approval(refined_entries)},
+        "unrefined": {"total": len(unrefined_entries), "approval_rate": _approval(unrefined_entries)},
+    }
     
     # Unique users
     unique_users = len(set(e.get("ip", "unknown") for e in entries))
@@ -291,6 +448,33 @@ def get_detailed_analytics() -> dict:
         for e in recent_entries
     ]
     
+    # Benchmark dimension averages
+    benchmark_stats = {}
+    for dim, label in BENCHMARK_LABELS.items():
+        vals = [e[dim] for e in entries if isinstance(e.get(dim), (int, float))]
+        if vals:
+            benchmark_stats[dim] = {
+                "label": label,
+                "weight": BENCHMARK_WEIGHTS[dim],
+                "avg": round(sum(vals) / len(vals), 2),
+                "n": len(vals),
+            }
+
+    # SQS distribution
+    sqs_vals = [e["sqs"] for e in entries if isinstance(e.get("sqs"), (int, float))]
+    sqs_stats = None
+    if sqs_vals:
+        avg_sqs = round(sum(sqs_vals) / len(sqs_vals), 1)
+        bands = [("Excellent",90,100),("Good",75,89),("Usable",60,74),("Poor",40,59),("Unusable",0,39)]
+        sqs_stats = {
+            "avg_sqs": avg_sqs,
+            "n": len(sqs_vals),
+            "distribution": {
+                label: int(sum(1 for s in sqs_vals if lo <= s <= hi))
+                for label, lo, hi in bands
+            },
+        }
+
     return {
         "total_feedback": len(entries),
         "model_usage": dict(model_usage),
@@ -298,9 +482,12 @@ def get_detailed_analytics() -> dict:
         "error_types": dict(error_types.most_common(10)),
         "direction_stats": direction_stats,
         "correction_rate": correction_rate,
+        "refined_stats": refined_stats,
         "unique_users": unique_users,
-        "feedback_by_day": dict(sorted(feedback_by_day.items())[-30:]),  # Last 30 days
+        "feedback_by_day": dict(sorted(feedback_by_day.items())[-30:]),
         "recent_feedback": recent_feedback,
+        "benchmark_dimensions": benchmark_stats,
+        "sqs_stats": sqs_stats,
     }
 
 

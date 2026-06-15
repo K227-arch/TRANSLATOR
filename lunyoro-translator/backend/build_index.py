@@ -52,11 +52,34 @@ def build_index():
     print("Loading sentence transformer model...")
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     sem_model = SentenceTransformer(model_name)
-    
+
+    # Load corpus sentence pairs for semantic search
+    train_path = os.path.join(BASE_DIR, "data", "training", "train.csv")
+    english_sentences, lunyoro_sentences = [], []
+    if os.path.exists(train_path):
+        import re
+        corpus_df = pd.read_csv(train_path).dropna()
+        for _, row in corpus_df.iterrows():
+            en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip()
+            lun = str(row.get("lunyoro", "")).strip()
+            if en and lun and len(en) > 3 and len(lun) > 3:
+                english_sentences.append(en)
+                lunyoro_sentences.append(lun)
+        print(f"Loaded {len(english_sentences):,} sentence pairs for semantic index")
+
+    print("Building sentence embeddings (this may take a few minutes)...")
+    embeddings = sem_model.encode(
+        english_sentences, show_progress_bar=True,
+        batch_size=256, convert_to_numpy=True,
+    )
+
     # Build index
     index = {
-        "model_name": model_name,
-        "dictionary": dictionary,
+        "model_name":         model_name,
+        "dictionary":         dictionary,
+        "english_sentences":  english_sentences,
+        "lunyoro_sentences":  lunyoro_sentences,
+        "embeddings":         embeddings,
     }
     
     # Save index

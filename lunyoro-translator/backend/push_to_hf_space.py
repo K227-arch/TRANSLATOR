@@ -42,12 +42,35 @@ SKIP_PATTERNS = {
     "model", "data/training", "data/cleaned",
     "data/OCR", ".dockerignore",
     "push_to_hf_space.py",
+    "venv", ".git", "feedback",
+    "bleu_results.json",
+    "evaluate_current_models.py",
 }
 
+# Also skip large log files and backup files to stay under 1GB Space limit
+SKIP_EXTENSIONS = {".bak", ".bak2", ".bak_bt", ".bak_aug", ".bak_tagfix"}
+SKIP_LARGE_LOGS = {"nllb_training.log", "full_training.log", "k227_pipeline.log",
+                   "push_models.log", "retrain_augmented.log", "retrain_lun2en.log",
+                   "retrain_lun2en_final.log", "back_translate_full.log",
+                   "back_translate_min4.log", "marian_retrain.log"}
+
 def should_skip(path: Path) -> bool:
+    parts_str = str(path)
     for part in path.parts:
         if part in SKIP_PATTERNS:
             return True
+    # Skip backup file extensions
+    if path.suffix in SKIP_EXTENSIONS or any(parts_str.endswith(ext) for ext in SKIP_EXTENSIONS):
+        return True
+    # Skip large training logs
+    if path.name in SKIP_LARGE_LOGS:
+        return True
+    # Skip files over 50MB (large CSV training data, model files accidentally included)
+    try:
+        if path.stat().st_size > 50 * 1024 * 1024:
+            return True
+    except Exception:
+        pass
     return False
 
 print("\nUploading backend files to Space...")
@@ -65,10 +88,10 @@ for fpath in BACKEND_DIR.rglob("*"):
             repo_id=SPACE_ID,
             repo_type="space",
         )
-        print(f"  ✓ {rel}")
+        print(f"  [OK] {rel}")
         uploaded += 1
     except Exception as e:
-        print(f"  ✗ {rel}: {e}")
+        print(f"  [FAIL] {rel}: {e}")
 
 # Upload Space-specific files (README + Dockerfile override)
 print("\nUploading Space config files...")
@@ -80,7 +103,7 @@ for fpath in SPACE_DIR.iterdir():
             repo_id=SPACE_ID,
             repo_type="space",
         )
-        print(f"  ✓ {fpath.name}")
+        print(f"  [OK] {fpath.name}")
 
 print(f"\nDone! Uploaded {uploaded} files.")
 print(f"Space URL: https://huggingface.co/spaces/{SPACE_ID}")

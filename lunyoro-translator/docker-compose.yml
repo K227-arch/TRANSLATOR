@@ -9,13 +9,15 @@ services:
       - ./backend/model:/app/model          # fine-tuned models
       - ./backend/data:/app/data            # training data & index
       - backend_history:/app/history        # persistent history storage
+    env_file:
+      - ./backend/.env
     environment:
       - CORS_ORIGINS=http://localhost:3002,http://frontend:3000
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=llama3.2:3b
-      - TRANSFORMERS_OFFLINE=1
-      - HF_DATASETS_OFFLINE=1
-      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=0
+      - HF_DATASETS_OFFLINE=0
+      - HF_HUB_OFFLINE=0
       - HISTORY_FILE=/app/history/history.json
     depends_on:
       ollama:
@@ -43,7 +45,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "11435:11434"
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped

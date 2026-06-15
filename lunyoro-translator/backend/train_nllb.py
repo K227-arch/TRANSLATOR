@@ -29,37 +29,84 @@ BASE      = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE, "model")
 DATA_DIR  = os.path.join(BASE, "data", "training")
 GR4_CSV   = os.path.join(BASE, "data", "cleaned", "gr4_pairs.csv")
+GR5_CSV   = os.path.join(BASE, "data", "cleaned", "gr5_pairs.csv")
+
+# New-only training files (pairs not yet trained on)
+NEW_TRAIN_CSV = os.path.join(DATA_DIR, "new_only_train.csv")
+NEW_VAL_CSV   = os.path.join(DATA_DIR, "new_only_val.csv")
+
+SEED_CSVS = [
+    os.path.join(BASE, "data", "raw", "medical_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "education_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "daily_life_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "low_freq_seed_vocabulary.csv"),
+    os.path.join(BASE, "data", "raw", "agriculture_seed_vocabulary.csv"),
+]
+
+GR5_UNC_CSV = os.path.join(BASE, "data", "cleaned", "gr5_uncovered_pairs.csv")
 
 NLLB_LANG_EN  = "eng_Latn"
-NLLB_LANG_LUN = "run_Latn"
+NLLB_LANG_LUN = "nyo_Latn"  # Runyoro-Rutooro custom token (added via add_runyoro_token.py)
+# Initialized from avg of run_Latn + lug_Latn + kin_Latn Bantu embeddings
 
 
-# ── Weighted sampler (same logic as train_marian.py) ─────────────────────────
+def _load_pair_keys(csv_path: str) -> set:
+    keys = set()
+    if not os.path.exists(csv_path):
+        return keys
+    try:
+        df = pd.read_csv(csv_path)
+        for _, row in df.iterrows():
+            en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
+            lun = str(row.get("lunyoro", "")).strip().lower()
+            if en and lun:
+                keys.add((en, lun))
+    except Exception:
+        pass
+    return keys
 
-def build_weighted_sampler(df: pd.DataFrame, upweight: float = 4.0) -> WeightedRandomSampler:
-    gr4_keys: set = set()
-    if os.path.exists(GR4_CSV):
-        try:
-            gr4_df = pd.read_csv(GR4_CSV)
-            for _, row in gr4_df.iterrows():
-                en  = str(row.get("english", "")).strip().lower()
-                lun = str(row.get("lunyoro", "")).strip().lower()
-                if en and lun:
-                    gr4_keys.add((en, lun))
-        except Exception:
-            pass
+
+# ── Weighted sampler (direction-aware, same logic as train_marian.py) ────────
+
+def build_weighted_sampler(df: pd.DataFrame, direction: str = "en2lun") -> WeightedRandomSampler:
+    gr4_keys   = _load_pair_keys(GR4_CSV)
+    gr5_keys   = _load_pair_keys(GR5_CSV)
+    gr5u_keys  = _load_pair_keys(GR5_UNC_CSV)
+    grammar_keys = gr4_keys | gr5_keys | gr5u_keys
+
+    seed_keys: set = set()
+    for csv_path in SEED_CSVS:
+        seed_keys |= _load_pair_keys(csv_path)
 
     weights = []
     for _, row in df.iterrows():
         en  = re.sub(r'\[[A-Za-z _]+\]\s*', '', str(row.get("english", ""))).strip().lower()
         lun = str(row.get("lunyoro", "")).strip().lower()
         src = str(row.get("source", "")).lower()
-        if (en, lun) in gr4_keys:
-            weights.append(upweight)
+
+        if (en, lun) in seed_keys:
+            w = 8.0
+        elif (en, lun) in grammar_keys:
+            w = 6.0
         elif "back_translation" in src:
-            weights.append(2.0)
+            w = 2.0
         else:
-            weights.append(1.0)
+            w = 1.0
+
+        lun_words = len(lun.split())
+        en_words  = len(en.split())
+
+        if direction == "lun2en":
+            if lun_words >= 5:
+                w *= 3.0
+            elif lun_words >= 3:
+                w *= 1.5
+            elif lun_words <= 2:
+                w *= 0.3
+        elif direction == "en2lun" and en_words >= 8:
+            w *= 1.5
+
+        weights.append(w)
 
     weights_tensor = torch.DoubleTensor(weights)
     return WeightedRandomSampler(weights_tensor, num_samples=len(weights), replacement=True)
@@ -102,24 +149,76 @@ def collate_fn(batch, tokenizer, src_lang, tgt_lang, max_length=256):
     return model_inputs
 
 
-# ── BLEU evaluation ───────────────────────────────────────────────────────────
+# ── Metrics evaluation ───────────────────────────────────────────────────────
 
-def evaluate_bleu(model, tokenizer, val_df, direction, device,
-                  src_lang, tgt_lang, max_samples=200, max_length=256):
-    from sacrebleu.metrics import BLEU
-    bleu = BLEU(effective_order=True)
+def evaluate_metrics(model, tokenizer, val_df, direction, device,
+                     src_lang, tgt_lang, max_samples=200, max_length=256,
+                     min_lun_words=0):
+    """Compute BLEU + chrF + validation loss. Returns dict."""
+    from sacrebleu.metrics import BLEU, CHRF
+    bleu_metric = BLEU(effective_order=True)
+    chrf_metric = CHRF()
+
+    eval_df = val_df
+    if direction == "lun2en" and min_lun_words > 0:
+        eval_df = val_df[val_df["lunyoro"].astype(str).str.split().str.len() >= min_lun_words]
 
     if direction == "en2lun":
-        srcs = val_df["english"].astype(str).tolist()[:max_samples]
-        refs = val_df["lunyoro"].astype(str).tolist()[:max_samples]
+        srcs = eval_df["english"].astype(str).tolist()[:max_samples]
+        refs = eval_df["lunyoro"].astype(str).tolist()[:max_samples]
     else:
-        srcs = val_df["lunyoro"].astype(str).tolist()[:max_samples]
-        refs = val_df["english"].astype(str).tolist()[:max_samples]
+        srcs = eval_df["lunyoro"].astype(str).tolist()[:max_samples]
+        refs = eval_df["english"].astype(str).tolist()[:max_samples]
 
     model.eval()
     hypotheses = []
+    total_val_loss = 0.0
+    val_steps = 0
     batch_size = 8
     tokenizer.src_lang = src_lang
+    forced_bos = tokenizer.convert_tokens_to_ids(tgt_lang)
+
+    for i in range(0, len(srcs), batch_size):
+        src_batch = srcs[i:i + batch_size]
+        ref_batch = refs[i:i + batch_size]
+        inputs = tokenizer(src_batch, return_tensors="pt", padding=True,
+                           truncation=True, max_length=max_length).to(device)
+        # Validation loss
+        tokenizer.src_lang = src_lang
+        with_labels = tokenizer(src_batch, text_target=ref_batch,
+                                max_length=max_length, truncation=True,
+                                padding=True, return_tensors="pt").to(device)
+        labels = with_labels["labels"]
+        labels[labels == tokenizer.pad_token_id] = -100
+        with torch.no_grad():
+            loss_out = model(input_ids=with_labels["input_ids"],
+                             attention_mask=with_labels["attention_mask"],
+                             labels=labels)
+            lv = loss_out.loss
+            if hasattr(lv, 'mean'):
+                lv = lv.mean()
+            total_val_loss += lv.item()
+            val_steps += 1
+            # Translation
+            out = model.generate(**inputs, forced_bos_token_id=forced_bos,
+                                 num_beams=4, max_length=max_length, early_stopping=True)
+        decoded = tokenizer.batch_decode(out, skip_special_tokens=True)
+        hypotheses.extend(decoded)
+
+    return {
+        "bleu":     round(bleu_metric.corpus_score(hypotheses, [refs]).score, 2),
+        "chrf":     round(chrf_metric.corpus_score(hypotheses, [refs]).score, 2),
+        "val_loss": round(total_val_loss / max(val_steps, 1), 4),
+    }
+
+
+def evaluate_bleu(model, tokenizer, val_df, direction, device,
+                  src_lang, tgt_lang, max_samples=200, max_length=256,
+                  min_lun_words=0):
+    """Backward-compatible wrapper — returns (bleu, chrf, val_loss)."""
+    m = evaluate_metrics(model, tokenizer, val_df, direction, device,
+                         src_lang, tgt_lang, max_samples, max_length, min_lun_words)
+    return m["bleu"], m["chrf"], m["val_loss"]
 
     for i in range(0, len(srcs), batch_size):
         batch = srcs[i:i + batch_size]
@@ -157,19 +256,71 @@ def train_direction(direction: str, args):
     print(f"  Loading from: {model_path}")
     print(f"{'='*55}")
 
-    # Load data
-    train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
-    val_df   = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
-    print(f"  Train: {len(train_df):,}  Val: {len(val_df):,}")
+    # Load data — use new-only split for training if requested, but always validate on full val set
+    if args.new_only and os.path.exists(NEW_TRAIN_CSV):
+        train_df = pd.read_csv(NEW_TRAIN_CSV).dropna()
+        print(f"  [NEW-ONLY] Train: {len(train_df):,} (new pairs only)")
+    else:
+        train_df = pd.read_csv(os.path.join(DATA_DIR, "train.csv")).dropna()
+        print(f"  Train: {len(train_df):,}")
+
+    # Validation strategy: use stable val (original pairs) during training
+    # to avoid BLEU dip from new augmented/BT pairs being in the val set
+    STABLE_VAL_CSV = os.path.join(DATA_DIR, "val.csv.bak")
+    if args.new_only and os.path.exists(STABLE_VAL_CSV):
+        val_df = pd.read_csv(STABLE_VAL_CSV).dropna()
+        print(f"  Val:   {len(val_df):,} (stable val -- original pairs, no new-data dip)")
+    else:
+        val_df = pd.read_csv(os.path.join(DATA_DIR, "val.csv")).dropna()
+        print(f"  Val:   {len(val_df):,} (full val set)")
+
+    # ── Fix 1: Strip domain tags from English targets for lun2en ─────────────
+    if direction == "lun2en":
+        train_df = train_df.copy()
+        val_df   = val_df.copy()
+        train_df["english"] = train_df["english"].astype(str).str.replace(
+            r'^\[[A-Za-z0-9_ ]+\]\s*', '', regex=True).str.strip()
+        val_df["english"] = val_df["english"].astype(str).str.replace(
+            r'^\[[A-Za-z0-9_ ]+\]\s*', '', regex=True).str.strip()
+        train_df = train_df[train_df["english"].str.len() >= 2]
+        val_df   = val_df[val_df["english"].str.len() >= 2]
+        print(f"  [Fix1] Stripped domain tags from English targets for lun2en")
+
+    # ── Fix 2: Filter short/dict pairs for lun2en ─────────────────────────────
+    if direction == "lun2en" and args.min_lun_words > 0:
+        before = len(train_df)
+        train_df = train_df[train_df["lunyoro"].astype(str).str.split().str.len() >= args.min_lun_words]
+        print(f"  [Fix2] lun2en: kept {len(train_df):,}/{before:,} sentence pairs "
+              f"(lun_words >= {args.min_lun_words})")
 
     # Load tokenizer and model from local path (fine-tune, not from scratch)
     print("  Loading tokenizer and model from local checkpoint...")
     tokenizer = NllbTokenizer.from_pretrained(model_path)
-    model     = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+    model     = AutoModelForSeq2SeqLM.from_pretrained(model_path,
+                                                       ignore_mismatched_sizes=True)
+
+    # Resize embeddings if tokenizer vocab grew (e.g. after adding nyo_Latn token)
+    if args.resize_embeddings or len(tokenizer) != model.config.vocab_size:
+        old_size = model.config.vocab_size
+        new_size = len(tokenizer)
+        if old_size != new_size:
+            print(f"  Resizing embeddings: {old_size} -> {new_size} (new tokens: {new_size - old_size})")
+            model.resize_token_embeddings(new_size)
+            model.config.vocab_size = new_size
+        elif args.resize_embeddings:
+            print(f"  Embeddings already correct size: {old_size}")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    # fp32 — more stable for low-resource language fine-tuning
+    model = model.float()
     model.to(device)
-    print(f"  Device: {device}")
+    print(f"  Device: {device}  Precision: fp32")
+
+    # Use all available GPUs via DataParallel
+    n_gpus = torch.cuda.device_count()
+    if n_gpus > 1:
+        print(f"  Using {n_gpus} GPUs: {[torch.cuda.get_device_name(i) for i in range(n_gpus)]}")
+        model = torch.nn.DataParallel(model)
 
     src_lang = NLLB_LANG_EN  if direction == "en2lun" else NLLB_LANG_LUN
     tgt_lang = NLLB_LANG_LUN if direction == "en2lun" else NLLB_LANG_EN
@@ -181,8 +332,8 @@ def train_direction(direction: str, args):
         return collate_fn(batch, tokenizer, src_lang, tgt_lang,
                           max_length=args.max_length)
 
-    # Weighted sampler: gr4 pairs 4x, back-translated 2x, rest 1x
-    sampler = build_weighted_sampler(train_df)
+    # Direction-aware weighted sampler
+    sampler = build_weighted_sampler(train_df, direction=direction)
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size,
         sampler=sampler, collate_fn=_collate, num_workers=0,
@@ -199,13 +350,13 @@ def train_direction(direction: str, args):
         num_training_steps=total_steps,
     )
 
-    scaler = torch.cuda.amp.GradScaler() if device == "cuda" and args.fp16 else None
+    scaler = None  # fp32 — no mixed precision scaler needed
 
     best_bleu = 0.0
     best_ckpt = os.path.join(model_path, "best_checkpoint")
 
     print(f"  Epochs: {args.epochs}  Batch: {args.batch_size}  "
-          f"LR: {args.lr}  FP16: {args.fp16}")
+          f"LR: {args.lr}  Precision: fp32")
     print(f"  Max length: {args.max_length}\n")
 
     for epoch in range(1, args.epochs + 1):
@@ -216,23 +367,13 @@ def train_direction(direction: str, args):
         for batch in train_loader:
             batch = {k: v.to(device) for k, v in batch.items()}
             optimizer.zero_grad()
-
-            if scaler:
-                with torch.cuda.amp.autocast():
-                    outputs = model(**batch)
-                    loss = outputs.loss
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                outputs = model(**batch)
-                loss = outputs.loss
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-
+            outputs = model(**batch)
+            loss = outputs.loss
+            if hasattr(loss, 'mean'):
+                loss = loss.mean()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
             scheduler.step()
             total_loss += loss.item()
             steps += 1
@@ -243,21 +384,25 @@ def train_direction(direction: str, args):
 
         avg_loss = total_loss / max(steps, 1)
 
-        # Evaluate
-        bleu = evaluate_bleu(
-            model, tokenizer, val_df, direction, device,
+        # Evaluate -- for lun2en, filter val set to match training distribution
+        raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        bleu, chrf, val_loss = evaluate_bleu(
+            raw_model, tokenizer, val_df, direction, device,
             src_lang, tgt_lang, max_length=args.max_length,
+            min_lun_words=args.min_lun_words,
         )
-        print(f"  Epoch {epoch}/{args.epochs} — loss={avg_loss:.4f}  BLEU={bleu:.2f}")
+        print(f"  Epoch {epoch}/{args.epochs} -- "
+              f"train_loss={avg_loss:.4f}  val_loss={val_loss:.4f}  "
+              f"BLEU={bleu:.2f}  chrF={chrf:.2f}")
 
         # Save best checkpoint
         if bleu > best_bleu:
             best_bleu = bleu
             if os.path.exists(best_ckpt):
                 shutil.rmtree(best_ckpt)
-            model.save_pretrained(best_ckpt)
+            raw_model.save_pretrained(best_ckpt)
             tokenizer.save_pretrained(best_ckpt)
-            print(f"  ✓ New best BLEU={bleu:.2f} — saved to {best_ckpt}")
+            print(f"  [BEST] New best BLEU={bleu:.2f} chrF={chrf:.2f} -- saved to {best_ckpt}")
 
     # Promote best checkpoint to model root
     if os.path.exists(best_ckpt):
@@ -266,10 +411,11 @@ def train_direction(direction: str, args):
             src = os.path.join(best_ckpt, fname)
             dst = os.path.join(model_path, fname)
             shutil.copy2(src, dst)
-        print(f"  ✓ nllb_{direction} updated")
+        print(f"  [OK] nllb_{direction} updated")
     else:
         print("  No best checkpoint found — saving final model")
-        model.save_pretrained(model_path)
+        raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        raw_model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
 
     print(f"\n  nllb_{direction} fine-tuning complete. Best BLEU: {best_bleu:.2f}")
@@ -281,16 +427,23 @@ def main():
     parser = argparse.ArgumentParser(
         description="Fine-tune local NLLB models on Runyoro-Rutooro data"
     )
+    parser.add_argument("--new-only",   action="store_true", default=False,
+                        help="Train only on new (untrained) pairs from new_only_train.csv")
+    parser.add_argument("--min-lun-words", type=int, default=3,
+                        help="Filter pairs where Lunyoro has fewer than N words "
+                             "(lun2en only). Default 3. Set 0 to disable.")
+    parser.add_argument("--resize-embeddings", action="store_true", default=False,
+                        help="Resize embeddings after adding new language tokens (e.g. nyo_Latn)")
     parser.add_argument("--direction", type=str, default="both",
                         choices=["en2lun", "lun2en", "both"])
-    parser.add_argument("--epochs",     type=int,   default=3)
+    parser.add_argument("--epochs",     type=int,   default=5)
     parser.add_argument("--batch-size", type=int,   default=8,
-                        help="Keep low (8-16) — NLLB is large")
-    parser.add_argument("--lr",         type=float, default=1e-5,
-                        help="Lower LR than MarianMT (default 1e-5)")
+                        help="Keep low (8-16) -- NLLB is large")
+    parser.add_argument("--lr",         type=float, default=8e-6,
+                        help="Slightly lower LR for better convergence (was 1e-5)")
     parser.add_argument("--max-length", type=int,   default=256)
-    parser.add_argument("--fp16",       action="store_true", default=True,
-                        help="Mixed precision (GPU only)")
+    parser.add_argument("--fp16",       action="store_true", default=False,
+                        help="Mixed precision (disabled by default — fp32 is more stable)")
     parser.add_argument("--no-fp16",    dest="fp16", action="store_false")
     args = parser.parse_args()
 

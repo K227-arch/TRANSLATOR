@@ -99,6 +99,15 @@ _GRAMMAR_CONTEXT_CACHE: str | None = None
 def preload_model():
     """Load retrieval index and all neural MT models at startup."""
     global _GRAMMAR_CONTEXT_CACHE
+
+    # Restore feedback history from GitHub before serving any requests.
+    # This ensures feedback.jsonl is never empty after a container restart.
+    try:
+        from feedback_store import restore_from_github
+        restore_from_github()
+    except Exception as _e:
+        print(f"[startup] feedback restore skipped: {_e}")
+
     get_index_and_model()
     from translate import _load_mt, _load_nllb
     _load_mt("en2lun")
@@ -108,16 +117,25 @@ def preload_model():
     # Pre-build grammar context once — it's static and large, no need to rebuild per request
     try:
         from language_rules import get_full_grammar_context
-        full = get_full_grammar_context()
-        # Append Grammar Rules 4 context
-        try:
-            from language_rules_gr4 import get_gr4_grammar_context
-            full += get_gr4_grammar_context()
-        except Exception:
-            pass
-        # Keep only the first 6000 chars to stay within Ollama's context window
-        _GRAMMAR_CONTEXT_CACHE = full[:6000]
-    except Exception:
+        from language_rules_gr4 import get_gr4_grammar_context
+        from language_rules_gr5 import get_gr5_grammar_context
+
+        # Build a prioritised compact context that fits within the LLM window.
+        # Strategy: take the most critical sections from each rule set rather
+        # than truncating the full concatenation (which cuts off gr4/gr5 entirely).
+        SECTION_BUDGETS = {
+            "core":  2000,   # language_rules.py — orthography, noun classes, tenses
+            "gr4":   1800,   # grammar rules 4 — copula, kinship, enumeratives
+            "gr5":   2200,   # grammar rules 5 — locatives, colours, augmentatives, negative nouns
+        }
+        core_ctx = get_full_grammar_context()[:SECTION_BUDGETS["core"]]
+        gr4_ctx  = get_gr4_grammar_context()[:SECTION_BUDGETS["gr4"]]
+        gr5_ctx  = get_gr5_grammar_context()[:SECTION_BUDGETS["gr5"]]
+        _GRAMMAR_CONTEXT_CACHE = core_ctx + gr4_ctx + gr5_ctx
+        print(f"[startup] Grammar context: {len(_GRAMMAR_CONTEXT_CACHE)} chars "
+              f"(core={len(core_ctx)}, gr4={len(gr4_ctx)}, gr5={len(gr5_ctx)})")
+    except Exception as _e:
+        print(f"[startup] Grammar context build failed: {_e}")
         _GRAMMAR_CONTEXT_CACHE = ""
 
 # History file — configurable via HISTORY_FILE env var
@@ -138,6 +156,52 @@ def save_history(entry: dict):
 class TranslateRequest(BaseModel):
     text: str
     context: str = ""  # optional previous sentence for context-aware translation
+    refine: bool = False  # optional LLM refinement pass for higher quality
+
+
+def _qwen_refine_translation(source_en: str, draft_lun: str) -> str:
+    """
+    Run a Qwen LLM pass to refine an MT draft translation.
+    Only called when refine=True. Returns draft unchanged on failure.
+    """
+    try:
+        hf_token = os.getenv("HF_TOKEN", "")
+        hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        if not hf_token:
+            return draft_lun
+        from openai import OpenAI as _OAI
+        grammar_hint = (_GRAMMAR_CONTEXT_CACHE or "")[:1500]
+        prompt = (
+            "You are a Runyoro-Rutooro language expert. "
+            "Improve the machine-translated draft for accuracy and correct grammar.\n"
+            f"Grammar rules:\n{grammar_hint}\n\n"
+            "Rules:\n"
+            "- Fix noun class prefixes and concordial agreement\n"
+            "- Apply R/L rule: L only before/after e or i\n"
+            "- Apply apostrophe elision: na ente → n'ente, ni omuntu → n'omuntu\n"
+            "- Fix kinship terms: ise wange → isange, nyina wawe → nyinawe\n"
+            "- Output ONLY the corrected Runyoro-Rutooro text, nothing else\n"
+        )
+        client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+        resp = client.chat.completions.create(
+            model=hf_model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"English: {source_en}\nDraft: {draft_lun}\nRefined:"},
+            ],
+            max_tokens=256,
+            temperature=0.2,
+        )
+        refined = resp.choices[0].message.content.strip()
+        # Apply grammar rules on top of LLM output
+        try:
+            from language_rules_gr4 import apply_gr4_rules
+            refined = apply_gr4_rules(refined, direction="en->lun")
+        except Exception:
+            pass
+        return refined if refined and len(refined) > 3 else draft_lun
+    except Exception:
+        return draft_lun
 
 
 class WordLookupRequest(BaseModel):
@@ -160,11 +224,16 @@ def translate_text(req: TranslateRequest):
     if len(req.text) > 1000:
         raise HTTPException(status_code=400, detail="Text too long (max 1000 chars)")
     result = translate(req.text, context=req.context)
+    # Optional LLM refinement pass
+    if req.refine and result.get("translation"):
+        refined = _qwen_refine_translation(req.text, result["translation"])
+        result["translation_refined"] = refined
+        result["translation"] = refined  # use refined as primary
     save_history({
         "input": req.text,
         "direction": "en→lun",
         "translation": result.get("translation"),
-        "method": result.get("method"),
+        "method": result.get("method") + ("+refined" if req.refine else ""),
         "confidence": result.get("confidence"),
         "timestamp": datetime.utcnow().isoformat(),
     })
@@ -178,11 +247,38 @@ def translate_reverse(req: TranslateRequest):
     if len(req.text) > 1000:
         raise HTTPException(status_code=400, detail="Text too long (max 1000 chars)")
     result = translate_to_english(req.text, context=req.context)
+    # Optional LLM refinement pass for lun→en
+    if req.refine and result.get("translation"):
+        try:
+            hf_token = os.getenv("HF_TOKEN", "")
+            hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+            if hf_token:
+                from openai import OpenAI as _OAI
+                client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+                resp = client.chat.completions.create(
+                    model=hf_model,
+                    messages=[
+                        {"role": "system", "content": (
+                            "You are an expert translator from Runyoro-Rutooro to English. "
+                            "Improve the machine-translated English draft for fluency, accuracy and natural phrasing. "
+                            "Output ONLY the improved English text, nothing else."
+                        )},
+                        {"role": "user", "content": f"Runyoro source: {req.text}\nDraft: {result['translation']}\nRefined:"},
+                    ],
+                    max_tokens=256,
+                    temperature=0.2,
+                )
+                refined = resp.choices[0].message.content.strip()
+                if refined and len(refined) > 3:
+                    result["translation_refined"] = refined
+                    result["translation"] = refined
+        except Exception:
+            pass
     save_history({
         "input": req.text,
         "direction": "lun→en",
         "translation": result.get("translation"),
-        "method": result.get("method"),
+        "method": result.get("method") + ("+refined" if req.refine else ""),
         "confidence": result.get("confidence"),
         "timestamp": datetime.utcnow().isoformat(),
     })
@@ -229,6 +325,20 @@ class FeedbackRequest(BaseModel):
     correction: str = ""        # user-provided correct translation
     error_type: str = ""        # grammar, spelling, context, vocabulary, other
     model_used: str = ""        # "marian", "nllb", "both", "none"
+    refined: bool = False       # whether AI refinement was applied to this translation
+
+    # ── Benchmark dimensions (from Runyooro-Rutooro LLM Benchmarking Form) ──
+    # Each scored 0–5 by the evaluator; None means not scored (casual feedback)
+    score_mng: int | None = None   # Meaning Fidelity        (weight 25%)
+    score_grm: int | None = None   # Grammar & Syntax        (weight 15%)
+    score_tns: int | None = None   # Tense & Aspect          (weight 12%)
+    score_vcb: int | None = None   # Vocabulary Choice       (weight 12%)
+    score_ort: int | None = None   # Orthography & Spelling  (weight  8%)
+    score_ctx: int | None = None   # Context Awareness       (weight 10%)
+    score_flu: int | None = None   # Fluency & Naturalness   (weight 10%)
+    score_cul: int | None = None   # Cultural & Idiomatic    (weight  8%)
+    # Computed SQS (0–100) — calculated server-side if any dimension scores present
+    sqs: float | None = None
 
 
 @app.post("/feedback")
@@ -239,7 +349,17 @@ def submit_feedback(req: FeedbackRequest, request: Request):
     if req.rating not in (-1, 0, 1):
         raise HTTPException(status_code=400, detail="rating must be -1, 0, or 1")
 
-    from feedback_store import save_feedback
+    from feedback_store import save_feedback, compute_sqs
+
+    # Compute SQS if any dimension scores were provided
+    dim_scores = {
+        "score_mng": req.score_mng, "score_grm": req.score_grm,
+        "score_tns": req.score_tns, "score_vcb": req.score_vcb,
+        "score_ort": req.score_ort, "score_ctx": req.score_ctx,
+        "score_flu": req.score_flu, "score_cul": req.score_cul,
+    }
+    sqs = compute_sqs(dim_scores) if any(v is not None for v in dim_scores.values()) else None
+
     entry = {
         "source_text": req.source_text.strip(),
         "translation": req.translation.strip(),
@@ -248,7 +368,11 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "correction":  req.correction.strip(),
         "error_type":  req.error_type.strip(),
         "model_used":  req.model_used.strip(),
+        "refined":     req.refined,
         "ip":          request.client.host if request.client else "unknown",
+        # Benchmark dimension scores (None if not provided)
+        **{k: v for k, v in dim_scores.items() if v is not None},
+        **({"sqs": round(sqs, 1)} if sqs is not None else {}),
     }
     save_feedback(entry)
     
@@ -268,6 +392,7 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "rating": req.rating,
         "correction_received": bool(req.correction.strip()),
         "error_type": req.error_type or None,
+        "sqs": round(sqs, 1) if sqs is not None else None,
     }
 
 
@@ -403,6 +528,13 @@ def auto_retrain_status():
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/feedback/dump")
+def feedback_dump():
+    """Return all raw feedback entries as JSON — used for local sync."""
+    from feedback_store import load_all_feedback
+    return {"entries": load_all_feedback()}
 
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
@@ -721,29 +853,30 @@ def chat(req: ChatRequest, request: Request):
     corpus_ctx   = corpus_context(msg)
     sector_label = SECTOR_LABELS.get(sector, "")
     dict_ctx     = dict_context(sector) if sector else ""
-    grammar_ctx  = _GRAMMAR_CONTEXT_CACHE or ""
+    grammar_ctx  = (_GRAMMAR_CONTEXT_CACHE or "")[:3000]
 
     system_prompt = (
         "You are an expert AI assistant for the Runyoro-Rutooro language of the Bunyoro-Kitara and Tooro kingdoms in Uganda.\n"
-        "STRICT RULES — follow every one of these without exception:\n"
-        "1. Write your ENTIRE reply in English only. Do NOT include any Runyoro, Rutooro, or any other non-English words.\n"
-        "2. Do NOT include example phrases, greetings, or quotes in Runyoro/Rutooro — describe them in English instead.\n"
-        "3. Write in flowing prose paragraphs. Do NOT use numbered lists, bullet points, or headers.\n"
-        "4. Be detailed and informative. Aim for 3-5 solid paragraphs.\n"
-        "5. Do not mix languages. Every single word must be English.\n"
+        "RULES:\n"
+        "1. Write your ENTIRE reply in English only. Do NOT include any Runyoro or Rutooro words.\n"
+        "2. Be informative and well-explained — aim for 2-4 solid paragraphs.\n"
+        "3. Always explain the grammar rule behind any concept (noun class, verb prefix, tense marker, concordial agreement, etc.).\n"
+        "4. Stay context-aware: use the conversation history and corpus examples provided.\n"
+        "5. Write in flowing prose. No bullet lists, no headers.\n"
+        "6. Do not mix languages. Every word must be English.\n"
+        f"\nGrammar rules reference:\n{grammar_ctx}\n"
     )
-    system_prompt += f"\n{grammar_ctx}\n"
     if corpus_ctx:
-        system_prompt += f"\nRelevant context:\n{corpus_ctx}\n"
+        system_prompt += f"\nRelevant corpus examples for context:\n{corpus_ctx}\n"
     if sector_label:
         system_prompt += f"\nSector focus: {sector_label}\n"
     if dict_ctx:
         system_prompt += f"Vocabulary reference:\n{dict_ctx}\n"
-    system_prompt += "\nRemember: reply in plain English prose only. No Runyoro words. No lists. No headers."
+    system_prompt += "\nRemember: reply in plain English prose only. Be thorough but avoid unnecessary padding."
 
     # ── Build message history for Ollama ─────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
-    for turn in (req.history or [])[-10:]:
+    for turn in (req.history or [])[-8:]:
         role    = turn.get("role", "")
         content = (turn.get("content") or "").strip()
         if role in ("user", "assistant") and content:
@@ -763,7 +896,7 @@ def chat(req: ChatRequest, request: Request):
             model=_hf_model,
             messages=messages,
             max_tokens=600,
-            temperature=0.7,
+            temperature=0.6,
         )
         reply_en = completion.choices[0].message.content.strip()
     except Exception as e:
@@ -792,7 +925,7 @@ def chat(req: ChatRequest, request: Request):
                 "reply_marian": None, "reply_nllb": None}
 
     return {
-        "reply":         marian_out or nllb_out,  # MarianMT is primary
+        "reply":         nllb_out or marian_out,  # NLLB is primary
         "reply_marian":  marian_out,
         "reply_nllb":    nllb_out,
     }
@@ -1059,3 +1192,147 @@ def get_proverbs():
     from language_rules import PROVERBS
     import random
     return {"proverbs": PROVERBS, "random": random.choice(PROVERBS)}
+
+
+# ── Knowledge Graph endpoints ─────────────────────────────────────────────────
+
+_kg = None
+
+def _get_kg():
+    """Lazy-load the knowledge graph singleton."""
+    global _kg
+    if _kg is None:
+        try:
+            from knowledge_graph import get_kg
+            _kg = get_kg()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Knowledge graph unavailable: {e}")
+    return _kg
+
+
+@app.get("/knowledge-graph/stats")
+def kg_stats():
+    """Return knowledge graph statistics: node/edge counts by type."""
+    kg = _get_kg()
+    return kg.stats()
+
+
+@app.get("/knowledge-graph/noun-class/{class_num}")
+def kg_noun_class(class_num: str):
+    """
+    Get full info about a noun class including concords, plural class, and example words.
+    class_num: 1-15 (integer) or '1a', '2a', '9a', '10a' (string classes)
+    """
+    kg = _get_kg()
+    # Try int first, then string
+    try:
+        key = int(class_num)
+    except ValueError:
+        key = class_num
+    result = kg.get_noun_class_info(key)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/knowledge-graph/explain/{word}")
+def kg_explain_word(word: str):
+    """
+    Explain a Runyoro-Rutooro word: its noun class, derivation chain,
+    plural/singular forms, and applicable grammar rules.
+    Enables explainable AI translation.
+    """
+    kg = _get_kg()
+    return kg.explain_word(word)
+
+
+@app.get("/knowledge-graph/related/{word}")
+def kg_related(word: str, rel: str | None = None, direction: str = "both"):
+    """
+    Find nodes related to a word in the knowledge graph.
+    rel: optional relationship filter (e.g. DERIVES_FROM, PLURAL_IS, BELONGS_TO)
+    direction: 'out', 'in', or 'both'
+    """
+    kg = _get_kg()
+    results = kg.find_related(word, rel=rel, direction=direction)
+    return {"word": word, "rel": rel, "direction": direction, "results": results}
+
+
+@app.get("/knowledge-graph/path")
+def kg_path(word_a: str, word_b: str):
+    """
+    Find the grammatical relationship path between two words.
+    Example: /knowledge-graph/path?word_a=okulima&word_b=omulimi
+    Returns the chain: okulima --[DERIVES_TO]--> omulimi --[BELONGS_TO]--> nc_1
+    """
+    kg = _get_kg()
+    return kg.grammar_path(word_a, word_b)
+
+
+@app.get("/knowledge-graph/correct")
+def kg_correct(word: str, target: str):
+    """
+    Get the correct grammatical form of a word.
+    target: 'plural', 'singular', 'agent_noun', 'action_noun', 'source_verb'
+    Example: /knowledge-graph/correct?word=omulimi&target=plural
+    """
+    kg = _get_kg()
+    return kg.correct_form(word, target)
+
+
+class TutorRequest(BaseModel):
+    question: str
+
+
+@app.post("/knowledge-graph/tutor")
+def kg_tutor(req: TutorRequest):
+    """
+    Answer a grammar tutoring question using the knowledge graph.
+    Supports natural language questions like:
+      - 'What is the plural of omuntu?'
+      - 'What class is ekitabu?'
+      - 'What is the agent noun of okulima?'
+      - 'What does omulimi mean?'
+    """
+    kg = _get_kg()
+    return kg.tutor_question(req.question)
+
+
+@app.get("/knowledge-graph/search")
+def kg_search(q: str, node_type: str | None = None):
+    """
+    Search the knowledge graph by label.
+    q: search string (case-insensitive substring match)
+    node_type: optional filter (WORD, NOUN_CLASS, TENSE, RULE, DERIVATION, etc.)
+    """
+    kg = _get_kg()
+    results = kg.find_nodes(node_type=node_type, label_contains=q)
+    return {"query": q, "node_type": node_type, "count": len(results), "results": results[:50]}
+
+
+@app.get("/knowledge-graph/export")
+def kg_export():
+    """
+    Export the full knowledge graph as JSON.
+    Returns all nodes and edges — useful for frontend graph visualisation.
+    """
+    kg = _get_kg()
+    import json
+    data = json.loads(kg.to_json())
+    return data
+
+
+@app.get("/knowledge-graph/tenses")
+def kg_tenses():
+    """Return all tense nodes with their markers and examples."""
+    kg = _get_kg()
+    tenses = kg.find_nodes(node_type="TENSE")
+    return {"tenses": tenses, "count": len(tenses)}
+
+
+@app.get("/knowledge-graph/derivations")
+def kg_derivations():
+    """Return all verb derivation types with their suffixes."""
+    kg = _get_kg()
+    derivations = kg.find_nodes(node_type="DERIVATION")
+    return {"derivations": derivations, "count": len(derivations)}
