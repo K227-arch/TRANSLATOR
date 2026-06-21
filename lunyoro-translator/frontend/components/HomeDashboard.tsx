@@ -12,12 +12,6 @@ interface HistoryEntry {
   timestamp: string;
 }
 
-const CARDS = [
-  { tab: "translate" as Tab, icon: "translate",   bg: "bg-secondary-container",  fg: "text-on-secondary-container", title: "Translate",    desc: "Quick English to Runyoro text conversion." },
-  { tab: "chat"      as Tab, icon: "chat_bubble", bg: "bg-primary-container",    fg: "text-on-primary-container",   title: "AI Chat",      desc: "Conversational assistance & insights." },
-  { tab: "editor"    as Tab, icon: "description", bg: "bg-secondary-fixed",      fg: "text-on-secondary-fixed-variant", title: "Editor",   desc: "Full document localization & layout." },
-];
-
 export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -28,59 +22,153 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
       .catch(() => {});
   }, []);
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
-
   return (
-    <div className="max-w-screen-xl mx-auto px-margin py-lg pb-32">
-      {/* Welcome */}
-      <section className="mb-xl">
-        <h2 className="text-h2 text-primary">{ greeting }, Linguist</h2>
-        <p className="text-body-md text-on-surface-variant mt-xs">What would you like to build today?</p>
+    <div className="max-w-screen-xl mx-auto px-5 pb-32">
+      {/* Hero Section */}
+      <section className="pt-6 pb-8">
+        <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-6 premium-shadow border border-outline-variant/30">
+          <div className="relative z-10">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-fixed text-on-primary-fixed rounded-full text-xs font-semibold mb-4">
+              <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>security</span>
+              100% OFFLINE ENCRYPTION
+            </span>
+            <h1 className="text-3xl font-bold text-on-background mb-2 leading-tight">
+              Uncompromised Power, <br /><span className="text-primary">Fully Offline.</span>
+            </h1>
+            <p className="text-base text-on-surface-variant max-w-[80%] mb-6">
+              Premium AI processing for global professionals. No cloud. No limits. Just performance.
+            </p>
+            <button
+              onClick={() => onNavigate("translate")}
+              className="bg-primary text-on-primary px-6 py-3 rounded-xl text-xs font-semibold flex items-center gap-2 active:scale-95 transition-all shadow-md"
+            >
+              START NEW PROJECT
+              <span className="material-symbols-outlined">arrow_forward</span>
+            </button>
+          </div>
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-primary-container/20 rounded-full blur-3xl" />
+          <div className="absolute -right-4 bottom-0 opacity-10">
+            <span className="material-symbols-outlined text-[120px] text-primary" style={{ fontVariationSettings: "'wght' 200" }}>memory</span>
+          </div>
+        </div>
       </section>
 
       {/* Bento Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-md mb-xl">
-        {CARDS.map(({ tab, icon, bg, fg, title, desc }) => (
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-on-background mb-6">Primary Tools</h2>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Translator - Large */}
           <div
-            key={tab}
-            onClick={() => onNavigate(tab)}
-            className="bg-surface-container-lowest rounded-xl p-lg shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer flex flex-col gap-md border border-outline-variant/10"
+            onClick={() => onNavigate("translate")}
+            className="col-span-2 glass-card rounded-2xl p-5 flex flex-col gap-3 hover:border-primary transition-colors cursor-pointer group premium-shadow"
           >
-            <div className={`${bg} ${fg} h-12 w-12 rounded-lg flex items-center justify-center`}>
-              <span className="material-symbols-outlined text-2xl">{icon}</span>
+            <div className="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-[28px]">g_translate</span>
             </div>
             <div>
-              <h3 className="font-semibold text-[20px] text-primary">{title}</h3>
-              <p className="text-body-md text-on-surface-variant text-[14px]">{desc}</p>
-            </div>
-            <div className="mt-auto flex justify-end">
-              <span className="material-symbols-outlined text-secondary">arrow_forward</span>
+              <h3 className="text-xl font-semibold text-on-background">Translator</h3>
+              <p className="text-sm text-on-surface-variant">Instant neural translation across 64 languages without internet.</p>
             </div>
           </div>
-        ))}
+
+          {/* Word Editor */}
+          <div
+            onClick={() => onNavigate("editor")}
+            className="glass-card rounded-2xl p-4 flex flex-col gap-2 hover:border-primary transition-colors cursor-pointer group premium-shadow"
+          >
+            <div className="w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-[24px]">edit_note</span>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-on-background">Word Editor</h4>
+              <p className="text-[10px] text-on-surface-variant leading-tight">Advanced syntax &amp; grammar refining.</p>
+            </div>
+          </div>
+
+          {/* AI Chatbot */}
+          <div
+            onClick={() => onNavigate("chat")}
+            className="glass-card rounded-2xl p-4 flex flex-col gap-2 hover:border-primary transition-colors cursor-pointer group premium-shadow"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary-container/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-[24px]">chat_bubble</span>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-on-background">AI Chatbot</h4>
+              <p className="text-[10px] text-on-surface-variant leading-tight">Conversational intelligence on-device.</p>
+            </div>
+          </div>
+
+          {/* Document & Audio */}
+          <div
+            onClick={() => onNavigate("editor")}
+            className="col-span-2 glass-card rounded-2xl p-4 flex items-center gap-4 hover:border-primary transition-colors cursor-pointer group premium-shadow"
+          >
+            <div className="w-12 h-12 rounded-xl bg-tertiary-container/30 flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform flex-shrink-0">
+              <span className="material-symbols-outlined text-[28px]">description</span>
+            </div>
+            <div className="flex-grow">
+              <h4 className="text-xs font-semibold text-on-background">Document &amp; Audio</h4>
+              <p className="text-[11px] text-on-surface-variant">Batch process large files and voice recordings locally.</p>
+            </div>
+            <span className="material-symbols-outlined text-outline">chevron_right</span>
+          </div>
+
+          {/* Dictionary */}
+          <div
+            onClick={() => onNavigate("editor")}
+            className="col-span-2 glass-card rounded-2xl p-4 flex items-center gap-4 hover:border-primary transition-colors cursor-pointer group premium-shadow"
+          >
+            <div className="w-12 h-12 rounded-xl bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed group-hover:scale-110 transition-transform flex-shrink-0">
+              <span className="material-symbols-outlined text-[28px]">menu_book</span>
+            </div>
+            <div className="flex-grow">
+              <h4 className="text-xs font-semibold text-on-background">Dictionary</h4>
+              <p className="text-[11px] text-on-surface-variant">Offline etymology and comprehensive definitions.</p>
+            </div>
+            <span className="material-symbols-outlined text-outline">chevron_right</span>
+          </div>
+        </div>
       </section>
 
-      {/* AI Processing Bar */}
-      <div className="w-full h-1 bg-surface-container rounded-full overflow-hidden mb-xl">
-        <div className="h-full bg-secondary w-1/3 animate-pulse" />
-      </div>
+      {/* System Status */}
+      <section className="mb-8">
+        <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/50">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xs font-semibold text-on-surface tracking-wide">SYSTEM STATUS</h3>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[11px] font-medium text-on-surface-variant">Optimized</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-on-surface-variant">
+              <span className="text-sm">Neural Engine</span>
+              <span className="text-xs font-semibold">Ready</span>
+            </div>
+            <div className="flex items-center justify-between text-on-surface-variant">
+              <span className="text-sm">Local Models</span>
+              <span className="text-xs font-semibold">64 Installed</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Recent Activity */}
       <section>
-        <div className="flex justify-between items-center mb-md">
-          <h3 className="text-h2 text-primary">Recent Activity</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold text-on-background">Recent Activity</h3>
           <button
             onClick={() => onNavigate("translate")}
-            className="text-secondary text-label-sm font-semibold flex items-center gap-xs"
+            className="text-xs font-semibold text-secondary flex items-center gap-1"
           >
             VIEW ALL <span className="material-symbols-outlined text-[16px]">chevron_right</span>
           </button>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-outline-variant/10">
+        <div className="bg-surface-container-lowest rounded-xl premium-shadow overflow-hidden border border-outline-variant/30">
           {history.length === 0 ? (
-            <div className="p-lg text-center text-on-surface-variant text-body-md">
+            <div className="p-5 text-center text-on-surface-variant text-sm">
               No recent activity yet. Start translating!
             </div>
           ) : (
@@ -88,18 +176,18 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
               <div
                 key={i}
                 onClick={() => onNavigate("translate")}
-                className={`p-md flex items-center justify-between hover:bg-surface-container-low transition-colors cursor-pointer group ${
-                  i < history.length - 1 ? "border-b border-outline-variant/10" : ""
+                className={`p-4 flex items-center justify-between hover:bg-surface-container-low transition-colors cursor-pointer group ${
+                  i < history.length - 1 ? "border-b border-outline-variant/30" : ""
                 }`}
               >
-                <div className="flex items-center gap-md">
+                <div className="flex items-center gap-4">
                   <div className="h-10 w-10 bg-surface-container-high rounded-lg flex items-center justify-center">
                     <span className="material-symbols-outlined text-secondary">translate</span>
                   </div>
                   <div>
-                    <p className="font-semibold text-primary text-body-md truncate max-w-[200px]">{entry.input}</p>
-                    <p className="text-label-sm text-on-surface-variant">
-                      {entry.direction || "en→lun"} • {new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    <p className="font-semibold text-on-surface text-sm truncate max-w-[200px]">{entry.input}</p>
+                    <p className="text-xs text-on-surface-variant">
+                      {entry.direction || "en->lun"} &bull; {new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                 </div>

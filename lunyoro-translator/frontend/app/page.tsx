@@ -26,9 +26,9 @@ export default function Home() {
       <BottomNav active={tab} onChange={setTab} />
 
       {/* Background decoration */}
-      <div className="fixed inset-0 -z-10 opacity-20 pointer-events-none">
-        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-secondary-fixed-dim rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-primary-fixed rounded-full blur-[140px]" />
+      <div className="fixed inset-0 -z-10 opacity-15 pointer-events-none">
+        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary-container/30 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-primary-fixed-dim/20 rounded-full blur-[140px]" />
       </div>
     </div>
   );
