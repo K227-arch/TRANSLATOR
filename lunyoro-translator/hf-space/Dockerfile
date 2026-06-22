@@ -28,8 +28,9 @@ ENV DOWNLOAD_MODELS_ON_START=1
 ENV CORS_ORIGINS=https://frontend-six-phi-25.vercel.app,http://localhost:3002,https://horizonx.kathay.tech
 
 # NLLB-200 is 2.3GB per model — too large for cpu-basic (16GB RAM, no GPU).
-# MarianMT ONNX handles translation on this tier. Enable NLLB on GPU tiers only.
+# Route NLLB requests to kathay's model repos via HF Inference API instead.
 ENV DISABLE_NLLB=1
+# HF_KATHAY_TOKEN is injected as a Space Secret (not hardcoded here)
 
 # Download models on cold start (skips any already cached — no --force),
 # then switch to offline mode and start the server

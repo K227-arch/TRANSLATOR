@@ -74,19 +74,19 @@ export default function PdfTranslator() {
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
-          dragOver ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+          dragOver ? "border-primary-container bg-primary" : "border-outline-variant hover:border-primary-container hover:bg-surface-container-low"
         }`}
       >
         <input ref={inputRef} type="file" accept=".pdf,.docx,.doc,.txt" className="hidden" onChange={handleFileChange} />
         <div className="text-4xl mb-3">📝</div>
         {loading ? (
-          <p className="text-sm text-blue-600 font-medium">Summarizing {fileName}...</p>
+          <p className="text-sm text-primary font-medium">Summarizing {fileName}...</p>
         ) : fileName && summary ? (
           <p className="text-sm text-green-600 font-medium">{fileName} — done</p>
         ) : (
           <>
-            <p className="text-sm font-medium text-gray-700">Drop a document here or click to upload</p>
-            <p className="text-xs text-gray-400 mt-1">PDF, DOCX, DOC, TXT → English summary</p>
+            <p className="text-sm font-medium text-on-surface-variant">Drop a document here or click to upload</p>
+            <p className="text-xs text-on-surface-variant mt-1">PDF, DOCX, DOC, TXT → English summary</p>
           </>
         )}
       </div>
@@ -97,35 +97,35 @@ export default function PdfTranslator() {
 
       {summary && (
         <div className="space-y-3">
-          <div className="flex justify-between items-center text-sm text-gray-500">
+          <div className="flex justify-between items-center text-sm text-on-surface-variant">
             <span>
               {summary.total_pages} page{summary.total_pages > 1 ? "s" : ""} · {summary.total_sentences} sentences · {summary.sentences_used} key sentences extracted
             </span>
-            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">
+            <span className="text-xs bg-surface-container text-on-surface-variant px-2 py-0.5 rounded capitalize">
               {summary.language_detected} detected
             </span>
           </div>
-          <details className="bg-white border border-blue-200 rounded-lg">
-            <summary className="px-5 py-3 text-xs text-blue-600 font-medium uppercase tracking-wide cursor-pointer select-none">
+          <details className="bg-surface-container-lowest border border-primary-container rounded-lg">
+            <summary className="px-5 py-3 text-xs text-primary font-medium uppercase tracking-wide cursor-pointer select-none">
               English Summary
             </summary>
-            <p className="px-5 pb-4 text-sm text-gray-800 leading-relaxed">{summary.summary}</p>
+            <p className="px-5 pb-4 text-sm text-on-surface-variant leading-relaxed">{summary.summary}</p>
           </details>
           {summary.summary_lunyoro && (
-            <div className="bg-white border border-green-200 rounded-lg p-5 space-y-3">
+            <div className="bg-surface-container-lowest border border-green-200 rounded-lg p-5 space-y-3">
               <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Runyoro / Rutooro Summary</p>
-              <p className="text-sm text-gray-800 leading-relaxed">{summary.summary_lunyoro}</p>
+              <p className="text-sm text-on-surface-variant leading-relaxed">{summary.summary_lunyoro}</p>
               {(summary.summary_lunyoro_marian || summary.summary_lunyoro_nllb) && (
                 <details className="pt-3 border-t border-gray-100">
-                  <summary className="text-xs text-gray-400 font-medium uppercase tracking-wide cursor-pointer select-none">
+                  <summary className="text-xs text-on-surface-variant font-medium uppercase tracking-wide cursor-pointer select-none">
                     Model comparison
                   </summary>
                   <div className="mt-2 space-y-1">
                     {summary.summary_lunyoro_marian && (
-                      <p className="text-xs text-gray-700"><span className="font-semibold text-blue-600">MarianMT:</span> {summary.summary_lunyoro_marian}</p>
+                      <p className="text-xs text-on-surface-variant"><span className="font-semibold text-primary">MarianMT:</span> {summary.summary_lunyoro_marian}</p>
                     )}
                     {summary.summary_lunyoro_nllb && (
-                      <p className="text-xs text-gray-700"><span className="font-semibold text-purple-600">NLLB-200:</span> {summary.summary_lunyoro_nllb}</p>
+                      <p className="text-xs text-on-surface-variant"><span className="font-semibold text-purple-600">NLLB-200:</span> {summary.summary_lunyoro_nllb}</p>
                     )}
                   </div>
                 </details>
@@ -152,3 +152,4 @@ export default function PdfTranslator() {
     </div>
   );
 }
+

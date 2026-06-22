@@ -1,30 +1,59 @@
 "use client";
 
-export default function TopBar({ processing = false }: { processing?: boolean }) {
+interface TopBarProps {
+  processing?: boolean;
+  section?: string;
+  onBack?: () => void;
+}
+
+export default function TopBar({ processing = false, section, onBack }: TopBarProps) {
   return (
-    <header className="bg-surface-bright fixed top-0 w-full z-50 shadow-sm">
+    <header className="bg-surface-bright fixed top-0 w-full z-50 border-b border-outline-variant/30">
       <div className="flex items-center justify-between px-5 h-16 max-w-screen-xl mx-auto">
+        {/* Left — back/menu + logo or section title */}
         <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-primary cursor-pointer hover:bg-surface-container-low transition-colors p-2 rounded-full">
-            menu
-          </span>
-          <img
-            alt="AI Stick Logo"
-            className="h-8 object-contain"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBG1Fpbo81YV2P6TkSyWUFE-Wl3yMFvkibVSrwDcBTDUIM5ON1X2MyqB_IibZcaGrh7tVZ-h9z0EW_Pl-aB0PwKs5vcTMiTIeX0-v29dNGsF2ad4Qg8lfrXWao0kMOCH7hL8tbUsPY3CM1XKdSXp0OCXWfZKfsRzIihsYR6u6OicZCSms18GpOiRNzt9TsUJwFHsc8CjNsDm5qaa-Tnzsc8iXOKhPYXYaqr3rX7xdE3MHu00i5GeKAMZ8Z_v7s0ue7AEt-E-bGAmQs"
-          />
+          {onBack ? (
+            <button
+              onClick={onBack}
+              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface"
+              aria-label="Back"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+          ) : (
+            <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-primary">
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+          )}
+
+          {section ? (
+            <span className="text-lg font-semibold text-on-background">{section}</span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="material-symbols-outlined text-on-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  translate
+                </span>
+              </div>
+              <span className="font-bold text-on-background text-base tracking-tight">AI Stick</span>
+            </div>
+          )}
         </div>
-        <div className="w-10 h-10 rounded-full border-2 border-primary-container overflow-hidden bg-surface-container">
-          <img
-            className="w-full h-full object-cover"
-            alt="Profile"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNbCE9jYYnFcQDtvX9hdbsejbS_It0Srh36mMyIfwjPkePckA3ozpATV_d7Kp-dS9DBR9XbhF_-xd9g3gAXBuSdCCwzjqdIVmCf4GILuif--ncOUdcaPoSJv68Tj53d0Blg851OIkJUUNzOu8U47sRNP-TRzaSCbCXcWDCseV69f-trmWchu-ewJjZRcKZ_Qu-v392CbRwQD-hitmDBKj30X-hhR0qVws2pNz_aXpayI3u33kuaUstUaH6g7Hn7AAiX8gcWRLckaI"
-          />
+
+        {/* Right — avatar */}
+        <div className="w-9 h-9 rounded-full border-2 border-primary-container overflow-hidden bg-surface-container-high flex items-center justify-center">
+          <span className="material-symbols-outlined text-on-surface-variant text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            account_circle
+          </span>
         </div>
       </div>
+
+      {/* Processing bar */}
       {processing && (
-        <div className="w-full h-1 bg-surface-container overflow-hidden">
-          <div className="h-full bg-primary-fixed-dim w-1/3 animate-pulse" />
+        <div className="h-0.5 w-full bg-surface-container overflow-hidden">
+          <div className="h-full bg-primary-fixed-dim animate-[shimmer_1.5s_ease-in-out_infinite]"
+            style={{ width: "40%", animation: "shimmer 1.5s ease-in-out infinite" }}
+          />
         </div>
       )}
     </header>

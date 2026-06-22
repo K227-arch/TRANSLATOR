@@ -194,8 +194,8 @@ export default function RunyoroEditor() {
     <div className="space-y-4">
 
       {/* Grammar hints panel */}
-      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-        <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-3">
+      <div className="bg-surface-container-low border border-outline-variant/40 rounded-xl p-4">
+        <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-3">
           Runyoro-Rutooro Writing Guide
         </p>
         <div className="flex flex-wrap gap-2">
@@ -205,8 +205,8 @@ export default function RunyoroEditor() {
               onClick={() => setActiveHint(activeHint === i ? null : i)}
               className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
                 activeHint === i
-                  ? "bg-indigo-700 text-white border-indigo-700"
-                  : "bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                  ? "bg-primary text-white border-indigo-700"
+                  : "bg-surface-container-lowest text-primary border-primary-container/50 hover:bg-primary-fixed/40"
               }`}
             >
               {hint.category}
@@ -214,12 +214,12 @@ export default function RunyoroEditor() {
           ))}
         </div>
         {activeHint !== null && (
-          <div className="mt-3 bg-white rounded-lg p-3 border border-indigo-100">
-            <p className="text-sm text-gray-700">{GRAMMAR_HINTS[activeHint].rule}</p>
+          <div className="mt-3 bg-surface-container-lowest rounded-lg p-3 border border-outline-variant/40">
+            <p className="text-sm text-on-surface">{GRAMMAR_HINTS[activeHint].rule}</p>
             {GRAMMAR_HINTS[activeHint].examples && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {GRAMMAR_HINTS[activeHint].examples!.map((ex, j) => (
-                  <span key={j} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono">{ex}</span>
+                  <span key={j} className="text-xs bg-surface-container-low text-primary px-2 py-0.5 rounded font-mono">{ex}</span>
                 ))}
               </div>
             )}
@@ -228,17 +228,17 @@ export default function RunyoroEditor() {
       </div>
 
       {/* Toolbar — matches the image */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl">
+      <div className="bg-surface-container-low border border-outline-variant/50 rounded-xl">
         <div className="px-4 py-2 flex flex-wrap items-center gap-3">
           {/* Formatting */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg p-1 gap-0.5">
+          <div className="flex items-center bg-surface-container-lowest border border-outline-variant/50 rounded-lg p-1 gap-0.5">
             {[
               { cmd: "bold",          icon: "B",  cls: "font-bold" },
               { cmd: "italic",        icon: "I",  cls: "italic" },
               { cmd: "underline",     icon: "U",  cls: "underline" },
             ].map(({ cmd, icon, cls }) => (
               <button key={cmd} onMouseDown={e => { e.preventDefault(); execFormat(cmd); }}
-                className={`w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 text-sm ${cls}`}>
+                className={`w-8 h-8 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant text-sm ${cls}`}>
                 {icon}
               </button>
             ))}
@@ -248,21 +248,21 @@ export default function RunyoroEditor() {
               { cmd: "insertOrderedList",   icon: "1≡" },
             ].map(({ cmd, icon }) => (
               <button key={cmd} onMouseDown={e => { e.preventDefault(); execFormat(cmd); }}
-                className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 text-sm">
+                className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant text-sm">
                 {icon}
               </button>
             ))}
           </div>
 
           {/* Alignment */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg p-1 gap-0.5">
+          <div className="flex items-center bg-surface-container-lowest border border-outline-variant/50 rounded-lg p-1 gap-0.5">
             {[
               { cmd: "justifyLeft",   icon: "⬛⬜⬜" },
               { cmd: "justifyCenter", icon: "⬜⬛⬜" },
               { cmd: "justifyRight",  icon: "⬜⬜⬛" },
             ].map(({ cmd, icon }) => (
               <button key={cmd} onMouseDown={e => { e.preventDefault(); execFormat(cmd); }}
-                className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 text-xs">
+                className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant text-xs">
                 <span className="material-symbols-outlined text-[18px]">
                   {cmd === "justifyLeft" ? "format_align_left" : cmd === "justifyCenter" ? "format_align_center" : "format_align_right"}
                 </span>
@@ -274,7 +274,7 @@ export default function RunyoroEditor() {
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => runSpellcheck(text)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 text-xs font-semibold transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container text-xs font-semibold transition-colors"
             >
               <span className="material-symbols-outlined text-[16px]">spellcheck</span>
               Spellcheck
@@ -285,14 +285,14 @@ export default function RunyoroEditor() {
             <button
               onClick={getAiSuggestion}
               disabled={aiLoading || !text.trim()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 hover:bg-indigo-50 text-xs font-semibold transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary-container text-primary hover:bg-surface-container-low text-xs font-semibold transition-colors disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
               {aiLoading ? "Checking..." : "AI Review"}
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center gap-1.5 bg-indigo-900 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 active:scale-95 transition-all"
+              className="flex items-center gap-1.5 bg-on-background text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 active:scale-95 transition-all"
             >
               <span className="material-symbols-outlined text-[16px]">save</span>
               {saved ? "Saved!" : "Save"}
@@ -302,7 +302,7 @@ export default function RunyoroEditor() {
       </div>
 
       {/* Editor canvas */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-surface-container-lowest border border-outline-variant/50 rounded-xl shadow-sm overflow-hidden">
         <div
           ref={editorRef}
           contentEditable
@@ -312,26 +312,26 @@ export default function RunyoroEditor() {
           onMouseLeave={scheduleTooltipClose}
           onCompositionStart={() => { isComposing.current = true; }}
           onCompositionEnd={() => { isComposing.current = false; handleInput(); }}
-          className="min-h-[400px] p-6 text-gray-800 text-base leading-relaxed outline-none focus:ring-0 whitespace-pre-wrap break-words"
+          className="min-h-[400px] p-6 text-on-background text-base leading-relaxed outline-none focus:ring-0 whitespace-pre-wrap break-words"
           style={{ fontFamily: "inherit" }}
           data-placeholder="Start writing in Runyoro-Rutooro..."
         />
         <div className="px-6 py-2 border-t border-gray-100 flex justify-between items-center">
-          <span className="text-xs text-gray-400">{wordCount} word{wordCount !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-outline">{wordCount} word{wordCount !== 1 ? "s" : ""}</span>
           {misspelled.length > 0 && (
-            <span className="text-xs text-red-500">{misspelled.length} possible spelling issue{misspelled.length > 1 ? "s" : ""} — hover to fix</span>
+            <span className="text-xs text-error">{misspelled.length} possible spelling issue{misspelled.length > 1 ? "s" : ""} — hover to fix</span>
           )}
         </div>
       </div>
 
       {/* AI suggestion panel */}
       {aiSuggestion && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+        <div className="bg-surface-container-low border border-primary-container/50 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
-            <span className="material-symbols-outlined text-indigo-600 text-[18px]">auto_awesome</span>
-            <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">AI Grammar Review</p>
+            <span className="material-symbols-outlined text-primary text-[18px]">auto_awesome</span>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide">AI Grammar Review</p>
           </div>
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
+          <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
         </div>
       )}
 
@@ -345,7 +345,7 @@ export default function RunyoroEditor() {
         >
           <p className="text-xs opacity-60 mb-1">Did you mean?</p>
           {tooltip.suggestions.length > 0 ? tooltip.suggestions.map(s => (
-            <button key={s} className="block w-full text-left text-teal-300 hover:bg-white/10 px-2 py-1.5 rounded text-sm"
+            <button key={s} className="block w-full text-left text-primary-fixed hover:bg-surface-container-lowest/10 px-2 py-1.5 rounded text-sm"
               onMouseDown={e => { e.preventDefault(); applySuggestion(tooltip.word, s); }}>
               {s}
             </button>
@@ -361,3 +361,4 @@ export default function RunyoroEditor() {
     </div>
   );
 }
+
