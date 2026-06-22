@@ -110,6 +110,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--force", action="store_true", help="Re-download even if model exists"
     )
+    parser.add_argument(
+        "--marian-only", action="store_true",
+        help="Download only MarianMT + sem_model (skip NLLB). NLLB loads lazily from HF Hub cache."
+    )
     args = parser.parse_args()
 
     print("=== Downloading Runyoro-Rutooro models from HuggingFace ===")
@@ -120,6 +124,33 @@ if __name__ == "__main__":
         os.system("pip install huggingface_hub")
         from huggingface_hub import snapshot_download
 
-    download_all(force=args.force)
-    download_dataset(force=args.force)
-    print("\nAll models and data ready.")
+    if args.marian_only:
+        # Only download MarianMT (small) + sem_model for Space startup.
+        # NLLB (2.3GB each) loads on first request via HF Hub cache.
+        marian_models = {k: v for k, v in HF_MODELS.items() if "nllb" not in k}
+        print("  [--marian-only] Downloading MarianMT + sem_model only.")
+        print("  NLLB will stream from HF Hub cache on first translation request.\n")
+        for local_name, repo_id in marian_models.items():
+            dest = MODEL_DIR / local_name
+            if dest.exists() and not args.force:
+                has_weights = any(dest.glob("*.safetensors")) or any(dest.glob("*.bin"))
+                if has_weights:
+                    print(f"  [OK] {local_name} already exists — skipping")
+                    continue
+            print(f"  Downloading {repo_id} -> model/{local_name}/")
+            dest.mkdir(parents=True, exist_ok=True)
+            snapshot_download(repo_id=repo_id, local_dir=str(dest),
+                              ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"])
+            print(f"  [OK] {local_name}")
+        # Cache sem_model
+        print(f"  Caching {SEM_MODEL_NAME}...")
+        try:
+            snapshot_download(repo_id=SEM_MODEL_NAME)
+            print("  [OK] sem model cached")
+        except Exception as e:
+            print(f"  [WARN] sem model: {e}")
+    else:
+        download_all(force=args.force)
+        download_dataset(force=args.force)
+
+    print("\nAll models ready.")

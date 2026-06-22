@@ -29,11 +29,15 @@ export default function Home() {
     <div className="min-h-screen bg-background text-on-background">
       <TopBar processing={isProcessing} section={sectionTitle[tab]} onBack={tab !== "home" ? () => setTab("home") : undefined} />
 
-      {/* Main content — offset by TopBar (64px) and BottomNav (80px) */}
-      <main className="pt-16 min-h-screen">
+      {/* Main content — offset by TopBar (64px) */}
+      <main className={`pt-16 ${tab === "chat" ? "" : "min-h-screen"}`}>
         {tab === "home"       && <HomeDashboard onNavigate={setTab} />}
         {tab === "translate"  && <Translator />}
-        {tab === "chat"       && <ChatPage />}
+        {tab === "chat"       && (
+          <div className="relative overflow-hidden" style={{ height: "calc(100vh - 144px)" }}>
+            <ChatPage />
+          </div>
+        )}
         {tab === "editor"     && (
           <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
             <DocumentEditor />

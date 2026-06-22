@@ -27,15 +27,13 @@ ENV HF_HUB_OFFLINE=0
 ENV DOWNLOAD_MODELS_ON_START=1
 ENV CORS_ORIGINS=https://frontend-six-phi-25.vercel.app,http://localhost:3002,https://horizonx.kathay.tech
 
-# NLLB-200 is 2.3GB per model — too large for cpu-basic (16GB RAM, no GPU).
-# Route NLLB requests to kathay's model repos via HF Inference API instead.
-ENV DISABLE_NLLB=1
-# HF_KATHAY_TOKEN is injected as a Space Secret (not hardcoded here)
+# NLLB-200 loads from HF Hub cache (/root/.cache) — separate from 1GB Space repo storage.
+# cpu-basic has 16GB RAM which fits one NLLB model (2.3GB).
+# Models download to HF Hub cache on first request, not to /app/model.
+ENV DISABLE_NLLB=0
+# HF_TOKEN is injected as a Space Secret for authenticated HF Hub downloads
 
-# Download models on cold start (skips any already cached — no --force),
-# then switch to offline mode and start the server
-CMD ["sh", "-c", "python download_models.py && \
-    export TRANSFORMERS_OFFLINE=1 && \
-    export HF_DATASETS_OFFLINE=1 && \
-    export HF_HUB_OFFLINE=1 && \
+# Download MarianMT + sem_model only (they're small).
+# NLLB downloads lazily on first use via HF Hub cache.
+CMD ["sh", "-c", "python download_models.py --marian-only && \
     uvicorn main:app --host 0.0.0.0 --port 7860 --workers 1"]

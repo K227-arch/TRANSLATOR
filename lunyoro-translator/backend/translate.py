@@ -264,9 +264,18 @@ def _load_retrieval():
         raise FileNotFoundError("Translation index not found. Run train.py first.")
     with open(INDEX_PATH, "rb") as f:
         _index = pickle.load(f)
-    sem_path = _index[
-        "model_name"
-    ]  # always load by name so ST downloads a compatible version
+    sem_path = _index["model_name"]
+
+    # Prefer local sem_model dir (always present when downloaded by download_models.py)
+    if os.path.isdir(SEM_MODEL_DIR) and any(
+        f.endswith((".json", ".safetensors", ".bin", ".pt"))
+        for f in os.listdir(SEM_MODEL_DIR)
+    ):
+        sem_path = SEM_MODEL_DIR
+        print(f"[translate] Loading sem_model from local path: {SEM_MODEL_DIR}")
+    else:
+        print(f"[translate] Loading sem_model from HF Hub: {sem_path}")
+
     _sem_model = SentenceTransformer(sem_path)
     _dictionary = _index["dictionary"]
     # build O(1) lookup map
@@ -435,27 +444,32 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
 
 
 def _load_nllb(direction: str) -> bool:
-    """Lazy-load a fine-tuned NLLB model. Auto-downloads from HuggingFace if missing."""
+    """Lazy-load a fine-tuned NLLB model.
+    On HF Space cpu-basic: downloads to HF Hub cache (/root/.cache), not /app/model.
+    This bypasses the 1GB Space repo storage limit — HF Hub cache is unlimited."""
     if direction in _nllb_available:
         return _nllb_available[direction]
 
-    # Respect DISABLE_NLLB env flag — used on CPU-only deployments (HF Space cpu-basic)
-    # where NLLB-200 (2.3GB) would OOM or time out.
-    if os.getenv("DISABLE_NLLB", "").strip() in ("1", "true", "yes"):
-        print(
-            f"[translate] NLLB disabled via DISABLE_NLLB env flag — skipping {direction}"
-        )
+    # Hard disable flag — only use when RAM is critically low
+    if os.getenv("DISABLE_NLLB", "0").strip() in ("1", "true", "yes"):
+        print(f"[translate] NLLB disabled via DISABLE_NLLB env flag — skipping {direction}")
         _nllb_available[direction] = False
         return False
 
     path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
 
-    # Auto-download from HuggingFace if not present locally
-    if not os.path.isdir(path) or not any(
-        f.endswith((".safetensors", ".bin"))
-        for f in os.listdir(path)
-        if os.path.isfile(os.path.join(path, f))
-    ):
+    # On HF Space cpu-basic: /app/model has 1GB limit so NLLB can't be stored there.
+    # Instead, stream from HF Hub cache (/root/.cache/huggingface) which is unlimited.
+    # Detect Space environment: no GPU + /app exists but model path is missing/tiny.
+    import torch as _torch_check
+    is_cpu_only = not _torch_check.cuda.is_available()
+    local_model_ok = (
+        os.path.isdir(path) and
+        any(f.endswith((".safetensors", ".bin")) for f in os.listdir(path)
+            if os.path.isfile(os.path.join(path, f)))
+    )
+
+    if not local_model_ok:
         hf_repos = {
             "en2lun": "keithtwesigye/lunyoro-nllb-en2lun",
             "lun2en": "keithtwesigye/lunyoro-nllb-lun2en",
@@ -463,19 +477,28 @@ def _load_nllb(direction: str) -> bool:
         repo_id = hf_repos.get(direction)
         if repo_id:
             try:
-                print(f"[translate] Downloading {repo_id} from HuggingFace...")
                 from huggingface_hub import snapshot_download
-
-                snapshot_download(
-                    repo_id=repo_id,
-                    local_dir=path,
-                    ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
-                )
-                print(f"[translate] Downloaded nllb_{direction} model.")
+                if is_cpu_only:
+                    # On cpu-basic: use HF Hub cache (don't write to /app/model)
+                    print(f"[translate] CPU-only: caching {repo_id} to HF Hub cache...")
+                    local_path = snapshot_download(
+                        repo_id=repo_id,
+                        ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
+                    )
+                    path = local_path
+                    print(f"[translate] Cached NLLB {direction} at {path}")
+                else:
+                    # GPU machine: download to /app/model as before
+                    print(f"[translate] Downloading {repo_id} -> {path}")
+                    os.makedirs(path, exist_ok=True)
+                    snapshot_download(
+                        repo_id=repo_id,
+                        local_dir=path,
+                        ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
+                    )
+                    print(f"[translate] Downloaded nllb_{direction} model.")
             except Exception as e:
-                print(
-                    f"[translate] Could not download nllb_{direction} from HuggingFace: {e}"
-                )
+                print(f"[translate] Could not download nllb_{direction}: {e}")
                 _nllb_available[direction] = False
                 return False
 
