@@ -33,11 +33,7 @@ export default function Home() {
       <main className={`pt-16 ${tab === "chat" ? "" : "min-h-screen"}`}>
         {tab === "home"       && <HomeDashboard onNavigate={setTab} />}
         {tab === "translate"  && <Translator />}
-        {tab === "chat"       && (
-          <div className="relative overflow-hidden" style={{ height: "calc(100vh - 144px)" }}>
-            <ChatPage />
-          </div>
-        )}
+        {tab === "chat"       && <ChatPage />}
         {tab === "editor"     && (
           <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
             <DocumentEditor />

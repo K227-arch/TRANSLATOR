@@ -358,8 +358,8 @@ export default function Translator() {
               )}
               {feedbackSent && !modelFeedbackSent && <p className="text-xs text-primary font-semibold">Thanks for the feedback!</p>}
 
-              {/* Model comparison */}
-              {(result.translation_marian || result.translation_nllb) && !modelFeedbackSent && (
+              {/* Model comparison — always visible when both models return output */}
+              {result.translation_marian && result.translation_nllb && !modelFeedbackSent && (
                 <div className="pt-2 border-t border-outline-variant/30 space-y-2">
                   <p className="text-xs text-on-surface-variant font-semibold">Which model is better?</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

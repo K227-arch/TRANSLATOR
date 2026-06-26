@@ -110,10 +110,17 @@ def preload_model():
 
     get_index_and_model()
     from translate import _load_mt, _load_nllb
-    _load_mt("en2lun")
-    _load_mt("lun2en")
-    _load_nllb("en2lun")
-    _load_nllb("lun2en")
+    if os.getenv("DISABLE_MARIAN", "0").strip() not in ("1", "true", "yes"):
+        _load_mt("en2lun")
+        _load_mt("lun2en")
+    else:
+        print("[startup] MarianMT disabled via DISABLE_MARIAN env")
+    # Load NLLB with error handling — don't crash startup if OOM
+    for d in ["en2lun", "lun2en"]:
+        try:
+            _load_nllb(d)
+        except Exception as _nllb_e:
+            print(f"[startup] NLLB {d} load failed (non-fatal): {_nllb_e}")
     # Pre-build grammar context once — it's static and large, no need to rebuild per request
     try:
         from language_rules import get_full_grammar_context
@@ -412,6 +419,48 @@ def submit_feedback(req: FeedbackRequest, request: Request):
         "sqs": round(sqs, 1) if sqs is not None else None,
     }
 
+
+
+
+@app.get("/debug-nllb")
+def debug_nllb():
+    """Try to load NLLB and return any error."""
+    import traceback
+    errors = {}
+    for direction in ["en2lun", "lun2en"]:
+        try:
+            from translate import _load_nllb, _nllb_available, MODEL_DIR
+            import os
+            path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
+            exists = os.path.isdir(path)
+            files = os.listdir(path) if exists else []
+            has_weights = any(f.endswith((".safetensors", ".bin")) for f in files)
+            
+            if not has_weights:
+                errors[direction] = f"No weights at {path}. Files: {files[:10]}"
+            else:
+                # Try loading
+                from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+                import torch
+                tok = AutoTokenizer.from_pretrained(path)
+                errors[direction] = f"Tokenizer OK. Vocab: {tok.vocab_size}. Trying model load (float16)..."
+                model = AutoModelForSeq2SeqLM.from_pretrained(path, torch_dtype=torch.float16)
+                errors[direction] = f"LOADED OK on CPU (float16). Params: {sum(p.numel() for p in model.parameters())/1e6:.0f}M"
+                del model
+                import gc; gc.collect()
+        except Exception as e:
+            errors[direction] = f"FAILED: {traceback.format_exc()[-500:]}"
+    
+    # Memory info
+    import psutil
+    mem = psutil.virtual_memory()
+    return {
+        "ram_total_gb": round(mem.total / 1e9, 1),
+        "ram_used_gb": round(mem.used / 1e9, 1),
+        "ram_available_gb": round(mem.available / 1e9, 1),
+        "ram_percent": mem.percent,
+        "nllb_status": errors,
+    }
 
 @app.get("/feedback/stats")
 def feedback_stats():

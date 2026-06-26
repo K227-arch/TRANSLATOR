@@ -294,6 +294,11 @@ def _load_mt(direction: str):
     if direction in _mt_available:
         return _mt_available[direction]
 
+    # Respect DISABLE_MARIAN flag — used on NLLB-only deployments
+    if os.getenv("DISABLE_MARIAN", "0").strip() in ("1", "true", "yes"):
+        _mt_available[direction] = False
+        return False
+
     path = os.path.join(MODEL_DIR, direction)
     onnx_path = os.path.join(MODEL_DIR, f"{direction}_onnx")
 
@@ -440,6 +445,25 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
     if direction == "en2lun" and result:
         result = _postprocess_lunyoro(result)
 
+    # Detect degenerate/hallucinated output (repetitive tokens like "Bi Bi Bi...")
+    if result:
+        import re as _re_deg
+        words = result.split()
+        if len(words) >= 5:
+            # Check if any single token makes up >40% of the output
+            from collections import Counter as _Counter
+            freq = _Counter(w.lower() for w in words)
+            most_common_word, most_common_count = freq.most_common(1)[0]
+            if most_common_count / len(words) > 0.4:
+                return None  # garbage — too repetitive
+            # Check for repeated bigrams (e.g. "Bi Bi Bi Bi")
+            bigrams = [f"{words[i]} {words[i+1]}" for i in range(len(words)-1)]
+            if bigrams:
+                bg_freq = _Counter(bigrams)
+                top_bg, top_bg_count = bg_freq.most_common(1)[0]
+                if top_bg_count / len(bigrams) > 0.35:
+                    return None  # garbage — repeated bigrams
+
     return result
 
 
@@ -507,7 +531,11 @@ def _load_nllb(direction: str) -> bool:
         import torch
 
         tokenizer = AutoTokenizer.from_pretrained(path)
-        model = AutoModelForSeq2SeqLM.from_pretrained(path)
+        # Load in float16 on CPU to halve memory usage (2.3GB → ~1.2GB)
+        # On GPU, float16 is natively fast; on CPU it's slower but avoids OOM
+        import torch
+        load_dtype = torch.float16 if not torch.cuda.is_available() else torch.float32
+        model = AutoModelForSeq2SeqLM.from_pretrained(path, torch_dtype=load_dtype)
         model.eval()
         if torch.cuda.device_count() >= 2:
             device = "cuda:1"
@@ -1070,7 +1098,7 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
 
     if marian or nllb:
         return {
-            "translation": marian or nllb,  # MarianMT is primary (better quality)
+            "translation": nllb or marian,  # NLLB is primary
             "translation_nllb": nllb,
             "translation_marian": marian,
             "method": "neural_mt",
