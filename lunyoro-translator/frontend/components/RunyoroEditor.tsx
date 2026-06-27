@@ -25,6 +25,8 @@ export default function RunyoroEditor() {
   const [saved, setSaved]             = useState(false);
   const [activeHint, setActiveHint]   = useState<number | null>(null);
   const [wordCount, setWordCount]     = useState(0);
+  const [translation, setTranslation] = useState("");
+  const [transLoading, setTransLoading] = useState(false);
 
   const editorRef  = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
@@ -177,6 +179,29 @@ export default function RunyoroEditor() {
     finally { setAiLoading(false); }
   }
 
+  // ── Translate text (Runyoro → English) ─────────────────────────────────────────
+  async function translateText() {
+    if (!text.trim()) return;
+    setTransLoading(true);
+    setTranslation("");
+    try {
+      const res = await fetch(`${API}/translate-reverse`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim() }),
+      });
+      const data = await res.json();
+      const nllb = data.translation_nllb || "";
+      const marian = data.translation_marian || "";
+      const primary = data.translation || "";
+      let output = primary;
+      if (nllb && marian && nllb !== marian) {
+        output = `NLLB: ${nllb}\nMarianMT: ${marian}`;
+      }
+      setTranslation(output || "No translation available.");
+    } catch { setTranslation("Translation failed — backend unavailable."); }
+    finally { setTransLoading(false); }
+  }
+
   // ── Save ──────────────────────────────────────────────────────────────────────
   function handleSave() {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
@@ -291,6 +316,14 @@ export default function RunyoroEditor() {
               {aiLoading ? "Checking..." : "AI Review"}
             </button>
             <button
+              onClick={translateText}
+              disabled={transLoading || !text.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-secondary-container text-secondary hover:bg-surface-container-low text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[16px]">translate</span>
+              {transLoading ? "Translating..." : "Translate"}
+            </button>
+            <button
               onClick={handleSave}
               className="flex items-center gap-1.5 bg-on-background text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 active:scale-95 transition-all"
             >
@@ -332,6 +365,17 @@ export default function RunyoroEditor() {
             <p className="text-xs font-semibold text-primary uppercase tracking-wide">AI Grammar Review</p>
           </div>
           <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
+        </div>
+      )}
+
+      {/* Translation panel */}
+      {translation && (
+        <div className="bg-secondary-fixed/30 border border-secondary-container/50 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-secondary text-[18px]">translate</span>
+            <p className="text-xs font-semibold text-secondary uppercase tracking-wide">English Translation</p>
+          </div>
+          <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap">{translation}</p>
         </div>
       )}
 
