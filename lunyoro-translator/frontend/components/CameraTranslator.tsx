@@ -15,7 +15,6 @@ type Direction = "en->lun" | "lun->en";
 export default function CameraTranslator() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -28,6 +27,8 @@ export default function CameraTranslator() {
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [showResults, setShowResults] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
 
   // Start camera
   const startCamera = useCallback(async () => {
@@ -44,7 +45,8 @@ export default function CameraTranslator() {
       setCameraActive(true);
       setCapturedImage(null);
       setRegions([]);
-    } catch (err) {
+      setScanCount(0);
+    } catch {
       setError("Could not access camera. Please allow camera permissions.");
     }
   }, [facingMode]);
@@ -64,7 +66,7 @@ export default function CameraTranslator() {
 
   // Capture frame and send to OCR
   const captureAndTranslate = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || loading) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -75,9 +77,7 @@ export default function CameraTranslator() {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
 
-    // Get base64 image
-    const imageData = canvas.toDataURL("image/jpeg", 0.8);
-    setCapturedImage(imageData);
+    const imageData = canvas.toDataURL("image/jpeg", 0.75);
     setLoading(true);
 
     try {
@@ -91,6 +91,7 @@ export default function CameraTranslator() {
         setError(data.error);
       } else {
         setRegions(data.regions || []);
+        setScanCount((c) => c + 1);
         setError("");
       }
     } catch {
@@ -98,9 +99,9 @@ export default function CameraTranslator() {
     } finally {
       setLoading(false);
     }
-  }, [direction]);
+  }, [direction, loading]);
 
-  // Auto-capture mode (every 3 seconds)
+  // Auto-capture mode
   useEffect(() => {
     if (cameraActive && !paused) {
       intervalRef.current = setInterval(captureAndTranslate, 3000);
@@ -125,6 +126,7 @@ export default function CameraTranslator() {
   };
   useEffect(() => {
     if (cameraActive) startCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
 
   // Upload image from gallery
@@ -138,7 +140,6 @@ export default function CameraTranslator() {
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("direction", direction);
 
     try {
       const res = await fetch(`${API}/ocr-translate?direction=${direction}`, {
@@ -158,264 +159,375 @@ export default function CameraTranslator() {
     }
   };
 
-  return (
-    <div className="flex flex-col items-center gap-4 py-4 px-4">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-on-background flex items-center gap-2 justify-center">
-          <span className="material-symbols-outlined text-primary">photo_camera</span>
-          Camera Translate
-        </h2>
-        <p className="text-on-surface-variant mt-1 text-sm max-w-xs mx-auto leading-relaxed">
-          Point your camera at text to translate it in real-time
-        </p>
+  // ── Full-screen camera active view ─────────────────────────────────
+  if (cameraActive) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        {/* Camera feed — fills screen */}
+        <div className="relative flex-1 overflow-hidden">
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
+
+          {/* Viewfinder corners */}
+          <div className="absolute inset-8 pointer-events-none">
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/60 rounded-tl-lg" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/60 rounded-tr-lg" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/60 rounded-bl-lg" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/60 rounded-br-lg" />
+          </div>
+
+          {/* Scan line animation */}
+          {!paused && (
+            <div className="absolute inset-x-8 top-8 bottom-8 pointer-events-none overflow-hidden">
+              <div
+                className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"
+                style={{ animation: "scanline 2.5s ease-in-out infinite" }}
+              />
+            </div>
+          )}
+
+          {/* Translation overlays */}
+          {showOverlay && regions.length > 0 && (
+            <div className="absolute inset-0 pointer-events-none">
+              {regions.map((region, i) => (
+                <div
+                  key={i}
+                  className="absolute flex items-center justify-center"
+                  style={{
+                    left: `${region.bbox_norm.x * 100}%`,
+                    top: `${region.bbox_norm.y * 100}%`,
+                    width: `${region.bbox_norm.width * 100}%`,
+                    height: `${region.bbox_norm.height * 100}%`,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px] rounded" />
+                  <span
+                    className="relative text-green-300 font-bold text-center px-1 leading-tight drop-shadow-lg"
+                    style={{
+                      fontSize: `clamp(9px, ${Math.max(region.bbox_norm.height * 50, 2)}vw, 20px)`,
+                    }}
+                  >
+                    {region.translated}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Top status bar */}
+          <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/60 to-transparent p-4 pt-5">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => { stopCamera(); }}
+                className="w-9 h-9 bg-white/15 backdrop-blur-md rounded-full flex items-center justify-center active:scale-90 transition-all"
+              >
+                <span className="material-symbols-outlined text-white text-[20px]">close</span>
+              </button>
+
+              {/* Direction pill */}
+              <button
+                onClick={() => setDirection(direction === "en->lun" ? "lun->en" : "en->lun")}
+                className="bg-white/15 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <span className="text-white text-xs font-medium">
+                  {direction === "en->lun" ? "EN" : "LUN"}
+                </span>
+                <span className="material-symbols-outlined text-white/80 text-[14px]">swap_horiz</span>
+                <span className="text-white text-xs font-medium">
+                  {direction === "en->lun" ? "LUN" : "EN"}
+                </span>
+              </button>
+
+              {/* Status */}
+              <div className="flex items-center gap-2">
+                {loading && (
+                  <div className="w-9 h-9 bg-primary/80 backdrop-blur-md rounded-full flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  </div>
+                )}
+                {!loading && regions.length > 0 && (
+                  <div className="bg-green-500/80 backdrop-blur-md rounded-full px-2.5 py-1 text-white text-[10px] font-bold">
+                    {regions.length} found
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom controls */}
+          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-6 pb-8">
+            <div className="flex items-center justify-center gap-5">
+              {/* Gallery / Upload */}
+              <label className="w-12 h-12 bg-white/15 backdrop-blur-md rounded-full flex items-center justify-center cursor-pointer active:scale-90 transition-all">
+                <span className="material-symbols-outlined text-white text-[22px]">photo_library</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+              </label>
+
+              {/* Main capture button */}
+              <button
+                onClick={captureAndTranslate}
+                disabled={loading}
+                className="w-[72px] h-[72px] rounded-full border-[4px] border-white/80 flex items-center justify-center active:scale-90 transition-all disabled:opacity-50"
+              >
+                <div className={`w-[58px] h-[58px] rounded-full flex items-center justify-center transition-all ${loading ? "bg-primary/80" : "bg-white"}`}>
+                  <span className={`material-symbols-outlined text-[30px] ${loading ? "text-white animate-pulse" : "text-black"}`}>
+                    {loading ? "hourglass_top" : "center_focus_strong"}
+                  </span>
+                </div>
+              </button>
+
+              {/* Switch camera */}
+              <button
+                onClick={switchCamera}
+                className="w-12 h-12 bg-white/15 backdrop-blur-md rounded-full flex items-center justify-center active:scale-90 transition-all"
+              >
+                <span className="material-symbols-outlined text-white text-[22px]">flip_camera_ios</span>
+              </button>
+            </div>
+
+            {/* Secondary controls row */}
+            <div className="flex items-center justify-center gap-4 mt-4">
+              <button
+                onClick={() => setPaused(!paused)}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all ${
+                  paused
+                    ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40"
+                    : "bg-white/10 text-white/70 border border-white/20"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">
+                  {paused ? "play_arrow" : "pause"}
+                </span>
+                {paused ? "Resume" : "Auto-scan"}
+              </button>
+
+              <button
+                onClick={() => setShowOverlay(!showOverlay)}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all ${
+                  showOverlay
+                    ? "bg-green-500/20 text-green-300 border border-green-500/40"
+                    : "bg-white/10 text-white/70 border border-white/20"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">
+                  {showOverlay ? "visibility" : "visibility_off"}
+                </span>
+                Overlay
+              </button>
+
+              {regions.length > 0 && (
+                <button
+                  onClick={() => setShowResults(!showResults)}
+                  className="px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1 bg-white/10 text-white/70 border border-white/20 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[14px]">list</span>
+                  Results
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Results panel (slide up) */}
+          {showResults && regions.length > 0 && (
+            <div className="absolute bottom-36 inset-x-4 max-h-[40vh] bg-black/85 backdrop-blur-lg rounded-2xl overflow-hidden border border-white/10">
+              <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
+                <span className="text-white/80 text-xs font-semibold">{regions.length} translations</span>
+                <button onClick={() => setShowResults(false)} className="text-white/50 active:text-white">
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+              <div className="overflow-y-auto max-h-[30vh] px-4 py-3 space-y-2">
+                {Array.from({ length: Math.ceil(regions.length / 2) }, (_, i) => {
+                  const pair = regions.slice(i * 2, i * 2 + 2);
+                  return (
+                    <p key={i} className="text-sm leading-relaxed">
+                      {pair.map((region, j) => (
+                        <span key={j}>
+                          <span className="text-white/50">{region.original}</span>
+                          {" → "}
+                          <span className="text-green-300 font-medium">{region.translated}</span>
+                          {j === 0 && pair.length > 1 && <span className="text-white/20">{" · "}</span>}
+                        </span>
+                      ))}
+                    </p>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Hidden canvas */}
+        <canvas ref={canvasRef} className="hidden" />
+
+        {/* Scan line keyframe style */}
+        <style jsx>{`
+          @keyframes scanline {
+            0%, 100% { top: 0; }
+            50% { top: 100%; }
+          }
+        `}</style>
       </div>
+    );
+  }
+
+  // ── Inactive / Upload state ────────────────────────────────────────
+  return (
+    <div className="flex flex-col gap-6 py-2 w-full items-center justify-between" style={{ minWidth: 0, minHeight: "calc(100vh - 160px)" }}>
+      {/* Top section */}
+      <div className="flex flex-col items-center gap-6 w-full">
+        {/* Uploaded image with results */}
+        {capturedImage && (
+        <div className="relative w-full max-w-lg aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-outline-variant/30">
+          <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+
+          {/* Overlay */}
+          {showOverlay && regions.length > 0 && (
+            <div className="absolute inset-0 pointer-events-none">
+              {regions.map((region, i) => (
+                <div
+                  key={i}
+                  className="absolute flex items-center justify-center"
+                  style={{
+                    left: `${region.bbox_norm.x * 100}%`,
+                    top: `${region.bbox_norm.y * 100}%`,
+                    width: `${region.bbox_norm.width * 100}%`,
+                    height: `${region.bbox_norm.height * 100}%`,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px] rounded" />
+                  <span
+                    className="relative text-green-300 font-bold text-center px-1 leading-tight"
+                    style={{ fontSize: `clamp(9px, ${region.bbox_norm.height * 50}vw, 18px)` }}
+                  >
+                    {region.translated}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {loading && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <div className="bg-black/70 backdrop-blur-md rounded-2xl px-5 py-3 flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="text-white text-sm font-medium">Scanning...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Direction toggle */}
-      <div className="flex items-center gap-3 bg-surface-container rounded-xl p-1">
+      <div className="flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-full p-1 shadow-sm">
         <button
           onClick={() => setDirection("en->lun")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
             direction === "en->lun"
               ? "bg-primary text-on-primary shadow-sm"
-              : "text-on-surface-variant hover:text-primary"
+              : "text-on-surface-variant"
           }`}
         >
           English → Runyoro
         </button>
         <button
           onClick={() => setDirection("lun->en")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
             direction === "lun->en"
               ? "bg-primary text-on-primary shadow-sm"
-              : "text-on-surface-variant hover:text-primary"
+              : "text-on-surface-variant"
           }`}
         >
           Runyoro → English
         </button>
       </div>
 
-      {/* Camera viewport */}
-      <div className="relative w-full max-w-lg aspect-[4/3] bg-surface-container-highest rounded-2xl overflow-hidden shadow-lg">
-        {/* Video feed */}
-        <video
-          ref={videoRef}
-          className={`w-full h-full object-cover ${!cameraActive || capturedImage ? "hidden" : ""}`}
-          playsInline
-          muted
-          autoPlay
-        />
+      {/* Action buttons */}
+      <div className="flex items-center justify-center gap-4 w-full">
+        <button
+          onClick={startCamera}
+          className="flex flex-col items-center gap-2 bg-primary text-on-primary px-8 py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
+        >
+          <span className="material-symbols-outlined text-[32px]">photo_camera</span>
+          <span className="text-sm font-semibold">Open Camera</span>
+        </button>
 
-        {/* Captured image */}
-        {capturedImage && !cameraActive && (
-          <img
-            src={capturedImage}
-            alt="Captured"
-            className="w-full h-full object-cover"
-          />
-        )}
-
-        {/* Placeholder when no camera */}
-        {!cameraActive && !capturedImage && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-on-surface-variant">
-            <span className="material-symbols-outlined text-[64px] opacity-40">photo_camera</span>
-            <p className="text-sm mt-2 opacity-60">Camera off</p>
-          </div>
-        )}
-
-        {/* Translation overlay */}
-        {showOverlay && (cameraActive || capturedImage) && (
-          <div ref={overlayRef} className="absolute inset-0 pointer-events-none">
-            {regions.map((region, i) => (
-              <div
-                key={i}
-                className="absolute flex items-center justify-center"
-                style={{
-                  left: `${region.bbox_norm.x * 100}%`,
-                  top: `${region.bbox_norm.y * 100}%`,
-                  width: `${region.bbox_norm.width * 100}%`,
-                  height: `${region.bbox_norm.height * 100}%`,
-                }}
-              >
-                {/* Background blur effect */}
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm rounded-sm" />
-                {/* Translated text */}
-                <span
-                  className="relative text-white font-bold text-center px-1 leading-tight"
-                  style={{
-                    fontSize: `clamp(8px, ${region.bbox_norm.height * 60}vw, 18px)`,
-                  }}
-                >
-                  {region.translated}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Loading indicator */}
-        {loading && (
-          <div className="absolute top-3 right-3 bg-primary/90 text-on-primary px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-lg">
-            <div className="w-3 h-3 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
-            Translating...
-          </div>
-        )}
-
-        {/* Scan line animation when active */}
-        {cameraActive && !paused && (
-          <div className="absolute inset-x-0 top-0 h-0.5 bg-primary/60 animate-pulse" />
-        )}
-      </div>
-
-      {/* Hidden canvas for frame capture */}
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* Controls */}
-      <div className="flex items-center gap-3">
-        {!cameraActive ? (
-          <>
-            <button
-              onClick={startCamera}
-              className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-semibold text-sm shadow-md active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-              Start Camera
-            </button>
-            <label className="flex items-center gap-2 bg-surface-container-high text-on-surface px-5 py-3 rounded-xl font-medium text-sm cursor-pointer active:scale-95 transition-all border border-outline-variant/40">
-              <span className="material-symbols-outlined text-[20px]">upload</span>
-              Upload
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-            </label>
-          </>
-        ) : (
-          <>
-            {/* Capture button */}
-            <button
-              onClick={captureAndTranslate}
-              disabled={loading}
-              className="w-14 h-14 bg-primary text-on-primary rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-[28px]">
-                {loading ? "hourglass_top" : "center_focus_strong"}
-              </span>
-            </button>
-
-            {/* Pause/Resume auto-scan */}
-            <button
-              onClick={() => setPaused(!paused)}
-              className="w-11 h-11 bg-surface-container-high text-on-surface rounded-full flex items-center justify-center border border-outline-variant/40 active:scale-90 transition-all"
-            >
-              <span className="material-symbols-outlined text-[22px]">
-                {paused ? "play_arrow" : "pause"}
-              </span>
-            </button>
-
-            {/* Switch camera */}
-            <button
-              onClick={switchCamera}
-              className="w-11 h-11 bg-surface-container-high text-on-surface rounded-full flex items-center justify-center border border-outline-variant/40 active:scale-90 transition-all"
-            >
-              <span className="material-symbols-outlined text-[22px]">flip_camera_ios</span>
-            </button>
-
-            {/* Toggle overlay */}
-            <button
-              onClick={() => setShowOverlay(!showOverlay)}
-              className={`w-11 h-11 rounded-full flex items-center justify-center border active:scale-90 transition-all ${
-                showOverlay
-                  ? "bg-primary/10 text-primary border-primary/40"
-                  : "bg-surface-container-high text-on-surface border-outline-variant/40"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[22px]">
-                {showOverlay ? "visibility" : "visibility_off"}
-              </span>
-            </button>
-
-            {/* Stop camera */}
-            <button
-              onClick={stopCamera}
-              className="w-11 h-11 bg-error/10 text-error rounded-full flex items-center justify-center border border-error/30 active:scale-90 transition-all"
-            >
-              <span className="material-symbols-outlined text-[22px]">stop</span>
-            </button>
-          </>
-        )}
+        <label className="flex flex-col items-center gap-2 bg-surface-container-lowest border border-outline-variant/40 text-on-surface px-8 py-5 rounded-2xl cursor-pointer active:scale-95 transition-all shadow-sm">
+          <span className="material-symbols-outlined text-[32px] text-primary">photo_library</span>
+          <span className="text-sm font-medium">Upload Image</span>
+          <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+        </label>
       </div>
 
       {/* Error message */}
       {error && (
-        <div className="bg-error-container/30 border border-error/30 rounded-xl px-4 py-3 text-sm text-error max-w-lg w-full">
+        <div className="bg-error-container/30 border border-error/30 rounded-xl px-4 py-3 text-sm text-error max-w-lg w-full text-center">
           <span className="material-symbols-outlined text-[16px] align-middle mr-1">error</span>
           {error}
         </div>
       )}
 
-      {/* Detected text list */}
+      {/* Results list */}
       {regions.length > 0 && (
-        <div className="w-full max-w-lg bg-surface-container-lowest border border-outline-variant/40 rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 border-b border-outline-variant/30 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-on-background">
-              Detected Text ({regions.length})
-            </h3>
-            <span className="text-xs text-on-surface-variant">
-              {direction === "en->lun" ? "EN → LUN" : "LUN → EN"}
-            </span>
+        <div className="w-full max-w-lg bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container/30">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[18px]">translate</span>
+              <h3 className="text-sm font-semibold text-on-background">
+                {regions.length} Translation{regions.length > 1 ? "s" : ""}
+              </h3>
+            </div>
+            <button
+              onClick={() => setShowOverlay(!showOverlay)}
+              className="text-xs text-primary font-medium"
+            >
+              {showOverlay ? "Hide overlay" : "Show overlay"}
+            </button>
           </div>
-          <div className="divide-y divide-outline-variant/20 max-h-64 overflow-y-auto">
-            {regions.map((region, i) => (
-              <div key={i} className="px-4 py-3 flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">
-                    {Math.round(region.confidence * 100)}%
-                  </span>
-                  <span className="text-sm text-on-surface-variant line-through opacity-70">
-                    {region.original}
-                  </span>
-                </div>
-                <span className="text-sm font-medium text-primary">
-                  {region.translated}
-                </span>
-              </div>
-            ))}
+          <div className="px-4 py-3 max-h-72 overflow-y-auto space-y-2">
+            {Array.from({ length: Math.ceil(regions.length / 2) }, (_, i) => {
+              const pair = regions.slice(i * 2, i * 2 + 2);
+              return (
+                <p key={i} className="text-sm leading-relaxed">
+                  {pair.map((region, j) => (
+                    <span key={j}>
+                      <span className="text-on-surface-variant">{region.original}</span>
+                      {" → "}
+                      <span className="font-semibold text-primary">{region.translated}</span>
+                      {j === 0 && pair.length > 1 && <span className="text-on-surface-variant/40">{" · "}</span>}
+                    </span>
+                  ))}
+                </p>
+              );
+            })}
           </div>
         </div>
       )}
+      </div>{/* end top section */}
 
-      {/* Instructions */}
-      {!cameraActive && !capturedImage && regions.length === 0 && (
-        <div className="w-full max-w-lg bg-surface-container/50 rounded-2xl p-5 text-center">
-          <div className="flex justify-center gap-6 mb-4">
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="w-10 h-10 bg-primary-container/40 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-[22px]">photo_camera</span>
-              </div>
-              <span className="text-xs text-on-surface-variant">Point</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="w-10 h-10 bg-primary-container/40 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-[22px]">text_fields</span>
-              </div>
-              <span className="text-xs text-on-surface-variant">Detect</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="w-10 h-10 bg-primary-container/40 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-[22px]">g_translate</span>
-              </div>
-              <span className="text-xs text-on-surface-variant">Translate</span>
-            </div>
+      {/* Instructions — pinned to bottom above nav bar */}
+      {!capturedImage && regions.length === 0 && (
+        <div style={{ width: "100%", maxWidth: "380px", textAlign: "center", padding: "0 16px", marginTop: "auto" }}>
+          <div className="flex justify-center gap-1 mb-3">
+            {["photo_camera", "arrow_forward", "text_fields", "arrow_forward", "g_translate"].map((icon, i) => (
+              <span key={i} className={`material-symbols-outlined ${i % 2 === 0 ? "text-primary text-[28px]" : "text-on-surface-variant/40 text-[18px]"}`}>
+                {icon}
+              </span>
+            ))}
           </div>
-          <p className="text-sm text-on-surface-variant leading-relaxed">
-            Point your camera at signs, documents, or menus to instantly translate text.
-            Works with English ↔ Runyoro/Rutooro.
+          <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--color-on-surface-variant)", whiteSpace: "normal", wordBreak: "normal", overflowWrap: "break-word" }}>
+            Point your camera at signs, documents, or menus to instantly detect and translate text into Runyoro/Rutooro. Powered by AI Stick Lens.
           </p>
         </div>
       )}
+
+      {/* Hidden canvas */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

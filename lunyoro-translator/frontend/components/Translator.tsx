@@ -300,14 +300,14 @@ export default function Translator() {
           {result && (
             <div className="mt-2 flex gap-2 flex-wrap">
               {result.method === "neural_mt" && result.translation === result.translation_nllb && result.translation_nllb && !preferredModel && (
-                <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full font-semibold">NLLB-200</span>
+                <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full font-semibold">NLLB</span>
               )}
               {result.method === "neural_mt" && result.translation === result.translation_marian && !preferredModel && (
                 <span className="text-xs bg-primary-fixed text-on-primary-fixed px-2 py-0.5 rounded-full font-semibold">MarianMT</span>
               )}
               {preferredModel && (
                 <span className="text-xs bg-primary-fixed text-on-primary-fixed px-2 py-0.5 rounded-full font-semibold">
-                  {preferredModel === "marian" ? "MarianMT" : "NLLB-200"} ✓
+                  {preferredModel === "marian" ? "MarianMT" : "NLLB"} ✓
                 </span>
               )}
               {result.method === "selective_rag" && (
@@ -365,7 +365,7 @@ export default function Translator() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {([
                       ...(result.translation_marian ? [{id:"marian" as const, label:"MarianMT", text:result.translation_marian}] : []),
-                      ...(result.translation_nllb   ? [{id:"nllb"   as const, label:"NLLB-200", text:result.translation_nllb}]   : []),
+                      ...(result.translation_nllb   ? [{id:"nllb"   as const, label:"NLLB", text:result.translation_nllb}]   : []),
                       {id:"both" as const, label:"Both correct", text:"Both translations are accurate"},
                       {id:"none" as const, label:"Both wrong",   text:"Neither is accurate"},
                     ]).map(({id, label, text}) => (

@@ -24,7 +24,7 @@ export default function Home() {
     history: "History",
     voice: "Voice",
     editor: "Editor",
-    camera: "Camera Translate",
+    camera: "AI Stick Lens",
   };
 
   return (

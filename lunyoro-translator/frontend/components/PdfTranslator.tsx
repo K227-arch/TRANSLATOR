@@ -125,7 +125,7 @@ export default function PdfTranslator() {
                       <p className="text-xs text-on-surface-variant"><span className="font-semibold text-primary">MarianMT:</span> {summary.summary_lunyoro_marian}</p>
                     )}
                     {summary.summary_lunyoro_nllb && (
-                      <p className="text-xs text-on-surface-variant"><span className="font-semibold text-purple-600">NLLB-200:</span> {summary.summary_lunyoro_nllb}</p>
+                      <p className="text-xs text-on-surface-variant"><span className="font-semibold text-purple-600">NLLB:</span> {summary.summary_lunyoro_nllb}</p>
                     )}
                   </div>
                 </details>

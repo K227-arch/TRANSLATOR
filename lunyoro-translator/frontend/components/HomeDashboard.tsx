@@ -19,11 +19,11 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
   }, []);
 
   const tools: { id: Tab; icon: string; title: string; desc: string; span?: boolean; iconBg: string; iconColor: string; size?: "lg" | "sm" }[] = [
-    { id: "translate",  icon: "g_translate", title: "Translator",      desc: "Neural translation: English ↔ Runyoro-Rutooro.",     span: true, iconBg: "bg-secondary-container",  iconColor: "text-on-secondary-container", size: "lg" },
+    { id: "translate",  icon: "g_translate", title: "Translator",      desc: "Translate English ↔ Runyoro-Rutooro.",     span: true, iconBg: "bg-secondary-container",  iconColor: "text-on-secondary-container", size: "lg" },
     { id: "editor",     icon: "edit_note",   title: "Word Editor",     desc: "Write & refine in Runyoro-Rutooro.",                 iconBg: "bg-surface-container-highest", iconColor: "text-primary",             size: "sm" },
     { id: "chat",       icon: "chat_bubble", title: "AI Chat",         desc: "Ask about grammar or culture.",                      iconBg: "bg-primary-container/20",      iconColor: "text-primary",             size: "sm" },
     { id: "voice",      icon: "mic",         title: "Voice",           desc: "Speak and translate in real time.",     span: true,  iconBg: "bg-tertiary-container/40",     iconColor: "text-tertiary" },
-    { id: "camera",     icon: "photo_camera", title: "Camera",         desc: "Point & translate like Google Lens.", span: true,  iconBg: "bg-primary-container/30",      iconColor: "text-primary" },
+    { id: "camera",     icon: "photo_camera", title: "AI Stick Lens",  desc: "Point camera & translate text instantly.", span: true,  iconBg: "bg-primary-container/30",      iconColor: "text-primary" },
     { id: "dictionary", icon: "menu_book",   title: "Dictionary",      desc: "Explore word roots and definitions.",   span: true,  iconBg: "bg-secondary-fixed",           iconColor: "text-on-secondary-fixed" },
     { id: "history",    icon: "history",     title: "History",         desc: "Browse your recent translations.",      span: true,  iconBg: "bg-surface-container-high",    iconColor: "text-on-surface" },
   ];
@@ -43,7 +43,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
               Translate with<br /><span className="text-primary">Precision.</span>
             </h1>
             <p className="text-base text-on-surface-variant mb-6 max-w-[80%]">
-              Fine-tuned MarianMT + NLLB-200 models for the Runyoro-Rutooro language.
+              AI-powered translation for the Runyoro-Rutooro language.
             </p>
             <button onClick={() => onNavigate("translate")}
               className="bg-primary text-on-primary px-6 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 active:scale-95 transition-all shadow-md hover:opacity-90">
@@ -91,10 +91,10 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
           {sysInfo ? (
             <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
               {[
-                { label: "MarianMT en→lun", ok: sysInfo.marian_en2lun },
-                { label: "MarianMT lun→en", ok: sysInfo.marian_lun2en },
-                { label: "NLLB-200 en→lun", ok: sysInfo.nllb_en2lun },
-                { label: "NLLB-200 lun→en", ok: sysInfo.nllb_lun2en },
+                { label: "Translation en→lun", ok: sysInfo.marian_en2lun },
+                { label: "Translation lun→en", ok: sysInfo.marian_lun2en },
+                { label: "Advanced en→lun", ok: sysInfo.nllb_en2lun },
+                { label: "Advanced lun→en", ok: sysInfo.nllb_lun2en },
               ].map(({ label, ok }) => (
                 <div key={label} className="flex items-center justify-between text-on-surface-variant">
                   <span className="text-xs">{label}</span>
@@ -106,7 +106,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
               <div className="flex items-center justify-between text-on-surface-variant col-span-2 border-t border-outline-variant/30 pt-1.5 mt-0.5">
                 <span className="text-xs">Inference</span>
                 <span className="text-xs font-semibold text-on-surface">
-                  {sysInfo.gpu_available ? "GPU" : sysInfo.marian_onnx ? "ONNX CPU" : "CPU"}
+                  {sysInfo.gpu_available ? "GPU" : sysInfo.marian_onnx ? "Optimized CPU" : "CPU"}
                 </span>
               </div>
             </div>
