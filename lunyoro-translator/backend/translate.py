@@ -267,13 +267,35 @@ def _load_retrieval():
     sem_path = _index["model_name"]
 
     # Prefer local sem_model dir (always present when downloaded by download_models.py)
+    # But verify tokenizer.json is valid (not an LFS pointer)
+    local_sem_ok = False
     if os.path.isdir(SEM_MODEL_DIR) and any(
         f.endswith((".json", ".safetensors", ".bin", ".pt"))
         for f in os.listdir(SEM_MODEL_DIR)
     ):
+        # Check that tokenizer.json is actually valid JSON (not an LFS pointer)
+        tok_path = os.path.join(SEM_MODEL_DIR, "tokenizer.json")
+        if os.path.exists(tok_path):
+            try:
+                import json
+                with open(tok_path, "r") as tf:
+                    first_char = tf.read(1)
+                    if first_char in ("{", "["):
+                        local_sem_ok = True
+                    else:
+                        print(f"[translate] tokenizer.json appears to be an LFS pointer, skipping local")
+            except Exception:
+                pass
+        else:
+            local_sem_ok = True  # no tokenizer.json but other files exist
+
+    if local_sem_ok:
         sem_path = SEM_MODEL_DIR
         print(f"[translate] Loading sem_model from local path: {SEM_MODEL_DIR}")
     else:
+        # Fall back to HuggingFace Hub
+        hf_sem = HF_MODELS.get("sem_model", "keithtwesigye/lunyoro-sentence-embeddings")
+        sem_path = hf_sem
         print(f"[translate] Loading sem_model from HF Hub: {sem_path}")
 
     _sem_model = SentenceTransformer(sem_path)

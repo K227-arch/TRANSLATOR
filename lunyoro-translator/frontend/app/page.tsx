@@ -9,8 +9,9 @@ import DocumentEditor from "@/components/DocumentEditor";
 import Dictionary from "@/components/Dictionary";
 import History from "@/components/History";
 import VoiceTranslator from "@/components/VoiceTranslator";
+import CameraTranslator from "@/components/CameraTranslator";
 
-export type Tab = "home" | "translate" | "chat" | "editor" | "dictionary" | "history" | "voice";
+export type Tab = "home" | "translate" | "chat" | "editor" | "dictionary" | "history" | "voice" | "camera";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home");
@@ -23,6 +24,7 @@ export default function Home() {
     history: "History",
     voice: "Voice",
     editor: "Editor",
+    camera: "Camera Translate",
   };
 
   return (
@@ -52,6 +54,11 @@ export default function Home() {
         {tab === "voice"      && (
           <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
             <VoiceTranslator />
+          </div>
+        )}
+        {tab === "camera"     && (
+          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
+            <CameraTranslator />
           </div>
         )}
       </main>

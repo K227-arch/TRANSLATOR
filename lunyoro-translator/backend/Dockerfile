@@ -17,8 +17,8 @@ COPY . .
 # Create model and history directories
 RUN mkdir -p /app/model /app/history
 
-# Pre-download the sentence-transformer model so it's available offline at runtime
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+# The sem_model loads from HuggingFace Hub at runtime (translate.py handles this)
+# No need to pre-download — avoids build timeout on free tier
 
 EXPOSE 8000
 

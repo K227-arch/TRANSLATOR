@@ -23,6 +23,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
     { id: "editor",     icon: "edit_note",   title: "Word Editor",     desc: "Write & refine in Runyoro-Rutooro.",                 iconBg: "bg-surface-container-highest", iconColor: "text-primary",             size: "sm" },
     { id: "chat",       icon: "chat_bubble", title: "AI Chat",         desc: "Ask about grammar or culture.",                      iconBg: "bg-primary-container/20",      iconColor: "text-primary",             size: "sm" },
     { id: "voice",      icon: "mic",         title: "Voice",           desc: "Speak and translate in real time.",     span: true,  iconBg: "bg-tertiary-container/40",     iconColor: "text-tertiary" },
+    { id: "camera",     icon: "photo_camera", title: "Camera",         desc: "Point & translate like Google Lens.", span: true,  iconBg: "bg-primary-container/30",      iconColor: "text-primary" },
     { id: "dictionary", icon: "menu_book",   title: "Dictionary",      desc: "Explore word roots and definitions.",   span: true,  iconBg: "bg-secondary-fixed",           iconColor: "text-on-secondary-fixed" },
     { id: "history",    icon: "history",     title: "History",         desc: "Browse your recent translations.",      span: true,  iconBg: "bg-surface-container-high",    iconColor: "text-on-surface" },
   ];

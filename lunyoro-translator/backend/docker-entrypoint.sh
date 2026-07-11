@@ -8,10 +8,8 @@ if [ "$DOWNLOAD_MODELS_ON_START" = "1" ]; then
     python download_models.py
 fi
 
-# Set offline mode after download so inference never hits the network
-export TRANSFORMERS_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
-export HF_HUB_OFFLINE=1
+# NOTE: Do NOT set offline mode — sem_model may need to download from HF Hub
+# if the local copy has corrupted tokenizer.json (LFS pointer issue)
 
 echo "=== Starting backend ==="
 exec uvicorn main:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 1

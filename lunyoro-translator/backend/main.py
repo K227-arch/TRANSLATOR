@@ -15,10 +15,12 @@ try:
 except ImportError:
     pass
 
-# Ensure all HuggingFace/transformers calls stay fully offline
-os.environ.setdefault("TRANSFORMERS_OFFLINE", os.getenv("TRANSFORMERS_OFFLINE", "1"))
-os.environ.setdefault("HF_DATASETS_OFFLINE", os.getenv("HF_DATASETS_OFFLINE", "1"))
-os.environ.setdefault("HF_HUB_OFFLINE", os.getenv("HF_HUB_OFFLINE", "1"))
+# Allow HuggingFace Hub downloads for models (sem_model may need to download)
+# Set offline mode only if explicitly requested via environment variable
+if os.getenv("FORCE_OFFLINE", "0").strip() in ("1", "true", "yes"):
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    os.environ["HF_DATASETS_OFFLINE"] = "1"
+    os.environ["HF_HUB_OFFLINE"] = "1"
 
 from translate import translate, translate_to_english, lookup_word, spellcheck, get_index_and_model
 from translate import _mt_translate, _nllb_translate
@@ -1402,3 +1404,182 @@ def kg_derivations():
     kg = _get_kg()
     derivations = kg.find_nodes(node_type="DERIVATION")
     return {"derivations": derivations, "count": len(derivations)}
+
+
+# ── Camera OCR Translation (Google Lens-like feature) ─────────────────────────
+import base64
+import io
+from typing import Optional
+
+@app.post("/ocr-translate")
+async def ocr_translate(file: UploadFile = File(...), direction: str = "en->lun"):
+    """
+    Accept an image, run OCR to detect text regions, translate each region,
+    and return bounding boxes with original + translated text for overlay.
+    """
+    import numpy as np
+
+    try:
+        import easyocr
+    except ImportError:
+        return {"error": "EasyOCR not installed. Install with: pip install easyocr"}
+
+    # Read image bytes
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+
+    try:
+        import cv2
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    except ImportError:
+        return {"error": "OpenCV not installed. Install with: pip install opencv-python-headless"}
+
+    if img is None:
+        return {"error": "Could not decode image"}
+
+    # Get image dimensions
+    h, w = img.shape[:2]
+
+    # Run EasyOCR
+    reader = easyocr.Reader(["en"], gpu=False)
+    results = reader.readtext(img)
+
+    # Translate each detected text region
+    from translate import _nllb_translate, _load_nllb, _mt_translate
+
+    translated_regions = []
+    for (bbox, text, confidence) in results:
+        if confidence < 0.3 or not text.strip():
+            continue
+
+        # bbox is [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]
+        x_min = int(min(p[0] for p in bbox))
+        y_min = int(min(p[1] for p in bbox))
+        x_max = int(max(p[0] for p in bbox))
+        y_max = int(max(p[1] for p in bbox))
+
+        # Translate the detected text
+        translation = None
+        if direction == "en->lun":
+            # Try NLLB first, fall back to MarianMT
+            translation = _nllb_translate(text, "en2lun")
+            if not translation:
+                translation = _mt_translate(text, "en2lun")
+        else:
+            translation = _nllb_translate(text, "lun2en")
+            if not translation:
+                translation = _mt_translate(text, "lun2en")
+
+        translated_regions.append({
+            "original": text,
+            "translated": translation or text,
+            "confidence": round(confidence, 2),
+            "bbox": {
+                "x": x_min,
+                "y": y_min,
+                "width": x_max - x_min,
+                "height": y_max - y_min,
+            },
+            # Normalized coordinates (0-1) for responsive overlay
+            "bbox_norm": {
+                "x": round(x_min / w, 4),
+                "y": round(y_min / h, 4),
+                "width": round((x_max - x_min) / w, 4),
+                "height": round((y_max - y_min) / h, 4),
+            }
+        })
+
+    return {
+        "regions": translated_regions,
+        "image_size": {"width": w, "height": h},
+        "direction": direction,
+        "total_detected": len(results),
+        "total_translated": len(translated_regions),
+    }
+
+
+@app.post("/ocr-translate-base64")
+async def ocr_translate_base64(request: Request):
+    """
+    Accept a base64-encoded image frame (from camera), run OCR + translate.
+    Optimized for real-time camera usage — lighter processing.
+    """
+    import numpy as np
+
+    try:
+        import easyocr
+    except ImportError:
+        return {"error": "EasyOCR not installed"}
+
+    body = await request.json()
+    image_data = body.get("image", "")
+    direction = body.get("direction", "en->lun")
+
+    # Decode base64 image
+    if "," in image_data:
+        image_data = image_data.split(",", 1)[1]
+
+    try:
+        img_bytes = base64.b64decode(image_data)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        import cv2
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    except Exception as e:
+        return {"error": f"Could not decode image: {e}"}
+
+    if img is None:
+        return {"error": "Invalid image data"}
+
+    h, w = img.shape[:2]
+
+    # Run EasyOCR (use cached reader for performance)
+    global _ocr_reader
+    if "_ocr_reader" not in globals() or _ocr_reader is None:
+        _ocr_reader = easyocr.Reader(["en"], gpu=False)
+
+    results = _ocr_reader.readtext(img)
+
+    # Translate each region
+    from translate import _nllb_translate, _mt_translate
+
+    translated_regions = []
+    for (bbox, text, confidence) in results:
+        if confidence < 0.3 or not text.strip():
+            continue
+
+        x_min = int(min(p[0] for p in bbox))
+        y_min = int(min(p[1] for p in bbox))
+        x_max = int(max(p[0] for p in bbox))
+        y_max = int(max(p[1] for p in bbox))
+
+        # Translate
+        translation = None
+        if direction == "en->lun":
+            translation = _nllb_translate(text, "en2lun")
+            if not translation:
+                translation = _mt_translate(text, "en2lun")
+        else:
+            translation = _nllb_translate(text, "lun2en")
+            if not translation:
+                translation = _mt_translate(text, "lun2en")
+
+        translated_regions.append({
+            "original": text,
+            "translated": translation or text,
+            "confidence": round(confidence, 2),
+            "bbox_norm": {
+                "x": round(x_min / w, 4),
+                "y": round(y_min / h, 4),
+                "width": round((x_max - x_min) / w, 4),
+                "height": round((y_max - y_min) / h, 4),
+            }
+        })
+
+    return {
+        "regions": translated_regions,
+        "image_size": {"width": w, "height": h},
+        "direction": direction,
+    }
+
+# Initialize global OCR reader
+_ocr_reader = None
