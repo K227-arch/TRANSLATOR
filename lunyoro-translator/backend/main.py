@@ -1406,25 +1406,99 @@ def kg_derivations():
     return {"derivations": derivations, "count": len(derivations)}
 
 
-# ── Camera OCR Translation (Google Lens-like feature) ─────────────────────────
+# ── Camera OCR Translation (AI Stick Lens) ────────────────────────────────────
 import base64
 import io
 from typing import Optional
 
-@app.post("/ocr-translate")
-async def ocr_translate(file: UploadFile = File(...), direction: str = "en->lun"):
-    """
-    Accept an image, run OCR to detect text regions, translate each region,
-    and return bounding boxes with original + translated text for overlay.
-    """
-    import numpy as np
+# Global OCR state
+_ocr_reader = None
+_ocr_engine = None  # "easyocr" or "tesseract"
+
+
+def _get_ocr_engine():
+    """Initialize OCR engine — EasyOCR preferred, Tesseract fallback."""
+    global _ocr_reader, _ocr_engine
+    if _ocr_engine:
+        return _ocr_engine
 
     try:
         import easyocr
+        _ocr_reader = easyocr.Reader(["en"], gpu=False)
+        _ocr_engine = "easyocr"
+        print("[ocr] Using EasyOCR engine")
     except ImportError:
-        return {"error": "EasyOCR not installed. Install with: pip install easyocr"}
+        try:
+            import pytesseract
+            pytesseract.get_tesseract_version()
+            _ocr_engine = "tesseract"
+            print("[ocr] Using Tesseract OCR engine")
+        except Exception:
+            _ocr_engine = "none"
+            print("[ocr] No OCR engine available")
+    return _ocr_engine
 
-    # Read image bytes
+
+def _run_ocr(img):
+    """Run OCR on an image (numpy array). Returns list of (bbox, text, confidence)."""
+    import numpy as np
+    engine = _get_ocr_engine()
+
+    if engine == "easyocr":
+        global _ocr_reader
+        if _ocr_reader is None:
+            import easyocr
+            _ocr_reader = easyocr.Reader(["en"], gpu=False)
+        return _ocr_reader.readtext(img)
+
+    elif engine == "tesseract":
+        import pytesseract
+        from PIL import Image
+        # Convert BGR to RGB for PIL
+        if len(img.shape) == 3:
+            pil_img = Image.fromarray(img[:, :, ::-1])
+        else:
+            pil_img = Image.fromarray(img)
+
+        # Get bounding box data from Tesseract
+        data = pytesseract.image_to_data(pil_img, output_type=pytesseract.Output.DICT)
+        results = []
+        for i in range(len(data["text"])):
+            text = data["text"][i].strip()
+            conf = int(data["conf"][i]) if data["conf"][i] != "-1" else 0
+            if not text or conf < 30:
+                continue
+            x, y, w, h = data["left"][i], data["top"][i], data["width"][i], data["height"][i]
+            bbox = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
+            results.append((bbox, text, conf / 100.0))
+        return results
+
+    return []
+
+
+def _translate_region(text: str, direction: str) -> str:
+    """Translate a detected text region using NLLB (primary) + MarianMT fallback."""
+    from translate import _nllb_translate, _mt_translate
+    if direction == "en->lun":
+        translation = _nllb_translate(text, "en2lun")
+        if not translation:
+            translation = _mt_translate(text, "en2lun")
+    else:
+        translation = _nllb_translate(text, "lun2en")
+        if not translation:
+            translation = _mt_translate(text, "lun2en")
+    return translation or text
+
+
+@app.post("/ocr-translate")
+async def ocr_translate(file: UploadFile = File(...), direction: str = "en->lun"):
+    """Accept an image file, run OCR to detect text, translate, return bounding boxes."""
+    import numpy as np
+
+    engine = _get_ocr_engine()
+    if engine == "none":
+        return {"error": "No OCR engine available. Install easyocr or tesseract."}
+
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
 
@@ -1432,55 +1506,34 @@ async def ocr_translate(file: UploadFile = File(...), direction: str = "en->lun"
         import cv2
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     except ImportError:
-        return {"error": "OpenCV not installed. Install with: pip install opencv-python-headless"}
+        # Fallback: use PIL
+        from PIL import Image
+        pil_img = Image.open(io.BytesIO(contents))
+        img = np.array(pil_img)
 
     if img is None:
         return {"error": "Could not decode image"}
 
-    # Get image dimensions
     h, w = img.shape[:2]
-
-    # Run EasyOCR
-    reader = easyocr.Reader(["en"], gpu=False)
-    results = reader.readtext(img)
-
-    # Translate each detected text region
-    from translate import _nllb_translate, _load_nllb, _mt_translate
+    results = _run_ocr(img)
 
     translated_regions = []
     for (bbox, text, confidence) in results:
         if confidence < 0.3 or not text.strip():
             continue
 
-        # bbox is [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]
         x_min = int(min(p[0] for p in bbox))
         y_min = int(min(p[1] for p in bbox))
         x_max = int(max(p[0] for p in bbox))
         y_max = int(max(p[1] for p in bbox))
 
-        # Translate the detected text
-        translation = None
-        if direction == "en->lun":
-            # Try NLLB first, fall back to MarianMT
-            translation = _nllb_translate(text, "en2lun")
-            if not translation:
-                translation = _mt_translate(text, "en2lun")
-        else:
-            translation = _nllb_translate(text, "lun2en")
-            if not translation:
-                translation = _mt_translate(text, "lun2en")
+        translation = _translate_region(text, direction)
 
         translated_regions.append({
             "original": text,
-            "translated": translation or text,
+            "translated": translation,
             "confidence": round(confidence, 2),
-            "bbox": {
-                "x": x_min,
-                "y": y_min,
-                "width": x_max - x_min,
-                "height": y_max - y_min,
-            },
-            # Normalized coordinates (0-1) for responsive overlay
+            "bbox": {"x": x_min, "y": y_min, "width": x_max - x_min, "height": y_max - y_min},
             "bbox_norm": {
                 "x": round(x_min / w, 4),
                 "y": round(y_min / h, 4),
@@ -1495,35 +1548,36 @@ async def ocr_translate(file: UploadFile = File(...), direction: str = "en->lun"
         "direction": direction,
         "total_detected": len(results),
         "total_translated": len(translated_regions),
+        "engine": engine,
     }
 
 
 @app.post("/ocr-translate-base64")
 async def ocr_translate_base64(request: Request):
-    """
-    Accept a base64-encoded image frame (from camera), run OCR + translate.
-    Optimized for real-time camera usage — lighter processing.
-    """
+    """Accept a base64 image frame (from camera), run OCR + translate."""
     import numpy as np
 
-    try:
-        import easyocr
-    except ImportError:
-        return {"error": "EasyOCR not installed"}
+    engine = _get_ocr_engine()
+    if engine == "none":
+        return {"error": "No OCR engine available"}
 
     body = await request.json()
     image_data = body.get("image", "")
     direction = body.get("direction", "en->lun")
 
-    # Decode base64 image
     if "," in image_data:
         image_data = image_data.split(",", 1)[1]
 
     try:
         img_bytes = base64.b64decode(image_data)
         nparr = np.frombuffer(img_bytes, np.uint8)
-        import cv2
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        try:
+            import cv2
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except ImportError:
+            from PIL import Image
+            pil_img = Image.open(io.BytesIO(img_bytes))
+            img = np.array(pil_img)
     except Exception as e:
         return {"error": f"Could not decode image: {e}"}
 
@@ -1531,16 +1585,7 @@ async def ocr_translate_base64(request: Request):
         return {"error": "Invalid image data"}
 
     h, w = img.shape[:2]
-
-    # Run EasyOCR (use cached reader for performance)
-    global _ocr_reader
-    if "_ocr_reader" not in globals() or _ocr_reader is None:
-        _ocr_reader = easyocr.Reader(["en"], gpu=False)
-
-    results = _ocr_reader.readtext(img)
-
-    # Translate each region
-    from translate import _nllb_translate, _mt_translate
+    results = _run_ocr(img)
 
     translated_regions = []
     for (bbox, text, confidence) in results:
@@ -1552,20 +1597,11 @@ async def ocr_translate_base64(request: Request):
         x_max = int(max(p[0] for p in bbox))
         y_max = int(max(p[1] for p in bbox))
 
-        # Translate
-        translation = None
-        if direction == "en->lun":
-            translation = _nllb_translate(text, "en2lun")
-            if not translation:
-                translation = _mt_translate(text, "en2lun")
-        else:
-            translation = _nllb_translate(text, "lun2en")
-            if not translation:
-                translation = _mt_translate(text, "lun2en")
+        translation = _translate_region(text, direction)
 
         translated_regions.append({
             "original": text,
-            "translated": translation or text,
+            "translated": translation,
             "confidence": round(confidence, 2),
             "bbox_norm": {
                 "x": round(x_min / w, 4),
@@ -1579,7 +1615,6 @@ async def ocr_translate_base64(request: Request):
         "regions": translated_regions,
         "image_size": {"width": w, "height": h},
         "direction": direction,
+        "engine": engine,
     }
 
-# Initialize global OCR reader
-_ocr_reader = None

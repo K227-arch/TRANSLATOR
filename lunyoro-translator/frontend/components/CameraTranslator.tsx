@@ -34,6 +34,7 @@ export default function CameraTranslator() {
   const startCamera = useCallback(async () => {
     setError("");
     try {
+      // Try preferred facing mode first
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
@@ -47,7 +48,23 @@ export default function CameraTranslator() {
       setRegions([]);
       setScanCount(0);
     } catch {
-      setError("Could not access camera. Please allow camera permissions.");
+      // Fallback: try any available camera (webcam on desktop)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        streamRef.current = stream;
+        setCameraActive(true);
+        setCapturedImage(null);
+        setRegions([]);
+        setScanCount(0);
+      } catch {
+        setError("Could not access camera. Please allow camera permissions.");
+      }
     }
   }, [facingMode]);
 
@@ -459,7 +476,7 @@ export default function CameraTranslator() {
 
         <label className="flex flex-col items-center gap-2 bg-surface-container-lowest border border-outline-variant/40 text-on-surface px-8 py-5 rounded-2xl cursor-pointer active:scale-95 transition-all shadow-sm">
           <span className="material-symbols-outlined text-[32px] text-primary">photo_library</span>
-          <span className="text-sm font-medium">Upload Image</span>
+          <span className="text-sm font-medium">Upload Text Image</span>
           <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
         </label>
       </div>
