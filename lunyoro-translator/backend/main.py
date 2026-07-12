@@ -99,53 +99,54 @@ _GRAMMAR_CONTEXT_CACHE: str | None = None
 
 @app.on_event("startup")
 def preload_model():
-    """Load retrieval index and all neural MT models at startup."""
+    """Load models in background — app must respond to /health fast for HF Space."""
     global _GRAMMAR_CONTEXT_CACHE
+    _GRAMMAR_CONTEXT_CACHE = ""
 
-    # Restore feedback history from GitHub before serving any requests.
-    # This ensures feedback.jsonl is never empty after a container restart.
+    # Restore feedback history
     try:
         from feedback_store import restore_from_github
         restore_from_github()
     except Exception as _e:
         print(f"[startup] feedback restore skipped: {_e}")
 
-    get_index_and_model()
-    from translate import _load_mt, _load_nllb
-    if os.getenv("DISABLE_MARIAN", "0").strip() not in ("1", "true", "yes"):
-        _load_mt("en2lun")
-        _load_mt("lun2en")
-    else:
-        print("[startup] MarianMT disabled via DISABLE_MARIAN env")
-    # Load NLLB with error handling — don't crash startup if OOM
-    for d in ["en2lun", "lun2en"]:
+    # Load ALL models in a background thread so uvicorn responds immediately
+    import threading
+    def _bg_load():
+        global _GRAMMAR_CONTEXT_CACHE
         try:
-            _load_nllb(d)
-        except Exception as _nllb_e:
-            print(f"[startup] NLLB {d} load failed (non-fatal): {_nllb_e}")
-    # Pre-build grammar context once — it's static and large, no need to rebuild per request
-    try:
-        from language_rules import get_full_grammar_context
-        from language_rules_gr4 import get_gr4_grammar_context
-        from language_rules_gr5 import get_gr5_grammar_context
+            get_index_and_model()
+            print("[startup/bg] Retrieval index loaded")
+        except Exception as _e:
+            print(f"[startup/bg] Retrieval index failed: {_e}")
 
-        # Build a prioritised compact context that fits within the LLM window.
-        # Strategy: take the most critical sections from each rule set rather
-        # than truncating the full concatenation (which cuts off gr4/gr5 entirely).
-        SECTION_BUDGETS = {
-            "core":  2000,   # language_rules.py — orthography, noun classes, tenses
-            "gr4":   1800,   # grammar rules 4 — copula, kinship, enumeratives
-            "gr5":   2200,   # grammar rules 5 — locatives, colours, augmentatives, negative nouns
-        }
-        core_ctx = get_full_grammar_context()[:SECTION_BUDGETS["core"]]
-        gr4_ctx  = get_gr4_grammar_context()[:SECTION_BUDGETS["gr4"]]
-        gr5_ctx  = get_gr5_grammar_context()[:SECTION_BUDGETS["gr5"]]
-        _GRAMMAR_CONTEXT_CACHE = core_ctx + gr4_ctx + gr5_ctx
-        print(f"[startup] Grammar context: {len(_GRAMMAR_CONTEXT_CACHE)} chars "
-              f"(core={len(core_ctx)}, gr4={len(gr4_ctx)}, gr5={len(gr5_ctx)})")
-    except Exception as _e:
-        print(f"[startup] Grammar context build failed: {_e}")
-        _GRAMMAR_CONTEXT_CACHE = ""
+        from translate import _load_mt, _load_nllb
+        if os.getenv("DISABLE_MARIAN", "0").strip() not in ("1", "true", "yes"):
+            _load_mt("en2lun")
+            _load_mt("lun2en")
+
+        for d in ["en2lun", "lun2en"]:
+            try:
+                _load_nllb(d)
+            except Exception as _e:
+                print(f"[startup/bg] NLLB {d} failed: {_e}")
+
+        try:
+            from language_rules import get_full_grammar_context
+            from language_rules_gr4 import get_gr4_grammar_context
+            from language_rules_gr5 import get_gr5_grammar_context
+            core_ctx = get_full_grammar_context()[:2000]
+            gr4_ctx = get_gr4_grammar_context()[:1800]
+            gr5_ctx = get_gr5_grammar_context()[:2200]
+            _GRAMMAR_CONTEXT_CACHE = core_ctx + gr4_ctx + gr5_ctx
+            print(f"[startup/bg] Grammar context: {len(_GRAMMAR_CONTEXT_CACHE)} chars")
+        except Exception as _e:
+            print(f"[startup/bg] Grammar context failed: {_e}")
+
+        print("[startup/bg] All models loaded successfully")
+
+    threading.Thread(target=_bg_load, daemon=True).start()
+    print("[startup] App ready — models loading in background")
 
 # History file — configurable via HISTORY_FILE env var
 HISTORY_FILE = os.getenv("HISTORY_FILE") or os.path.join(os.path.dirname(__file__), "history.json")
