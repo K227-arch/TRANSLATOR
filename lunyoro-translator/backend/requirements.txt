@@ -23,6 +23,6 @@ openai>=1.0.0
 numpy>=1.26.0
 optimum[onnxruntime]>=1.18.0
 onnxruntime>=1.18.0
-easyocr>=1.7.0
+easyocr>=1.7.0;python_version<"3.12"
 pytesseract>=0.3.10
 opencv-python-headless>=4.9.0

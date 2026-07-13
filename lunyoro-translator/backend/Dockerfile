@@ -4,12 +4,13 @@ WORKDIR /app
 
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl build-essential \
+    git curl build-essential tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
-# Python deps
+# Python deps — install torch CPU-only first (much smaller ~200MB vs 2.4GB), then the rest
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt
 
 # App code (models are NOT baked in — mounted as volume or downloaded at startup)
 COPY . .
