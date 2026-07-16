@@ -385,5 +385,17 @@
     "refined": false,
     "ip": "127.0.0.1",
     "timestamp": "2026-07-16T13:06:58.368018"
+  },
+  {
+    "source_text": "Good Morning",
+    "translation": "Oraire ota?",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "nllb",
+    "refined": false,
+    "ip": "127.0.0.1",
+    "timestamp": "2026-07-16T13:07:03.719186"
   }
 ]
