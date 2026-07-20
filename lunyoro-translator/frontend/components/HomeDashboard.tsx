@@ -53,7 +53,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
           </div>
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-primary-container/20 rounded-full blur-3xl" />
           <div className="absolute -right-4 bottom-0 opacity-8">
-            <span className="material-symbols-outlined text-[120px] text-primary" style={{fontVariationSettings:"'wght' 200"}}>g_translate</span>
+            <span className="material-symbols-outlined text-[120px] text-primary animate-float" style={{fontVariationSettings:"'wght' 200"}}>g_translate</span>
           </div>
         </div>
       </section>
@@ -61,10 +61,10 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
       {/* Bento tools */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-on-background mb-4">Tools</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 stagger-children">
           {tools.map(({ id, icon, title, desc, span, iconBg, iconColor, size }) => (
             <div key={id} onClick={() => onNavigate(id)}
-              className={`glass-card rounded-2xl p-4 flex flex-col gap-3 hover:border-primary transition-all cursor-pointer group premium-shadow active:scale-98 ${span ? "col-span-2 flex-row items-center" : ""}`}>
+              className={`glass-card rounded-2xl p-4 flex flex-col gap-3 hover:border-primary transition-all cursor-pointer group premium-shadow active:scale-95 animate-fade-in-up ${span ? "col-span-2 flex-row items-center" : ""}`}>
               <div className={`${size === "lg" ? "w-12 h-12" : "w-10 h-10"} rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform flex-shrink-0`}>
                 <span className={`material-symbols-outlined ${size === "lg" ? "text-[28px]" : "text-[22px]"}`}>{icon}</span>
               </div>

@@ -20,11 +20,7 @@ export default function TopBar({ processing = false, section, onBack }: TopBarPr
             >
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
-          ) : (
-            <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-primary">
-              <span className="material-symbols-outlined">menu</span>
-            </button>
-          )}
+          ) : null}
 
           {section ? (
             <span className="text-lg font-semibold text-on-background">{section}</span>

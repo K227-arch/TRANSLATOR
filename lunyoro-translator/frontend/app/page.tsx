@@ -10,8 +10,9 @@ import Dictionary from "@/components/Dictionary";
 import History from "@/components/History";
 import VoiceTranslator from "@/components/VoiceTranslator";
 import CameraTranslator from "@/components/CameraTranslator";
+import HelpPage from "@/components/HelpPage";
 
-export type Tab = "home" | "translate" | "chat" | "editor" | "dictionary" | "history" | "voice" | "camera";
+export type Tab = "home" | "translate" | "chat" | "editor" | "dictionary" | "history" | "voice" | "camera" | "help";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home");
@@ -25,6 +26,7 @@ export default function Home() {
     voice: "Voice",
     editor: "Editor",
     camera: "AI Stick Lens",
+    help: "Help",
   };
 
   return (
@@ -32,33 +34,38 @@ export default function Home() {
       <TopBar processing={isProcessing} section={sectionTitle[tab]} onBack={tab !== "home" ? () => setTab("home") : undefined} />
 
       {/* Main content — offset by TopBar (64px) */}
-      <main className={`pt-16 ${tab === "chat" ? "" : "min-h-screen"}`}>
-        {tab === "home"       && <HomeDashboard onNavigate={setTab} />}
-        {tab === "translate"  && <Translator />}
-        {tab === "chat"       && <ChatPage />}
+      <main className={`pt-16 ${tab === "chat" ? "" : "min-h-screen"}`} key={tab}>
+        {tab === "home"       && <div className="page-enter"><HomeDashboard onNavigate={setTab} /></div>}
+        {tab === "translate"  && <div className="page-enter"><Translator /></div>}
+        {tab === "chat"       && <div className="page-enter"><ChatPage /></div>}
         {tab === "editor"     && (
-          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
+          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 page-enter">
             <DocumentEditor />
           </div>
         )}
         {tab === "dictionary" && (
-          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
+          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 page-enter">
             <Dictionary />
           </div>
         )}
         {tab === "history"    && (
-          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
+          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 page-enter">
             <History />
           </div>
         )}
         {tab === "voice"      && (
-          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
+          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 page-enter">
             <VoiceTranslator />
           </div>
         )}
         {tab === "camera"     && (
-          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32">
+          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 page-enter">
             <CameraTranslator />
+          </div>
+        )}
+        {tab === "help"       && (
+          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 page-enter">
+            <HelpPage onNavigate={setTab} />
           </div>
         )}
       </main>

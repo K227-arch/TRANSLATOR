@@ -7,10 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl build-essential tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
-# Python deps — install torch CPU-only first (much smaller ~200MB vs 2.4GB), then the rest
+# Python deps — install torch CPU-only (no torchvision needed for translation)
 COPY requirements.txt .
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y torchvision torchaudio 2>/dev/null || true
 
 # App code (models are NOT baked in — mounted as volume or downloaded at startup)
 COPY . .
