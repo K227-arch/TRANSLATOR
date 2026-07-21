@@ -4,9 +4,10 @@ interface TopBarProps {
   processing?: boolean;
   section?: string;
   onBack?: () => void;
+  onHelp?: () => void;
 }
 
-export default function TopBar({ processing = false, section, onBack }: TopBarProps) {
+export default function TopBar({ processing = false, section, onBack, onHelp }: TopBarProps) {
   return (
     <header className="bg-surface-bright fixed top-0 w-full z-50 border-b border-outline-variant/30">
       <div className="flex items-center justify-between px-5 h-16 max-w-screen-xl mx-auto">
@@ -36,11 +37,22 @@ export default function TopBar({ processing = false, section, onBack }: TopBarPr
           )}
         </div>
 
-        {/* Right — avatar */}
-        <div className="w-9 h-9 rounded-full border-2 border-primary-container overflow-hidden bg-surface-container-high flex items-center justify-center">
-          <span className="material-symbols-outlined text-on-surface-variant text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            account_circle
-          </span>
+        {/* Right — help + avatar */}
+        <div className="flex items-center gap-2">
+          {onHelp && (
+            <button
+              onClick={onHelp}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant"
+              aria-label="Help"
+            >
+              <span className="material-symbols-outlined text-[22px]">help</span>
+            </button>
+          )}
+          <div className="w-9 h-9 rounded-full border-2 border-primary-container overflow-hidden bg-surface-container-high flex items-center justify-center">
+            <span className="material-symbols-outlined text-on-surface-variant text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              account_circle
+            </span>
+          </div>
         </div>
       </div>
 

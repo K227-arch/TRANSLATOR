@@ -10,7 +10,15 @@ interface TranslatedRegion {
   bbox_norm: { x: number; y: number; width: number; height: number };
 }
 
+interface ClassificationResult {
+  label_en: string;
+  label_lun: string;
+  confidence: number;
+  method: string;
+}
+
 type Direction = "en->lun" | "lun->en";
+type Mode = "ocr" | "classify";
 
 export default function CameraTranslator() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -29,6 +37,9 @@ export default function CameraTranslator() {
   const [showOverlay, setShowOverlay] = useState(true);
   const [showResults, setShowResults] = useState(false);
   const [scanCount, setScanCount] = useState(0);
+  const [mode, setMode] = useState<Mode>("ocr");
+  const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
+  const [classifyLoading, setClassifyLoading] = useState(false);
 
   // Start camera
   const startCamera = useCallback(async () => {
@@ -173,6 +184,37 @@ export default function CameraTranslator() {
       setError("Could not connect to translation server.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Upload image for object classification
+  const handleClassifyUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setClassifyLoading(true);
+    setError("");
+    setCapturedImage(URL.createObjectURL(file));
+    setClassifications([]);
+    stopCamera();
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${API}/classify-image?top_k=5`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.detail) {
+        setError(data.detail);
+      } else {
+        setClassifications(data.predictions || []);
+      }
+    } catch {
+      setError("Could not connect to translation server.");
+    } finally {
+      setClassifyLoading(false);
     }
   };
 
@@ -437,10 +479,46 @@ export default function CameraTranslator() {
               </div>
             </div>
           )}
+
+          {classifyLoading && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <div className="bg-black/70 backdrop-blur-md rounded-2xl px-5 py-3 flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="text-white text-sm font-medium">Identifying objects...</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Direction toggle */}
+      {/* Mode toggle: OCR vs Classify */}
+      <div className="flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-full p-1 shadow-sm">
+        <button
+          onClick={() => { setMode("ocr"); setClassifications([]); }}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            mode === "ocr"
+              ? "bg-primary text-on-primary shadow-sm"
+              : "text-on-surface-variant"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px] align-middle mr-1">text_fields</span>
+          Text OCR
+        </button>
+        <button
+          onClick={() => { setMode("classify"); setRegions([]); }}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            mode === "classify"
+              ? "bg-primary text-on-primary shadow-sm"
+              : "text-on-surface-variant"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px] align-middle mr-1">image_search</span>
+          Identify
+        </button>
+      </div>
+
+      {/* Direction toggle (only for OCR mode) */}
+      {mode === "ocr" && (
       <div className="flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-full p-1 shadow-sm">
         <button
           onClick={() => setDirection("en->lun")}
@@ -463,8 +541,10 @@ export default function CameraTranslator() {
           Runyoro → English
         </button>
       </div>
+      )}
 
       {/* Action buttons */}
+      {mode === "ocr" ? (
       <div className="flex items-center justify-center gap-4 w-full">
         <button
           onClick={startCamera}
@@ -480,6 +560,15 @@ export default function CameraTranslator() {
           <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
         </label>
       </div>
+      ) : (
+      <div className="flex items-center justify-center gap-4 w-full">
+        <label className="flex flex-col items-center gap-2 bg-primary text-on-primary px-8 py-5 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-all">
+          <span className="material-symbols-outlined text-[32px]">image_search</span>
+          <span className="text-sm font-semibold">Upload Photo</span>
+          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleClassifyUpload} />
+        </label>
+      </div>
+      )}
 
       {/* Error message */}
       {error && (
@@ -489,7 +578,32 @@ export default function CameraTranslator() {
         </div>
       )}
 
-      {/* Results list */}
+      {/* Classification results (Identify mode) */}
+      {classifications.length > 0 && (
+        <div className="w-full max-w-lg bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2 bg-surface-container/30">
+            <span className="material-symbols-outlined text-primary text-[18px]">image_search</span>
+            <h3 className="text-sm font-semibold text-on-background">
+              Objects Identified
+            </h3>
+          </div>
+          <div className="px-4 py-3 space-y-3">
+            {classifications.map((item, i) => (
+              <div key={i} className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-on-surface-variant truncate">{item.label_en}</p>
+                  <p className="text-base font-semibold text-primary truncate">{item.label_lun}</p>
+                </div>
+                <div className="text-xs text-on-surface-variant/60 bg-surface-container rounded-full px-2 py-0.5 shrink-0">
+                  {(item.confidence * 100).toFixed(0)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Results list (OCR mode) */}
       {regions.length > 0 && (
         <div className="w-full max-w-lg bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container/30">
@@ -528,18 +642,35 @@ export default function CameraTranslator() {
       </div>{/* end top section */}
 
       {/* Instructions — pinned to bottom above nav bar */}
-      {!capturedImage && regions.length === 0 && (
+      {!capturedImage && regions.length === 0 && classifications.length === 0 && (
         <div style={{ width: "100%", maxWidth: "380px", textAlign: "center", padding: "0 16px", marginTop: "auto" }}>
-          <div className="flex justify-center gap-1 mb-3">
-            {["photo_camera", "arrow_forward", "text_fields", "arrow_forward", "g_translate"].map((icon, i) => (
-              <span key={i} className={`material-symbols-outlined ${i % 2 === 0 ? "text-primary text-[28px]" : "text-on-surface-variant/40 text-[18px]"}`}>
-                {icon}
-              </span>
-            ))}
-          </div>
-          <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--color-on-surface-variant)", whiteSpace: "normal", wordBreak: "normal", overflowWrap: "break-word" }}>
-            Point your camera at signs, documents, or menus to instantly detect and translate text into Runyoro/Rutooro. Powered by AI Stick Lens.
-          </p>
+          {mode === "ocr" ? (
+            <>
+              <div className="flex justify-center gap-1 mb-3">
+                {["photo_camera", "arrow_forward", "text_fields", "arrow_forward", "g_translate"].map((icon, i) => (
+                  <span key={i} className={`material-symbols-outlined ${i % 2 === 0 ? "text-primary text-[28px]" : "text-on-surface-variant/40 text-[18px]"}`}>
+                    {icon}
+                  </span>
+                ))}
+              </div>
+              <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--color-on-surface-variant)", whiteSpace: "normal", wordBreak: "normal", overflowWrap: "break-word" }}>
+                Point your camera at signs, documents, or menus to instantly detect and translate text into Runyoro/Rutooro. Powered by AI Stick Lens.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-center gap-1 mb-3">
+                {["image_search", "arrow_forward", "label", "arrow_forward", "g_translate"].map((icon, i) => (
+                  <span key={i} className={`material-symbols-outlined ${i % 2 === 0 ? "text-primary text-[28px]" : "text-on-surface-variant/40 text-[18px]"}`}>
+                    {icon}
+                  </span>
+                ))}
+              </div>
+              <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--color-on-surface-variant)", whiteSpace: "normal", wordBreak: "normal", overflowWrap: "break-word" }}>
+                Upload a photo of any object to identify it and get its Runyoro/Rutooro name. Supports JPEG, PNG, and WebP images.
+              </p>
+            </>
+          )}
         </div>
       )}
 

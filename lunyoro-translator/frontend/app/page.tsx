@@ -16,6 +16,7 @@ export type Tab = "home" | "translate" | "chat" | "editor" | "dictionary" | "his
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const isProcessing = tab === "translate" || tab === "chat";
 
@@ -26,12 +27,16 @@ export default function Home() {
     voice: "Voice",
     editor: "Editor",
     camera: "AI Stick Lens",
-    help: "Help",
+  };
+
+  const handleHelpNavigate = (t: Tab) => {
+    setHelpOpen(false);
+    setTab(t);
   };
 
   return (
     <div className="min-h-screen bg-background text-on-background">
-      <TopBar processing={isProcessing} section={sectionTitle[tab]} onBack={tab !== "home" ? () => setTab("home") : undefined} />
+      <TopBar processing={isProcessing} section={sectionTitle[tab]} onBack={tab !== "home" ? () => setTab("home") : undefined} onHelp={() => setHelpOpen(!helpOpen)} />
 
       {/* Main content — offset by TopBar (64px) */}
       <main className={`pt-16 ${tab === "chat" ? "" : "min-h-screen"}`} key={tab}>
@@ -63,12 +68,40 @@ export default function Home() {
             <CameraTranslator />
           </div>
         )}
-        {tab === "help"       && (
-          <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 page-enter">
-            <HelpPage onNavigate={setTab} />
-          </div>
-        )}
       </main>
+
+      {/* Help sidebar overlay */}
+      {helpOpen && (
+        <div className="fixed inset-0 z-[60]" onClick={() => setHelpOpen(false)}>
+          {/* Light backdrop — only dims the left portion slightly */}
+          <div className="absolute inset-0 bg-black/20" />
+        </div>
+      )}
+      <aside
+        className={`fixed top-0 right-0 h-full w-3/4 max-w-xs z-[70] bg-surface-bright border-l border-outline-variant/40 shadow-2xl transform transition-transform duration-300 ease-in-out ${
+          helpOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Sidebar header */}
+        <div className="flex items-center justify-between px-4 h-16 border-b border-outline-variant/30">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-[22px]">help</span>
+            <span className="font-semibold text-on-background text-lg">Help</span>
+          </div>
+          <button
+            onClick={() => setHelpOpen(false)}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant"
+            aria-label="Close help"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        {/* Sidebar content — scrollable */}
+        <div className="overflow-y-auto h-[calc(100%-64px)] px-4 pt-4 pb-8">
+          <HelpPage onNavigate={handleHelpNavigate} />
+        </div>
+      </aside>
 
       <BottomNav active={tab} onChange={setTab} />
 

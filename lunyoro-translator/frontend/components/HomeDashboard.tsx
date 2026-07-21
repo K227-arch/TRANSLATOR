@@ -5,17 +5,13 @@ import type { Tab } from "@/app/page";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface HistoryEntry { input: string; translation: string | null; direction?: string; timestamp: string; }
-interface SystemInfo { marian_en2lun: boolean; marian_lun2en: boolean; nllb_en2lun: boolean; nllb_lun2en: boolean; gpu_available: boolean; marian_onnx: boolean; }
 
 export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [history, setHistory]     = useState<HistoryEntry[]>([]);
-  const [sysInfo, setSysInfo]     = useState<SystemInfo | null>(null);
 
   useEffect(() => {
     fetch(`${API}/history`).then(r => r.json())
       .then(d => setHistory((d.history || []).slice(0, 3))).catch(() => {});
-    fetch(`${API}/system-info`).then(r => r.json())
-      .then(d => setSysInfo(d)).catch(() => {});
   }, []);
 
   const tools: { id: Tab; icon: string; title: string; desc: string; span?: boolean; iconBg: string; iconColor: string; size?: "lg" | "sm" }[] = [
@@ -78,45 +74,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
         </div>
       </section>
 
-      {/* System status */}
-      <section className="mb-8">
-        <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/50">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs font-semibold text-on-surface uppercase tracking-widest">Model Status</h3>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${sysInfo ? "bg-green-500 animate-pulse" : "bg-outline"}`} />
-              <span className="text-xs font-medium text-on-surface-variant">{sysInfo ? "Ready" : "Loading..."}</span>
-            </div>
-          </div>
-          {sysInfo ? (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-              {[
-                { label: "Translation en→lun", ok: sysInfo.marian_en2lun },
-                { label: "Translation lun→en", ok: sysInfo.marian_lun2en },
-                { label: "Advanced en→lun", ok: sysInfo.nllb_en2lun },
-                { label: "Advanced lun→en", ok: sysInfo.nllb_lun2en },
-              ].map(({ label, ok }) => (
-                <div key={label} className="flex items-center justify-between text-on-surface-variant">
-                  <span className="text-xs">{label}</span>
-                  <span className={`text-xs font-semibold ${ok ? "text-green-600" : "text-outline"}`}>
-                    {ok ? "✓" : "—"}
-                  </span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between text-on-surface-variant col-span-2 border-t border-outline-variant/30 pt-1.5 mt-0.5">
-                <span className="text-xs">Inference</span>
-                <span className="text-xs font-semibold text-on-surface">
-                  {sysInfo.gpu_available ? "GPU" : sysInfo.marian_onnx ? "Optimized CPU" : "CPU"}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {[1,2,3].map(i => <div key={i} className="h-3 bg-surface-container rounded animate-pulse" />)}
-            </div>
-          )}
-        </div>
-      </section>
+
 
       {/* Recent activity */}
       <section>

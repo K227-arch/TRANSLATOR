@@ -143,6 +143,13 @@ def preload_model():
         except Exception as _e:
             print(f"[startup/bg] Grammar context failed: {_e}")
 
+        # Load image classifier (MobileNetV2) — lightweight, ~14MB
+        try:
+            from image_classifier import image_classifier
+            image_classifier.load_model()
+        except Exception as _e:
+            print(f"[startup/bg] Image classifier failed: {_e}")
+
         print("[startup/bg] All models loaded successfully")
 
     threading.Thread(target=_bg_load, daemon=True).start()
@@ -293,6 +300,104 @@ def translate_reverse(req: TranslateRequest):
         "timestamp": datetime.utcnow().isoformat(),
     })
     return result
+
+
+# ── Batch/Bulk Translation ─────────────────────────────────────────────────────
+
+class BatchTranslateRequest(BaseModel):
+    sentences: list[str]
+    direction: str = "en->lun"  # "en->lun" or "lun->en"
+
+
+@app.post("/translate-batch")
+def translate_batch(req: BatchTranslateRequest):
+    """Translate a list of sentences in bulk. Max 100 sentences per request."""
+    if not req.sentences:
+        raise HTTPException(status_code=400, detail="No sentences provided")
+    if len(req.sentences) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 sentences per batch")
+
+    results = []
+    for sentence in req.sentences:
+        text = sentence.strip()
+        if not text:
+            results.append({"source": sentence, "translation": "", "method": "skipped"})
+            continue
+        if len(text) > 1000:
+            results.append({"source": sentence, "translation": "", "method": "error", "error": "Too long (max 1000 chars)"})
+            continue
+
+        if req.direction == "lun->en":
+            result = translate_to_english(text)
+        else:
+            result = translate(text)
+
+        results.append({
+            "source": text,
+            "translation": result.get("translation", ""),
+            "method": result.get("method", "unknown"),
+            "confidence": result.get("confidence"),
+        })
+
+    return {
+        "results": results,
+        "total": len(results),
+        "direction": req.direction,
+    }
+
+
+@app.post("/translate-batch-file")
+async def translate_batch_file(file: UploadFile = File(...), direction: str = "en->lun"):
+    """Upload a CSV or TXT file, translate each line/row, return results as JSON."""
+    import csv as _csv
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".csv", ".txt"):
+        raise HTTPException(status_code=400, detail="Supported formats: .csv, .txt")
+
+    contents = await file.read()
+    text_content = contents.decode("utf-8", errors="ignore")
+
+    # Parse sentences
+    sentences: list[str] = []
+    if ext == ".csv":
+        reader = _csv.reader(text_content.splitlines())
+        for row in reader:
+            if row:
+                sentences.append(row[0].strip())
+    else:
+        sentences = [line.strip() for line in text_content.splitlines() if line.strip()]
+
+    if not sentences:
+        raise HTTPException(status_code=400, detail="No text found in file")
+    if len(sentences) > 200:
+        raise HTTPException(status_code=400, detail="Maximum 200 sentences per file upload")
+
+    # Translate
+    results = []
+    for text in sentences:
+        if not text or len(text) > 1000:
+            results.append({"source": text, "translation": "", "method": "skipped"})
+            continue
+        if direction == "lun->en":
+            result = translate_to_english(text)
+        else:
+            result = translate(text)
+        results.append({
+            "source": text,
+            "translation": result.get("translation", ""),
+            "method": result.get("method", "unknown"),
+        })
+
+    return {
+        "results": results,
+        "total": len(results),
+        "direction": direction,
+        "filename": file.filename,
+    }
 
 
 @app.post("/lookup")
@@ -1617,5 +1722,74 @@ async def ocr_translate_base64(request: Request):
         "image_size": {"width": w, "height": h},
         "direction": direction,
         "engine": engine,
+    }
+
+
+# ── Image Classification & Translation ────────────────────────────────────────
+
+@app.post("/classify-image")
+async def classify_image(file: UploadFile = File(...), top_k: int = 5):
+    """
+    Upload an image → classify objects with MobileNetV2 → translate labels to Runyoro.
+
+    Returns top-K predictions with English labels and their Runyoro translations.
+    Supported formats: JPEG, PNG, WebP (validated via magic bytes).
+    Max file size: 10 MB.
+    """
+    from image_classifier import image_classifier, validate_image_upload
+
+    # Check model readiness
+    if not image_classifier.is_ready():
+        load_err = image_classifier.get_load_error()
+        if load_err:
+            raise HTTPException(status_code=503, detail=f"Image classifier failed to load: {load_err}")
+        raise HTTPException(status_code=503, detail="Image classifier is still loading. Try again in a moment.")
+
+    # Read and validate
+    contents = await file.read()
+    try:
+        validated_bytes = validate_image_upload(
+            content_type=file.content_type,
+            filename=file.filename,
+            file_bytes=contents,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Classify
+    try:
+        predictions = image_classifier.classify(validated_bytes, top_k=min(top_k, 10))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    # Translate each English label to Runyoro
+    results = []
+    for pred in predictions:
+        label_en = pred["label"]
+        translation_result = translate(label_en)
+        label_lun = translation_result.get("translation", label_en)
+        results.append({
+            "label_en": label_en,
+            "label_lun": label_lun,
+            "confidence": pred["confidence"],
+            "method": translation_result.get("method", "unknown"),
+        })
+
+    return {
+        "predictions": results,
+        "top_k": len(results),
+        "model": "google/mobilenet_v2_1.0_224",
+    }
+
+
+@app.get("/classify-image/status")
+def classify_image_status():
+    """Check whether the image classification model is ready."""
+    from image_classifier import image_classifier
+    return {
+        "ready": image_classifier.is_ready(),
+        "error": image_classifier.get_load_error(),
     }
 
