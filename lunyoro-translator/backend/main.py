@@ -1530,9 +1530,11 @@ def _get_ocr_engine():
 
     try:
         import easyocr
-        _ocr_reader = easyocr.Reader(["en"], gpu=False)
+        import torch
+        use_gpu = torch.cuda.is_available()
+        _ocr_reader = easyocr.Reader(["en"], gpu=use_gpu)
         _ocr_engine = "easyocr"
-        print("[ocr] Using EasyOCR engine")
+        print(f"[ocr] Using EasyOCR engine (GPU={use_gpu})")
     except ImportError:
         try:
             import pytesseract
@@ -1554,7 +1556,8 @@ def _run_ocr(img):
         global _ocr_reader
         if _ocr_reader is None:
             import easyocr
-            _ocr_reader = easyocr.Reader(["en"], gpu=False)
+            import torch
+            _ocr_reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
         return _ocr_reader.readtext(img)
 
     elif engine == "tesseract":

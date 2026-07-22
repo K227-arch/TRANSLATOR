@@ -44,6 +44,13 @@ export default function CameraTranslator() {
   // Start camera
   const startCamera = useCallback(async () => {
     setError("");
+    
+    // Check if getUserMedia is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("Camera not supported. Please use HTTPS or localhost, and ensure your browser supports camera access.");
+      return;
+    }
+
     try {
       // Try preferred facing mode first
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -58,7 +65,7 @@ export default function CameraTranslator() {
       setCapturedImage(null);
       setRegions([]);
       setScanCount(0);
-    } catch {
+    } catch (err) {
       // Fallback: try any available camera (webcam on desktop)
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -73,8 +80,15 @@ export default function CameraTranslator() {
         setCapturedImage(null);
         setRegions([]);
         setScanCount(0);
-      } catch {
-        setError("Could not access camera. Please allow camera permissions.");
+      } catch (fallbackErr) {
+        const errMsg = fallbackErr instanceof Error ? fallbackErr.message : "Unknown error";
+        if (errMsg.includes("Permission") || errMsg.includes("denied")) {
+          setError("Camera permission denied. Please allow camera access in your browser settings and reload.");
+        } else if (errMsg.includes("NotFound") || errMsg.includes("Requested device not found")) {
+          setError("No camera found on this device.");
+        } else {
+          setError(`Could not access camera: ${errMsg}`);
+        }
       }
     }
   }, [facingMode]);
@@ -105,7 +119,7 @@ export default function CameraTranslator() {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
 
-    const imageData = canvas.toDataURL("image/jpeg", 0.75);
+    const imageData = canvas.toDataURL("image/jpeg", 0.92);
     setLoading(true);
 
     try {
@@ -221,12 +235,19 @@ export default function CameraTranslator() {
   // ── Full-screen camera active view ─────────────────────────────────
   if (cameraActive) {
     return (
-      <div className="fixed inset-0 z-50 bg-black flex flex-col">
-        {/* Camera feed — fills screen */}
-        <div className="relative flex-1 overflow-hidden">
+      <div className="fixed inset-0 z-40 bg-black flex flex-col" style={{ width: "100vw", height: "calc(100vh - 80px)" }}>
+        {/* Camera feed — fills screen above bottom nav */}
+        <div className="relative w-full h-full overflow-hidden">
           <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover"
+            ref={(el) => {
+              videoRef.current = el;
+              if (el && streamRef.current && !el.srcObject) {
+                el.srcObject = streamRef.current;
+                el.play().catch(() => {});
+              }
+            }}
+            className="w-full h-full object-cover"
+            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }}
             playsInline
             muted
             autoPlay
@@ -312,6 +333,11 @@ export default function CameraTranslator() {
                 {!loading && regions.length > 0 && (
                   <div className="bg-green-500/80 backdrop-blur-md rounded-full px-2.5 py-1 text-white text-[10px] font-bold">
                     {regions.length} found
+                  </div>
+                )}
+                {!loading && regions.length === 0 && scanCount > 0 && (
+                  <div className="bg-yellow-500/80 backdrop-blur-md rounded-full px-2.5 py-1 text-white text-[10px] font-bold">
+                    No text · scan {scanCount}
                   </div>
                 )}
               </div>
