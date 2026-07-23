@@ -68,7 +68,7 @@ def _clean_translation(text: str) -> str:
 app = FastAPI(title="Lunyoro/Rutooro Translator API")
 
 # CORS — configurable via CORS_ORIGINS env var (comma-separated)
-_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3002,http://localhost:3000")
+_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3002,http://localhost:3000,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app")
 _cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(
@@ -1065,6 +1065,7 @@ def chat(req: ChatRequest, request: Request):
         _hf_client = OpenAI(
             base_url="https://router.huggingface.co/v1",
             api_key=_hf_token,
+            timeout=45.0,
         )
         completion = _hf_client.chat.completions.create(
             model=_hf_model,
@@ -1095,6 +1096,9 @@ def chat(req: ChatRequest, request: Request):
             nllb_out = apply_rl_rule_to_text(_clean_translation(nllb_out))
 
     if not marian_out and not nllb_out:
+        # If LLM replied but translation failed, return English reply
+        if reply_en:
+            return {"reply": reply_en, "reply_marian": None, "reply_nllb": None}
         return {"reply": "Sorry, the chat assistant is unavailable right now. Please try again.",
                 "reply_marian": None, "reply_nllb": None}
 
