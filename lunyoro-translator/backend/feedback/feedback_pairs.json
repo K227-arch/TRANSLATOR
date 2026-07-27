@@ -397,5 +397,17 @@
     "refined": false,
     "ip": "127.0.0.1",
     "timestamp": "2026-07-16T13:07:03.719186"
+  },
+  {
+    "source_text": "the cat is making alot of noise",
+    "translation": "enjangu erukwiragura muno",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "marian",
+    "refined": false,
+    "ip": "127.0.0.1",
+    "timestamp": "2026-07-27T12:27:43.396655"
   }
 ]
