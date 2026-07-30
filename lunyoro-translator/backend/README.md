@@ -17,3 +17,4 @@ FastAPI backend for the Runyoro-Rutooro translation app.
 - NLLB-200 fine-tuned models (en↔lun)
 - Semantic search index
 - Language rules (R/L, nasal assimilation, apostrophe elision)
+- Image classification (MobileNetV2) for object recognition and translation

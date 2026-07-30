@@ -16,7 +16,7 @@ An AI-powered translation system for the Runyoro-Rutooro language of the Bunyoro
 - PDF/DOCX document summarization and translation
 - Spellcheck
 - Domain-aware translation (Medical, Education, Agriculture, Governance, etc.)
-- Model comparison view (MarianMT vs NLLB-200)
+- Dual neural models (MarianMT + NLLB-200) with unified single-output display
 - Grammar post-processing pipeline (gr4 + gr5 rules: locatives, copula, kinship, colours, verb conjugations)
 - Human feedback loop with 8-dimension benchmark scoring (SQS)
 - Auto-retrain from approved feedback pairs

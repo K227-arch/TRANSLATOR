@@ -1,6 +1,6 @@
 # AI Stick — Runyoro / Rutooro Translator
 
-**Version 2.8** - Qwen Refinement for `/translate-reverse`
+**Version 2.9** - AI Stick Lens
 
 A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - Fine-tuned MarianMT + NLLB-200 models
@@ -17,12 +17,47 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 ## Features
 
 ### Translation
-- **Dual neural models:** NLLB-200 (primary for both directions) + MarianMT (fallback/comparison)
+- **Dual neural models:** NLLB-200 (primary for both directions) + MarianMT (fallback/comparison); the best available translation is shown as a single output
 - **HuggingFace Hub integration:** Models loaded automatically from HF Hub on first use and cached locally
 - **Context-aware:** Uses previous sentence for better coherence
 - **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation, Grammar Rules 4 (copula, kinship, enumeratives, ka particle, demonstratives, dara presentative, verb-noun derivation)
-- **Translation chain (en→lun):** Selective RAG (high-confidence corpus match) → Neural MT (NLLB + MarianMT) → Semantic search → Dictionary lookup
+- **Hallucination guard:** Detects and rejects degenerate MT output (repetitive tokens or bigrams exceeding 40%/35% thresholds) — falls back to the next translation method automatically
+- **Translation chain (en→lun):** Curated phrase override (idiomatic translations for common expressions) → Selective RAG (high-confidence corpus match) → Neural MT (NLLB + MarianMT) → Semantic search → Dictionary lookup
 - **Spellcheck:** Real-time Lunyoro spellcheck with suggestions
+
+### Navigation
+
+The app uses a fixed **BottomNav** bar with five tabs:
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| Home | `HomeDashboard` | Landing page with feature cards |
+| Translate | `Translator` | English ↔ Lunyoro translation |
+| Camera | `CameraTranslator` | Camera OCR translation (Google Lens-like) |
+| Chat | `ChatPage` | AI language assistant |
+| Help | `Help` | Help & usage guide |
+
+Additional pages accessible from Home dashboard cards:
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| Editor | `DocumentEditor` | Write (RunyoroEditor) and PDF Translate sub-tabs |
+| History | `History` | Translation history log |
+| Voice | `VoiceTranslator` | Voice input translation |
+
+Inner pages (Editor, Dictionary, History, Voice, Camera, Help) display a section title in the **TopBar** and a back button that returns to Home.
+
+- **Page transitions:** Tab switches remount the content area (`key={tab}`) and wrap pages in a `.page-enter` CSS animation for a smooth fade/slide-in effect
+
+### Dictionary (`Dictionary.tsx`)
+- **Direction toggle:** Segmented control switches between English → Runyoro and Runyoro → English; resets query and results on change
+- **Search bar:** Icon-prefixed input with rounded Material Design styling; submits on Enter or the Search button
+- **POS filter chips:** Noun / Verb / Adjective filter pills appear above results once a search returns entries; active pill uses the primary theme colour; chips with zero matches are hidden automatically
+- **Result cards:** Each entry displays the target-language word, source label (Runyoro / Rutooro or English), POS badge, dialect badge, AI/corpus source tag, and confidence percentage; primary-matched entries receive a highlighted border
+- **Example sentences:** Shown in a separated section at the bottom of each card when available
+- **Language rule hints:** Inline banner surfaces interjection/idiom annotations and the R/L rule reminder for Runyoro input searches
+- **Empty state:** Illustrated "no results" message with a search-off icon when a query returns nothing
+- **Styling:** Uses Material Design 3 colour tokens (`bg-primary`, `text-on-surface`, `bg-surface-container-*`, etc.) and `premium-shadow` utility for consistent theming with the rest of the app
 
 ### Runyoro-Rutooro Writing Editor (`RunyoroEditor.tsx`)
 - **Contenteditable canvas:** Rich-text editor with caret preservation across spellcheck re-renders
@@ -30,27 +65,72 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **Grammar hints panel:** Six collapsible reference cards covering R/L Rule, Noun Classes, Verb Infinitives, Tense Markers, Apostrophe elision, and Long Vowels
 - **Formatting toolbar:** Bold, italic, underline, ordered/unordered lists, and left/center/right alignment via `execCommand`
 - **AI grammar review:** Sends editor text to `/chat` endpoint for Qwen-powered grammar feedback
+- **Bidirectional translate button:** Auto-detects whether the editor content is English or Runyoro based on the proportion of common English function words (threshold: >15% match score):
+  - **English input (en→lun):** Calls `POST /translate`; the returned Runyoro translation *replaces* the editor content in-place and triggers an automatic spellcheck pass on the new text
+  - **Runyoro input (lun→en):** Calls `POST /translate-reverse`; the English translation is displayed in a dedicated panel below the editor; shows both NLLB and MarianMT outputs side-by-side when they differ
 - **Save to file:** Downloads editor content as a `.txt` file with a datestamped filename
 - **Word count:** Live word count displayed in the editor footer
 
 ### Chat Assistant
 - **LLM-powered:** Qwen 2.5 7B via HuggingFace Router
 - **Domain-aware:** Sector-specific vocabulary across 8 domains (Daily Life, Storytelling, Spirituality, Agriculture, Education, Culture, Health, All Sectors)
-- **Bilingual output:** Replies in English + Lunyoro (MarianMT + NLLB side-by-side)
 - **Grammar context:** Runyoro-Rutooro grammar rules injected into system prompt — assembled at startup from `get_grammar_context()`, `get_gr4_grammar_context()`, and `get_gr5_grammar_context()` with per-section budgets (core: 2000 chars, gr4: 1800 chars, gr5: 2200 chars) for richer, balanced rule coverage
 - **Detailed replies:** System prompt instructs the model to reply in plain English prose, 2–4 well-explained paragraphs, with the grammar rule behind every concept explained
 - **Corpus-grounded:** Up to 2 relevant sentence pairs from the training corpus are retrieved and included as examples
 - **Conversation mode:** Type in Runyoro-Rutooro for immersive practice
-- **Multi-line input:** Textarea with mic button for voice input (UI placeholder)
+- **Multi-line input:** Auto-growing textarea (up to 72px); submit with Enter, Shift+Enter for newline; rounded pill-shaped input bar
+- **Quick topic chips:** Horizontally scrollable topic buttons (Greetings, Directions, Food, Emergency, Numbers) for one-tap phrase discovery
+- **Welcome card:** Centered intro card on empty state with translate icon and prompt to begin
+- **Message avatars:** Bot (translate icon) and user (person icon) avatars alongside each message bubble
+- **Message actions:** Speak (text-to-speech) and copy-to-clipboard buttons below each assistant reply
+- **Mic button:** Speech input button in the input bar (placeholder for voice-to-text integration)
+- **Typing indicator:** Animated bouncing dots while awaiting a response
+- **Auto-scroll:** Chat viewport scrolls to the latest message on every update
+- **Rate-limit handling:** Displays a friendly message when the backend returns HTTP 429
 
 ### Human Feedback
-- **Primary feedback:** Simple Yes/No rating for translation quality
+- **Inline thumbs up/down:** Thumbs-up and thumbs-down buttons appear directly in the translation output header alongside the copy button; filled icon + colour highlight (primary/error) indicates selected state; buttons hide after submission and display a "Thanks!" confirmation
+- **Correction flow:** Thumbs-down opens a correction input so users can submit a better translation
 - **Multi-select error categorization:** Select multiple issue types (grammar, spelling, context, vocabulary, other)
-- **Model comparison:** 2x2 grid interface to choose between MarianMT, NLLB-200, both correct, or both wrong
-- **Model preference learning:** When a user selects a preferred model, the translation immediately updates to show that model's output, and future translations automatically use that model as primary
+- **Model comparison:** 2x2 grid interface to choose between MarianMT, NLLB-200, both correct, or both wrong; appears only when both models return output
+- **Model preference learning:** When a user selects a preferred model, the translation immediately updates to show that model's output, and future translations automatically use that model as primary; the preferred model badge displays as "NLLB" or "MarianMT"
 - **Corrections:** Submit better translations with optional error details
 - **Separate feedback flows:** Primary quality feedback and model comparison feedback tracked independently
 - **Continuous learning:** Approved pairs feed back into training
+
+### Camera OCR Translation
+- **Google Lens-like:** Point camera at text, get instant translations overlaid on the image
+- **File upload:** Upload an image with text for OCR detection and translation via `POST /ocr-translate`
+- **Real-time camera:** Send base64-encoded camera frames for live translation via `POST /ocr-translate-base64`
+- **Bounding box overlay:** Returns normalized coordinates (0–1) for responsive text overlay on any screen size
+- **Bidirectional:** Supports both English → Lunyoro and Lunyoro → English directions
+- **Confidence filtering:** Low-confidence detections (< 0.3) are automatically excluded
+- **GPU acceleration:** EasyOCR automatically uses CUDA GPU when available for faster text detection; falls back to CPU otherwise
+- **Requires:** `easyocr` (Python < 3.12 only), `pytesseract`, `opencv-python-headless`
+
+### Image Classification & Translation
+- **Object recognition:** MobileNetV2 (`google/mobilenet_v2_1.0_224`) classifies objects in uploaded images into English labels, which are then translated to Runyoro via the existing translation pipeline
+- **Supported formats:** JPEG, PNG, WebP — validated via magic byte detection (not Content-Type header)
+- **File size limit:** 10 MB maximum
+- **Top-K results:** Returns up to 5 predictions (configurable) sorted by confidence descending; labels are cleaned ImageNet categories (lowercased, first synonym only)
+- **Singleton model:** Loaded once at startup in a background thread; `image_classifier.is_ready()` reports availability
+- **Validation utility:** `validate_image_upload()` checks for empty files, unsupported formats, and oversized uploads before classification
+
+### Camera Translator (`CameraTranslator.tsx`)
+- **Full-screen camera mode:** When active, the camera fills the viewport above the bottom navigation bar (`fixed inset-0 z-40`, height `calc(100vh - 80px)`) for an immersive Google Lens-like experience while keeping the nav accessible; inactive state shows upload and launch UI
+- **Live camera feed:** Accesses device camera via `getUserMedia` with environment (rear) or user (front) facing mode; 1280×720 ideal resolution; pre-checks `navigator.mediaDevices.getUserMedia` availability and displays a clear error if the browser lacks support (requires HTTPS or localhost)
+- **Viewfinder overlay:** Corner brackets and animated scan-line provide visual feedback that the camera is actively scanning
+- **Auto-scan mode:** Captures and translates frames every 3 seconds while the camera is active; pause/resume pill toggle in the bottom control row
+- **Manual capture:** Large circular shutter button for on-demand frame translation; disabled while a scan is in progress to prevent duplicate requests
+- **Direction pill:** Compact top-bar toggle showing current direction (EN ↔ LUN) with swap icon
+- **Translation overlay:** Bounding boxes with translated text overlaid on the live feed using normalized coordinates; dark background with backdrop blur for readability; green text with font size clamped and scaled to region height
+- **Overlay toggle:** Pill button to show/hide translation overlays
+- **Results panel:** Slide-up bottom sheet displaying detected translations in a compact paragraph layout — regions are grouped in pairs per line as "original → translated · original → translated"; toggled via a "Results" pill with a close button
+- **Camera switch:** Flip between front and rear cameras via a bottom-bar icon button
+- **Image upload:** Gallery icon button in the bottom controls; also available as a card in the inactive state; sends image as `FormData` to `/ocr-translate`
+- **Inactive state:** Full-height layout (`minHeight: calc(100vh - 160px)`) with instructions pinned to the bottom via `marginTop: auto`; two action cards (Open Camera / Upload Text Image) with direction toggle; a Material Symbols icon strip (📷 → 🔤 → 🌐) above the instruction text visually illustrates the capture → detect → translate workflow; results from uploaded images display with the same overlay system
+- **Error handling:** Checks for camera API availability before attempting access (catches insecure-context / unsupported-browser scenarios); displays camera permission errors and server connection failures in a centred styled error banner
+- **Styling:** Full-screen mode uses glassmorphic controls (`bg-white/15 backdrop-blur-md`), gradient status/control bars, and scanline keyframe animation; inactive state uses Material Design 3 tokens with rounded pill buttons and surface containers
 
 ---
 
@@ -68,6 +148,11 @@ npm run dev
 ```bash
 cd lunyoro-translator/backend
 pip install -r requirements.txt
+# For Camera OCR with pytesseract, install Tesseract system binary:
+#   Ubuntu/Debian: sudo apt-get install tesseract-ocr
+#   macOS: brew install tesseract
+#   Windows: download from https://github.com/UB-Mannheim/tesseract/wiki
+# Note: easyocr is only installed on Python < 3.12 (incompatible with 3.12+)
 # Models are automatically downloaded from HuggingFace Hub on first use (~2GB)
 # Or pre-download with: python download_models.py
 python main.py
@@ -414,6 +499,34 @@ Converts the fine-tuned MarianMT models to ONNX format using [Hugging Face Optim
 - Tokenizer files (`.json`, `.spm`, `.model`, `.txt`) are copied alongside the ONNX model
 - `optimum[onnxruntime]` and `onnxruntime` are included in `requirements.txt` — no separate install needed
 
+### 6c-3. Export MarianMT Models to ONNX with INT8 Quantization (Fastest Inference)
+```bash
+python backend/export_onnx_int8.py    # exports both directions with INT8 quantization
+```
+
+Exports MarianMT models to ONNX with INT8 dynamic quantization using [Optimum](https://github.com/huggingface/optimum). Provides ~3× faster inference on CPU and ~75% smaller model size compared to the full PyTorch models. Output is deterministic and compatible with the existing ONNX loading path in `translate.py`.
+
+**Output directories:**
+
+| Direction | Output path |
+|-----------|-------------|
+| en2lun | `model/en2lun_onnx/` |
+| lun2en | `model/lun2en_onnx/` |
+
+**Pipeline steps (per direction):**
+1. Export PyTorch MarianMT model from `model/{direction}/` to ONNX via `ORTModelForSeq2SeqLM.from_pretrained(export=True)`
+2. Apply INT8 dynamic quantization (AVX-512 VNNI, per-channel) to all ONNX files using `ORTQuantizer`
+3. Copy tokenizer and config files alongside the quantized models
+4. Validate: run a test translation to confirm the exported model works and report compression ratio
+
+**Notes:**
+- Always exports both directions (`en2lun` and `lun2en`) — skips any direction where `model/{direction}/` doesn't exist
+- Overwrites the existing `model/{direction}_onnx/` directory — use `export_to_onnx.py` (section 6c-2) if you prefer FP32 ONNX without quantization
+- Uses `AutoQuantizationConfig.avx512_vnni(is_static=False, per_channel=True)` for broad CPU compatibility
+- `translate.py` auto-detects ONNX models at load time — no code changes needed after export
+- Reports PyTorch vs INT8 model sizes and compression percentage after export
+- Requires `optimum[onnxruntime]` (already in `requirements.txt`)
+
 ### 6d. Run Full Training Pipeline with New-Only Data + Full Deploy
 ```bash
 python backend/run_full_training.py                                  # full pipeline (5 epochs each)
@@ -466,6 +579,120 @@ Each direction is trained as a separate step, so you can tune epoch counts indep
 - Each step prints a timestamped start/end line for easy progress tracking
 - Exit code is non-zero if any training step fails
 - Use `train_all.py` instead if you want to train on the full dataset or need per-batch-size control
+
+### 6e. Tense Pairs Training Pipeline
+```bash
+python backend/train_tense_pipeline.py
+# End-to-end pipeline for tense_pairs_100.csv:
+#   1. Clean: remove empty rows, normalize whitespace, deduplicate, filter short Lunyoro (< 3 words)
+#   2. Augment: inject domain tags ([GOVERNMENT], [AGRICULTURE], [CULTURE]) for domain awareness
+#   3. Back-translate: translate Lunyoro → English via NLLB to create synthetic pairs
+#   4. Merge: combine clean + augmented + back-translated into new_only_train.csv + new_only_val.csv
+#   5. Train: fine-tune both MarianMT (both directions) and NLLB (en2lun + lun2en), 5 epochs each
+```
+
+**Input:** `data/cleaned/tense_pairs_100.csv` (100 hand-curated tense sentence pairs)
+
+**Pipeline steps:**
+
+| Step | Output | Description |
+|------|--------|-------------|
+| 1. Clean | `tense_pairs_clean.csv` | Remove empty/short rows, normalize whitespace, deduplicate |
+| 2. Augment | `tense_pairs_augmented.csv` | Add 3 domain-tagged variants per pair for domain awareness |
+| 3. Back-translate | `tense_pairs_backtranslated.csv` | NLLB lun→en round-trip creates synthetic English variants |
+| 4. Merge | `new_only_train.csv` + `new_only_val.csv` | Combine all, shuffle, 90/10 train/val split |
+| 5. Train | Model checkpoints | MarianMT both directions + NLLB en2lun + lun2en (5 epochs, `--new-only`) |
+
+**Notes:**
+- Uses `--new-only` flag so models train only on the tense pairs without re-training on the full dataset
+- NLLB lun→en training applies `--min-lun-words 3` to filter single-word entries
+- Back-translation step requires NLLB lun2en model to be available (run `python download_models.py` first)
+- All intermediate files are saved to `data/cleaned/` for inspection
+
+### 6f. Sentence Variations Training Pipeline
+```bash
+python backend/train_sentence_variations_pipeline.py                 # full pipeline (5 epochs)
+python backend/train_sentence_variations_pipeline.py --skip-bt       # skip back-translation step
+python backend/train_sentence_variations_pipeline.py --skip-train    # only prep data, skip training
+python backend/train_sentence_variations_pipeline.py --epochs 3      # fewer training epochs
+```
+
+End-to-end pipeline for `sentence variations (2).xlsx` (tense variation pairs):
+
+**Input:** `data/raw/sentence variations (2).xlsx`
+
+**Pipeline steps:**
+
+| Step | Output | Description |
+|------|--------|-------------|
+| 1. Load Excel | `sentence_variations_batch2_clean.csv` | Load raw Excel file from `data/raw/`, extract english-lunyoro pairs |
+| 2. Clean | `sentence_variations_batch2_clean.csv` | Remove empty rows, normalize whitespace, lowercase Lunyoro, deduplicate, filter short Lunyoro (< 3 words) |
+| 3. Augment | `sentence_variations_batch2_augmented.csv` | Add 3 domain-tagged variants per pair (`[CULTURE]`, `[DAILY_LIFE]`, `[RELIGION]`) |
+| 4. Back-translate | `sentence_variations_batch2_bt.csv` | NLLB lun→en round-trip creates synthetic English variants (optional, skip with `--skip-bt`) |
+| 5. Merge | `sv_batch2_train.csv` + `sv_batch2_val.csv` | Combine clean + augmented + back-translated, shuffle, 90/10 train/val split |
+| 6. Train | Model checkpoints | Copies merged data to `new_only_train.csv`; trains MarianMT both directions + NLLB en2lun + lun2en (5 epochs, `--new-only`) |
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--skip-bt` | — | Skip back-translation step (useful when NLLB is unavailable) |
+| `--skip-train` | — | Only prepare data, skip model training |
+| `--epochs` | `5` | Number of training epochs for both MarianMT and NLLB |
+
+**Notes:**
+- Input is a raw Excel file (`data/raw/sentence variations (2).xlsx`) — the pipeline extracts english-lunyoro pairs automatically
+- Uses `--new-only` flag so models train only on the sentence variation pairs without re-training on the full dataset
+- The merged data is copied to `data/training/new_only_train.csv` before training — this is the file the `--new-only` flag in `train_marian.py` and `train_nllb.py` reads from
+- NLLB lun→en training applies `--min-lun-words 3` to filter single-word entries
+- Lunyoro side is lowercased during cleaning (consistent with training data conventions)
+- Back-translation step loads the NLLB lun2en model directly via `transformers` (avoids importing `sentence_transformers`); requires the model locally or on HuggingFace Hub (run `python download_models.py` first)
+- All intermediate files are saved to `data/cleaned/` for inspection
+
+### 6g. Incremental Training Pipeline
+```bash
+python backend/train_incremental.py --new-data "data/raw/new_batch.csv"
+python backend/train_incremental.py --new-data "data/raw/sentence variations (2).xlsx"
+python backend/train_incremental.py                    # retrain on all existing data (no new file)
+python backend/train_incremental.py --epochs 7         # more epochs
+python backend/train_incremental.py --eval-only        # just evaluate current model
+python backend/train_incremental.py --no-train         # only prepare data, skip training
+python backend/train_incremental.py --no-push          # skip HuggingFace push
+```
+
+A unified incremental training pipeline that loads **human-verified** cleaned data (skipping augmented/back-translated files), merges in new data (CSV or Excel), and continues training from the current checkpoint — never from scratch. Designed for iteratively improving models as new batches of data arrive.
+
+**Pipeline steps:**
+
+| Step | Description |
+|------|-------------|
+| 1. Load existing | Scans `data/cleaned/*.csv` files for english + lunyoro columns, **skipping** files containing `augmented`, `bt_`, `back_translated`, or `backtranslated` in their name |
+| 2. Load new data | Reads the `--new-data` file (CSV or Excel); auto-detects column layout |
+| 3. Clean & validate | Removes empty/short pairs, normalizes whitespace, lowercases Lunyoro, deduplicates, filters pairs with < 2 words or > 200 words |
+| 4. Merge & shuffle | Combines existing + new data, deduplicates, shuffles (seed=42) |
+| 5. Save | Writes merged dataset to `data/training/full_train.csv` and `train.csv` |
+| 6. Train | Continues training MarianMT (both directions) + NLLB (en2lun + lun2en) |
+| 7. Evaluate | Runs `eval_bleu.py` on the fixed validation set |
+| 8. Push | Uploads updated models to HuggingFace Hub |
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--new-data` | — | Path to new data file (CSV or Excel). If omitted, retrains on all existing data |
+| `--epochs` | `5` | Number of training epochs |
+| `--direction` | `both` | `en2lun`, `lun2en`, or `both` |
+| `--eval-only` | — | Only evaluate current models, skip everything else |
+| `--no-train` | — | Only prepare/merge data, skip training |
+| `--no-push` | — | Skip pushing to HuggingFace after training |
+
+**Notes:**
+- Excel files are auto-detected: 8+ column format (sentence variations layout) extracts columns 2,4 and 6,7; 2-column format maps directly to english/lunyoro
+- Cleaned new data is saved to `data/cleaned/incremental_{timestamp}.csv` for traceability
+- Training log is appended to `logs/training_history.log`
+- Uses the fixed validation set (`data/training/val.csv.bak`) for consistent evaluation across runs
+- Always continues from the current model checkpoint — no cold-start resets
+- Only human-verified data is loaded as the base dataset; augmented/back-translated CSVs (`augmented*`, `bt_*`, `back_translated*`, `backtranslated*`) are excluded to keep the training signal clean
 
 ### 7. Grammar Rules 4 Full Pipeline (Automated)
 ```bash
@@ -802,6 +1029,14 @@ lunyoro-translator/
 │   ├── generate_grammar_pairs.py    # Generate 8,000+ grammar pairs from GR4/GR5 rule tables → data/cleaned/gr_grammar_pairs.csv
 │   ├── gr4_full_pipeline.py         # Complete GR4 training pipeline (automated)
 │   ├── upload_models_to_hf.py       # Upload models to HuggingFace Hub
+│   ├── push_to_hf_space.py          # Push full backend to HF Space (skips unchanged files)
+│   ├── push_to_kathay.py            # Push NLLB models + backend to the kathay HF account (separate Space with NLLB as primary)
+│   ├── push_kathay_onemodel.py      # Update kathay Space to load only NLLB en2lun (saves ~2.3GB RAM, fits cpu-basic 16GB limit)
+│   ├── push_kathay_nllb_only.py     # Update kathay Space: both NLLB directions, no MarianMT — pushes translate.py + main.py alongside config
+│   ├── push_kathay_dockerfile.py   # Force-update kathay Space Dockerfile only (re-downloads NLLB on startup to fix missing sentencepiece.bpe.model)
+│   ├── push_kathay_update.py       # Update kathay Space: switch download_models.py to use kathay/ NLLB repos (with sentencepiece) + force re-download Dockerfile
+│   ├── push_kathay_both.py         # Enable both NLLB + MarianMT on kathay Space with T4 GPU — downloads from kathay/ (NLLB) and keithtwesigye/ (MarianMT) repos
+│   ├── force_push_space.py          # Force-commit specific files to HF Space via create_commit (always triggers rebuild)
 │   ├── feedback_store.py            # Human feedback storage + auto-export
 │   ├── retrain_from_feedback.py     # End-to-end feedback retraining
 │   ├── auto_retrain.py              # Automated retraining service
@@ -833,15 +1068,20 @@ lunyoro-translator/
 │       │   ├── val.csv              # 4.5k validation pairs
 │       │   ├── test.csv             # 4.5k test pairs
 │       │   ├── new_only_train.csv   # Pairs not yet trained on (train split, generated by merge_untrained_data.py)
-│       │   └── new_only_val.csv     # Pairs not yet trained on (val split, generated by merge_untrained_data.py)
+│       │   ├── new_only_val.csv     # Pairs not yet trained on (val split, generated by merge_untrained_data.py)
+│       │   ├── sv_batch2_train.csv   # Sentence variations pipeline output (train split)
+│       │   └── sv_batch2_val.csv    # Sentence variations pipeline output (val split)
 │       ├── cleaned/                 # Cleaned dictionary/corpus
 │       └── raw/                     # Raw seed vocabulary
 ├── frontend/
 │   ├── components/Translator.tsx    # Main translation UI
 │   ├── components/ChatPage.tsx      # Chat assistant UI
 │   ├── components/RunyoroEditor.tsx # Runyoro-Rutooro writing editor (spellcheck, grammar hints, AI review, formatting)
-│   ├── components/TopBar.tsx        # Top navigation bar
-│   ├── components/BottomNav.tsx     # Fixed bottom navigation bar (Home, Translate, Chat, Editor)
+│   ├── components/Dictionary.tsx    # Dictionary lookup UI
+│   ├── components/History.tsx       # Translation history UI
+│   ├── components/VoiceTranslator.tsx # Voice input translation UI
+│   ├── components/TopBar.tsx        # Top navigation bar (shows section title + back button for inner pages)
+│   ├── components/BottomNav.tsx     # Fixed bottom navigation bar (Home, Translate, Chat, Editor, Dictionary, History, Voice)
 │   └── app/                         # Next.js app router
 ├── TRAINING_GUIDE.md                # Model improvement guide
 ├── PIPELINE_GUIDE.md                # Data pipeline guide
@@ -929,6 +1169,17 @@ A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, d
 - `GET /knowledge-graph/tenses` — All tense nodes with their markers and examples
 - `GET /knowledge-graph/derivations` — All verb derivation types with their suffixes
 
+### Camera OCR Translation
+- `POST /ocr-translate` — Upload an image file, run OCR to detect text regions, translate each region, and return bounding boxes with original + translated text for overlay rendering
+  - Parameters: `file` (image upload, required), `direction` (query param, default `"en->lun"`)
+  - Returns: `regions` (array of detected text with translations and bounding boxes), `image_size`, `direction`, `total_detected`, `total_translated`
+  - Each region includes: `original`, `translated`, `confidence`, `bbox` (pixel coordinates), `bbox_norm` (0–1 normalized coordinates for responsive overlay)
+  - Requires: `easyocr` (Python < 3.12 only), `pytesseract`, `opencv-python-headless`
+- `POST /ocr-translate-base64` — Accept a base64-encoded image frame (from camera feed), run OCR + translate. Optimized for real-time camera usage with a cached EasyOCR reader instance
+  - Body: `{ "image": "<base64 string or data URL>", "direction": "en->lun" }`
+  - Returns: `regions` (array with `original`, `translated`, `confidence`, `bbox_norm`), `image_size`, `direction`
+  - Low-confidence detections (< 0.3) are filtered out automatically
+
 ### Utilities
 - `POST /summarize-pdf` — Extract + translate + summarize documents. When a Lunyoro document is detected, grammar rules (nasal assimilation, particle elision, kinship correction, copula normalization) are applied to each sentence before translation. Qwen 2.5 7B (if `HF_TOKEN` is set) refines **both** the MarianMT and NLLB-200 drafts independently, with Grammar Rules 4 post-processing applied to each refined output. The best result (NLLB-refined preferred, Marian-refined as fallback) is returned as `summary_lunyoro`. All four variants are included in the response: `summary_lunyoro` (best), `summary_lunyoro_marian` (Marian-refined), `summary_lunyoro_nllb` (NLLB-refined). Falls back to the MT draft per model if Qwen is unavailable.
 - `GET /language-rules` — Full grammar rules JSON
@@ -947,6 +1198,7 @@ All models are automatically loaded from HuggingFace Hub on first use and cached
 - **NLLB en2lun:** [keithtwesigye/lunyoro-nllb_en2lun](https://huggingface.co/keithtwesigye/lunyoro-nllb_en2lun)
 - **NLLB lun2en:** [keithtwesigye/lunyoro-nllb_lun2en](https://huggingface.co/keithtwesigye/lunyoro-nllb_lun2en)
 - **Semantic search:** [sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)
+- **Image classification:** [google/mobilenet_v2_1.0_224](https://huggingface.co/google/mobilenet_v2_1.0_224) — lightweight ImageNet classifier for object recognition in uploaded images
 - **Chat:** [Qwen/Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) via HF Router
 
 **Note:** Models are downloaded automatically on first translation request. To pre-download all models, run `python backend/download_models.py`.
@@ -1018,6 +1270,167 @@ python backend/push_to_hf_space.py
 # Pushes to: keithtwesigye-runyoro-translator-api.hf.space
 ```
 
+#### Push to the kathay HuggingFace account (secondary Space)
+```bash
+# Requires HF_KATHAY_TOKEN env var (or edit the default token in the script)
+python backend/push_to_kathay.py
+# Pushes to: kathay/runyoro-translator-api (https://huggingface.co/spaces/kathay/runyoro-translator-api)
+```
+
+Uploads the NLLB fine-tuned models to the `kathay` HuggingFace account and configures a Docker Space that uses them:
+
+1. **NLLB models pushed:**
+   - `model/nllb_en2lun_pre_nyo` → `kathay/lunyoro-nllb-en2lun`
+   - `model/nllb_lun2en_pre_nyo` → `kathay/lunyoro-nllb-lun2en`
+2. **Backend files uploaded** to `kathay/runyoro-translator-api` Space (same exclusion rules as `push_to_hf_space.py`)
+3. **kathay-specific Dockerfile** committed to the Space — sets `HF_USERNAME=kathay` so models are loaded from `kathay/` repos; enables both NLLB and MarianMT (`DISABLE_NLLB=0`, `DISABLE_MARIAN=0`); configures CORS for `horizonx.kathay.tech`
+4. **README.md** committed to the Space with Space metadata (emoji, SDK, pinned, model list)
+
+Upload retries automatically (up to 3 attempts per file with a 5-second back-off).
+
+**Notes:**
+- The token is read from `HF_KATHAY_TOKEN` env var; a default value is embedded in the script as a fallback — replace it or set the env var before sharing the file
+- Upgrade the Space hardware to `cpu-upgrade` or `t4-small` after the first push — `cpu-basic` does not have enough RAM to load NLLB-200 (2.3 GB per model)
+- MarianMT models are still loaded from `keithtwesigye/` repos (unchanged)
+- CORS is pre-configured for `https://horizonx.kathay.tech` and `https://frontend-six-phi-25.vercel.app`
+
+#### Reduce kathay Space RAM usage (single NLLB model)
+```bash
+python push_kathay_onemodel.py
+# Updates kathay/runyoro-translator Space to load only NLLB en2lun
+# Saves ~2.3GB RAM by skipping NLLB lun2en — fits within cpu-basic 16GB limit
+# lun→en direction uses MarianMT only (still good quality)
+```
+
+Commits an updated `download_models.py` to the `kathay/runyoro-translator` Space that downloads only NLLB en2lun (not both directions). This reduces peak RAM from ~18GB to ~16GB, allowing the Space to run on `cpu-basic` hardware without OOM errors.
+
+**Trade-off:** The lun→en direction loses NLLB-200 (uses MarianMT only). To restore both NLLB directions, upgrade hardware:
+```python
+api.request_space_hardware("kathay/runyoro-translator", "cpu-upgrade")
+```
+
+#### Deploy kathay Space with both NLLB directions (no MarianMT)
+```bash
+python push_kathay_nllb_only.py
+# Updates kathay/runyoro-translator Space to run NLLB en2lun + lun2en only
+# MarianMT is disabled (DISABLE_MARIAN=1) — saves ~600MB RAM
+# Pushes translate.py and main.py alongside the NLLB-only config
+```
+
+Commits an updated `download_models.py`, `Dockerfile`, `translate.py`, and `main.py` to the `kathay/runyoro-translator` Space. The Dockerfile sets `DISABLE_MARIAN=1` so only NLLB models are loaded at startup.
+
+**Files committed:**
+
+| File | Purpose |
+|------|---------|
+| `download_models.py` | NLLB-only download script (skips MarianMT) |
+| `Dockerfile` | Docker config with `DISABLE_MARIAN=1` and CORS for `horizonx.kathay.tech` |
+| `translate.py` | Latest translation logic (grammar rules, post-processing) |
+| `main.py` | Latest FastAPI server (endpoints, feedback, chat) |
+
+**Notes:**
+- Both NLLB directions (en→lun and lun→en) are loaded — requires `cpu-upgrade` hardware or higher
+- `translate.py` and `main.py` are pushed from the local backend to keep the kathay Space in sync with the latest code
+- MarianMT is fully disabled; all translation goes through NLLB with retrieval/dictionary fallback
+
+#### Force re-download NLLB models on kathay Space (Dockerfile-only push)
+```bash
+python push_kathay_dockerfile.py
+# Commits only a Dockerfile to kathay/runyoro-translator Space
+# Forces NLLB model re-download at container start (fixes missing sentencepiece.bpe.model)
+# MarianMT disabled (DISABLE_MARIAN=1) — NLLB only
+```
+
+Pushes a standalone Dockerfile to the `kathay/runyoro-translator` Space that wipes cached NLLB model files and re-downloads them from HuggingFace Hub on startup. Use this when the Space has a corrupted or incomplete model cache (e.g. missing `sentencepiece.bpe.model`).
+
+**Dockerfile behaviour:**
+- Removes any existing `/app/model/nllb_*` directories at container start
+- Runs `download_models.py --force` to fetch fresh copies
+- Sets `FORCE_OFFLINE=1` after download (fully offline inference via `TRANSFORMERS_OFFLINE=1`)
+- MarianMT disabled (`DISABLE_MARIAN=1`), NLLB enabled (`DISABLE_NLLB=0`)
+- CORS configured for `horizonx.kathay.tech` and `frontend-six-phi-25.vercel.app`
+
+**Notes:**
+- Only the Dockerfile is committed — no other backend files are modified
+- Triggers a full Space rebuild which takes ~5–10 minutes (model download included)
+- After the first successful boot, subsequent restarts use the Docker layer cache
+
+#### Update kathay Space to use kathay NLLB repos (with sentencepiece)
+```bash
+python push_kathay_update.py
+# Commits download_models.py + Dockerfile to kathay/runyoro-translator Space
+# Switches NLLB model source to kathay/ repos (which include sentencepiece.bpe.model)
+# Forces re-download on every container start to ensure fresh, complete models
+# MarianMT disabled (DISABLE_MARIAN=1) — NLLB only
+```
+
+Pushes an updated `download_models.py` and `Dockerfile` to the `kathay/runyoro-translator` Space. The key change is that `download_models.py` now downloads NLLB models from `kathay/lunyoro-nllb-en2lun` and `kathay/lunyoro-nllb-lun2en` (which include the `sentencepiece.bpe.model` file) instead of the `keithtwesigye/` repos.
+
+**Files committed:**
+
+| File | Purpose |
+|------|---------|
+| `download_models.py` | NLLB-only download script pointing to `kathay/` repos |
+| `Dockerfile` | Docker config with forced re-download, `DISABLE_MARIAN=1`, CORS for `horizonx.kathay.tech` and `frontend-six-phi-25.vercel.app` |
+
+**Dockerfile behaviour:**
+- Removes any existing `/app/model/nllb_*` directories at container start (`rm -rf`)
+- Runs `download_models.py --force` to fetch fresh copies from `kathay/` repos
+- Sets `FORCE_OFFLINE=1` after download (fully offline inference via `TRANSFORMERS_OFFLINE=1`)
+- MarianMT disabled (`DISABLE_MARIAN=1`), NLLB enabled (`DISABLE_NLLB=0`)
+- CORS configured for `horizonx.kathay.tech` and `frontend-six-phi-25.vercel.app`
+
+**Notes:**
+- Use this when the kathay Space fails with missing `sentencepiece.bpe.model` errors — the kathay repos include this file while the keithtwesigye repos may not
+- Triggers a full Space rebuild (~5–10 minutes including model download)
+- The `download_models.py` also downloads the sentence-transformer semantic model (`paraphrase-multilingual-MiniLM-L12-v2`)
+
+#### Enable both NLLB + MarianMT on kathay Space (T4 GPU)
+```bash
+python push_kathay_both.py
+# Commits download_models.py + Dockerfile to kathay/runyoro-translator Space
+# Enables both NLLB and MarianMT models (requires T4 GPU hardware)
+# NLLB downloaded from kathay/ repos, MarianMT from keithtwesigye/ repos
+```
+
+Pushes an updated `download_models.py` and `Dockerfile` to the `kathay/runyoro-translator` Space that loads **both** model families at startup. Unlike `push_kathay_nllb_only.py` (which disables MarianMT), this configuration runs the full dual-model pipeline for maximum translation quality.
+
+**Files committed:**
+
+| File | Purpose |
+|------|---------|
+| `download_models.py` | Downloads both NLLB (from `kathay/`) and MarianMT (from `keithtwesigye/`) repos, plus the sentence-transformer semantic model |
+| `Dockerfile` | Docker config with `DISABLE_NLLB=0` and `DISABLE_MARIAN=0`; CORS for `horizonx.kathay.tech` and `frontend-six-phi-25.vercel.app` |
+
+**Dockerfile behaviour:**
+- Downloads all models at container start via `download_models.py`
+- Sets `FORCE_OFFLINE=1` after download (fully offline inference via `TRANSFORMERS_OFFLINE=1`)
+- Both NLLB and MarianMT enabled (`DISABLE_NLLB=0`, `DISABLE_MARIAN=0`)
+- CORS configured for `horizonx.kathay.tech`, `frontend-six-phi-25.vercel.app`, and `localhost:3002`
+- Runs on port 7860 (HF Spaces default)
+
+**Notes:**
+- Requires T4 GPU hardware on the Space — both model families need ~6GB+ combined VRAM/RAM
+- Unlike `push_kathay_update.py`, this does NOT force-delete cached models — relies on `download_models.py` skipping already-cached files for faster restarts
+- MarianMT models are loaded from `keithtwesigye/lunyoro-en2lun` and `keithtwesigye/lunyoro-lun2en`
+- NLLB models are loaded from `kathay/lunyoro-nllb-en2lun` and `kathay/lunyoro-nllb-lun2en`
+
+#### Force-push specific files (bypass dedup, trigger rebuild)
+```bash
+python backend/force_push_space.py
+# Uses create_commit to force a new commit even when file content hasn't changed,
+# guaranteeing the Space detects a change and triggers a Docker rebuild.
+# Useful after hotfixes where push_to_hf_space.py would skip unchanged files.
+#
+# Files staged by default:
+#   - translate.py
+#   - main.py
+#   - Dockerfile  (from hf-space/)
+#
+# Edit the files_to_force list at the top of the script to target different files.
+# Requires HF_TOKEN to be set in the environment.
+```
+
 ### Push Benchmark Files to GitHub
 ```bash
 python push_benchmark_files.py
@@ -1044,10 +1457,14 @@ vercel --prod
 HF_TOKEN=hf_...                    # HuggingFace API token (optional, for private models)
 HF_USERNAME=keithtwesigye          # HuggingFace username for model repositories
 HF_CHAT_MODEL=Qwen/Qwen2.5-7B-Instruct
-CORS_ORIGINS=http://localhost:3002,https://frontend-six-phi-25.vercel.app
+CORS_ORIGINS=http://localhost:3002,http://localhost:3000,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app
 FEEDBACK_FILE=feedback.jsonl       # Feedback storage path
 AUTO_RETRAIN_THRESHOLD=100         # Min new pairs to trigger auto-retrain
 GITHUB_TOKEN=ghp_...               # GitHub token for sync_feedback.py (required)
+HF_KATHAY_TOKEN=hf_...             # HuggingFace read token for the kathay account — used by _nllb_translate_via_api when DISABLE_NLLB=1. Falls back to HF_TOKEN if unset
+DISABLE_NLLB=1                     # Set to 1/true/yes to skip loading NLLB-200 locally — use on CPU-only deployments (e.g. HF Space cpu-basic) to avoid OOM errors. With float16 loading (default on CPU), each NLLB direction uses ~1.2GB RAM (down from 2.3GB). When set, NLLB inference is routed to the HF Inference API using kathay's fine-tuned repos (kathay/lunyoro-nllb-en2lun and kathay/lunyoro-nllb-lun2en) via HF_KATHAY_TOKEN (falls back to HF_TOKEN). Tries router.huggingface.co first (preferred inside HF Space infra), then api-inference.huggingface.co; MarianMT is the final fallback if both API calls fail or no token is set
+DISABLE_MARIAN=0                   # Set to 1/true/yes to skip loading MarianMT models at startup — useful when running NLLB-only deployments or on memory-constrained environments where loading both model families would cause OOM. Translation falls back to NLLB (or retrieval/dictionary) when MarianMT is disabled
+FORCE_OFFLINE=0                    # Set to 1/true/yes to force fully offline mode (sets TRANSFORMERS_OFFLINE=1, HF_DATASETS_OFFLINE=1, HF_HUB_OFFLINE=1). By default, HuggingFace Hub downloads are allowed so models can be fetched on first use and cached locally
 ```
 
 ### Frontend (.env.local)
@@ -1102,6 +1519,9 @@ If you use this work, please cite:
 ## Version History
 
 ### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives (Current)
+- **`translate.py`:** NLLB models are now loaded in float16 on CPU to halve memory usage (~2.3GB → ~1.2GB per direction). On GPU, float32 is used for maximum speed. This reduces OOM risk on memory-constrained deployments (e.g. HF Space cpu-basic) without requiring `DISABLE_NLLB=1`.
+- **`main.py`:** NLLB model loading at startup is now wrapped in error handling — if an NLLB model fails to load (e.g. OOM on memory-constrained hardware), the server logs the error and continues startup with MarianMT and retrieval-based translation still available. Previously, an OOM during NLLB loading would crash the entire server.
+- **`main.py`:** Semantic retrieval index (`get_index_and_model()`) is loaded synchronously at startup, ensuring the retrieval-based translation is available immediately when the server starts accepting requests. This guarantees consistent translation quality from the first request onward.
 - **`train_nllb.py`:** Added multi-GPU support via `torch.nn.DataParallel` — when more than one CUDA GPU is available, the NLLB model is automatically wrapped and training is distributed across all GPUs. Device names are printed at startup. Mirrors the existing multi-GPU behaviour in `train_marian.py`.
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix(verb, locative_prefix)` — appends the correct locative suffix (`-mu`, `-ho`, or `-yo`) to a verb based on its accompanying locative prefix (`omu-`/`omw-` → `-mu`, `ha-` → `-ho`, `owa-`/`omba`/`ku-` → `-yo`).
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix_correction(text)` — regex-based post-processing pass that corrects common MT errors where adverbial suffixes are missing (e.g. `genda owaitu` → `gendayo owaitu`, `ikara hansi` → `ikaraho hansi`, `ikara omunsi` → `ikaramu omunsi`).
@@ -1128,13 +1548,19 @@ If you use this work, please cite:
 ### v2.4 - Grammar Pre-Processing for Document Summarization
 - **`/summarize-pdf` improvement:** When a Lunyoro document is detected, grammar rules (nasal assimilation, particle elision, kinship correction, copula normalization) are now applied to each sentence before Lunyoro→English translation, improving summary quality for Runyoro-Rutooro input documents
 
+### v2.4 - DocumentEditor Tab Simplification
+- **Dictionary and History sub-tabs removed** from `DocumentEditor` — those pages are accessible as dedicated bottom-nav tabs and no longer duplicated inside the editor
+- `DocumentEditor` now contains two sub-tabs only: **Write** (`RunyoroEditor`) and **PDF Translate** (`PdfTranslator`)
+- Tab bar restyled: pill-style segmented control (`bg-surface-container` + `rounded-xl`) replaces the previous scrollable underline tabs; active tab gets a raised card (`bg-surface-container-lowest` + `premium-shadow`)
+- Removed outer white card wrapper — `RunyoroEditor` and `PdfTranslator` render directly inside the layout
+
 ### v2.3 - Grammar Rules 4 Post-Processing
 - **Grammar Rules 4** (`language_rules_gr4.py`) integrated as a final post-processing step in `translate.py` for en→lun output
 - Covers copula constructions, kinship term agreement, enumerative patterns, and the *ka* diminutive/adverbial particle
 - Applied after all existing rules (R/L, nasal assimilation, apostrophe elision) in the normalisation pipeline
 
-### v2.2 - Document Editor Mobile Responsiveness (Current)
-- **Document Editor toolbar removed** — the formatting toolbar (bold, italic, underline, lists, alignment, spellcheck, save) has been removed from `DocumentEditor.tsx`. Formatting controls remain available in the dedicated `RunyoroEditor.tsx` component. Sub-tabs in `DocumentEditor` are horizontally scrollable on mobile (`overflow-x-auto`).
+### v2.2 - Document Editor Mobile Responsiveness
+- **Document Editor toolbar removed** — the formatting toolbar (bold, italic, underline, lists, alignment, spellcheck, save) has been removed from `DocumentEditor.tsx`. Formatting controls remain available in the dedicated `RunyoroEditor.tsx` component.
 
 ### v2.1 - Rebranding & UI Refresh
 - **App renamed** to "AI Stick — Runyoro / Rutooro Translator"
@@ -1147,7 +1573,7 @@ If you use this work, please cite:
 
 ### v2.0 - Enhanced Feedback & Model Comparison
 - **Enhanced feedback system:** Multi-select error categorization (grammar, spelling, context, vocabulary, other)
-- **Model comparison interface:** 2x2 grid to choose between MarianMT, NLLB-200, both correct, or both wrong
+- **Model comparison interface:** 2x2 grid to choose between MarianMT, NLLB-200, both correct, or both wrong; visible only when both models produce output
 - **Model preference learning:** Selected model becomes primary for future translations
 - **Separate feedback flows:** Independent tracking for quality feedback and model comparison
 - **Improved UX:** Immediate translation updates when model preference is selected
