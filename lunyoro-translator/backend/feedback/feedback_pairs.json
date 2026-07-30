@@ -430,5 +430,26 @@
     "score_cul": 3,
     "sqs": 67.8,
     "timestamp": "2026-07-30T14:16:19.830567"
+  },
+  {
+    "source_text": "beans",
+    "translation": "ebihimba",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "",
+    "refined": false,
+    "ip": "127.0.0.1",
+    "score_mng": 4,
+    "score_grm": 4,
+    "score_tns": 4,
+    "score_vcb": 4,
+    "score_ort": 4,
+    "score_ctx": 4,
+    "score_flu": 4,
+    "score_cul": 4,
+    "sqs": 80.0,
+    "timestamp": "2026-07-30T14:17:10.896513"
   }
 ]
