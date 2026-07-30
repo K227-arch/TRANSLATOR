@@ -42,7 +42,29 @@ export default function CameraTranslator() {
   const [classifyLoading, setClassifyLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Start camera — stores stream then attaches after React paint
+  // Attach stream to video element — called after state settles
+  const attachStream = useCallback((stream: MediaStream) => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.srcObject === stream) return; // already attached
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      video.play().catch(() => {});
+    };
+    // Fallback: force play after 200ms even without metadata event
+    setTimeout(() => {
+      if (video.paused) video.play().catch(() => {});
+    }, 200);
+  }, []);
+
+  // Re-attach stream whenever cameraActive flips to true
+  useEffect(() => {
+    if (cameraActive && streamRef.current) {
+      attachStream(streamRef.current);
+    }
+  }, [cameraActive, attachStream]);
+
+  // Start camera — stores stream, flips state; useEffect above attaches to video
   const startCamera = useCallback(async () => {
     setError("");
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -52,17 +74,10 @@ export default function CameraTranslator() {
     const tryStart = async (constraints: MediaStreamConstraints) => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      setCameraActive(true);
       setCapturedImage(null);
       setRegions([]);
       setScanCount(0);
-      // Attach after React finishes re-render
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {});
-        }
-      }, 100);
+      setCameraActive(true); // triggers useEffect → attachStream
     };
     try {
       await tryStart({ video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } });
@@ -159,12 +174,13 @@ export default function CameraTranslator() {
       {/* Hidden canvas */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Video — always rendered outside display:none so browser keeps it active */}
+      {/* Video — always in DOM so browser keeps the stream alive */}
       <video
         ref={videoRef}
         playsInline
         muted
         autoPlay
+        onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
         style={{
           position: "fixed",
           top: 0, left: 0,
@@ -175,6 +191,7 @@ export default function CameraTranslator() {
           zIndex: cameraActive ? 39 : -999,
           opacity: cameraActive ? 1 : 0,
           pointerEvents: "none",
+          display: "block",
         }}
       />
 
