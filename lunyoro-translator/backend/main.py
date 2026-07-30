@@ -174,6 +174,7 @@ class TranslateRequest(BaseModel):
     text: str
     context: str = ""  # optional previous sentence for context-aware translation
     refine: bool = False  # optional LLM refinement pass for higher quality
+    direction: str = "en->lun"  # accepted but ignored — endpoint determines direction
 
 
 def _qwen_refine_translation(source_en: str, draft_lun: str) -> str:
