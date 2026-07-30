@@ -1,6 +1,7 @@
 """
 Translation logic:
-  Primary  — fine-tuned MarianMT models (en2lun / lun2en) from HuggingFace Hub
+  Primary  — fine-tuned NLLB-200 models (nllb_en2lun / nllb_lun2en) trained locally
+  Secondary — fine-tuned MarianMT models (en2lun / lun2en) as fallback
   Fallback — semantic similarity retrieval + dictionary lookup
 """
 
@@ -502,18 +503,33 @@ def _load_nllb(direction: str) -> bool:
         _nllb_available[direction] = False
         return False
 
-    path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
+    # Prefer the freshly trained model dir (nllb_en2lun / nllb_lun2en).
+    # Fall back to the legacy _pre_nyo checkpoint if the primary doesn't exist.
+    path_primary = os.path.join(MODEL_DIR, f"nllb_{direction}")
+    path_legacy  = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
+
+    def _dir_has_weights(p: str) -> bool:
+        return os.path.isdir(p) and any(
+            f.endswith((".safetensors", ".bin"))
+            for f in os.listdir(p)
+            if os.path.isfile(os.path.join(p, f))
+        )
+
+    if _dir_has_weights(path_primary):
+        path = path_primary
+        print(f"[translate] Using trained NLLB model: {path_primary}")
+    elif _dir_has_weights(path_legacy):
+        path = path_legacy
+        print(f"[translate] Falling back to legacy NLLB model: {path_legacy}")
+    else:
+        path = path_primary  # will trigger HF download below
 
     # On HF Space cpu-basic: /app/model has 1GB limit so NLLB can't be stored there.
     # Instead, stream from HF Hub cache (/root/.cache/huggingface) which is unlimited.
     # Detect Space environment: no GPU + /app exists but model path is missing/tiny.
     import torch as _torch_check
     is_cpu_only = not _torch_check.cuda.is_available()
-    local_model_ok = (
-        os.path.isdir(path) and
-        any(f.endswith((".safetensors", ".bin")) for f in os.listdir(path)
-            if os.path.isfile(os.path.join(path, f)))
-    )
+    local_model_ok = _dir_has_weights(path)
 
     if not local_model_ok:
         hf_repos = {

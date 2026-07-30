@@ -539,7 +539,10 @@ def debug_nllb():
         try:
             from translate import _load_nllb, _nllb_available, MODEL_DIR
             import os
-            path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
+            # Prefer the trained model dir; fall back to legacy _pre_nyo
+            path = os.path.join(MODEL_DIR, f"nllb_{direction}")
+            if not (os.path.isdir(path) and any(f.endswith((".safetensors", ".bin")) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)))):
+                path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
             exists = os.path.isdir(path)
             files = os.listdir(path) if exists else []
             has_weights = any(f.endswith((".safetensors", ".bin")) for f in files)
