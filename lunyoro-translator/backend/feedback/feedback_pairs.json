@@ -487,5 +487,17 @@
     "refined": false,
     "ip": "127.0.0.1",
     "timestamp": "2026-07-30T14:20:07.143170"
+  },
+  {
+    "source_text": "you",
+    "translation": "iwe",
+    "direction": "en->lun",
+    "rating": 1,
+    "correction": "",
+    "error_type": "",
+    "model_used": "nllb",
+    "refined": false,
+    "ip": "127.0.0.1",
+    "timestamp": "2026-07-30T14:21:51.121055"
   }
 ]
