@@ -266,6 +266,11 @@ def translate_reverse(req: TranslateRequest):
         raise HTTPException(status_code=400, detail="Text too long (max 1000 chars)")
     result = translate_to_english(req.text, context=req.context)
 
+    # Apply English post-processing to the final translation (catches any path)
+    from translate import _postprocess_english as _ppenglish
+    if result.get("translation"):
+        result["translation"] = _ppenglish(result["translation"])
+
     # ── LLM refinement pass — always on for lun→en (opt out with refine=False) ──
     # Qwen improves fluency, resolves double-subjects, and naturalises English.
     # Falls back silently so translation still returns if the API is down.
