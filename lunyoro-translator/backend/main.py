@@ -265,38 +265,57 @@ def translate_reverse(req: TranslateRequest):
     if len(req.text) > 1000:
         raise HTTPException(status_code=400, detail="Text too long (max 1000 chars)")
     result = translate_to_english(req.text, context=req.context)
-    # Optional LLM refinement pass for lun→en
-    if req.refine and result.get("translation"):
+
+    # ── LLM refinement pass — always on for lun→en (opt out with refine=False) ──
+    # Qwen improves fluency, resolves double-subjects, and naturalises English.
+    # Falls back silently so translation still returns if the API is down.
+    should_refine = req.refine is not False  # True by default, opt-out with refine=False
+    if should_refine and result.get("translation"):
         try:
             hf_token = os.getenv("HF_TOKEN", "")
             hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
             if hf_token:
                 from openai import OpenAI as _OAI
-                client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+                client = _OAI(
+                    base_url="https://router.huggingface.co/v1",
+                    api_key=hf_token,
+                    timeout=12.0,  # hard cap — don't block the response beyond 12s
+                )
                 resp = client.chat.completions.create(
                     model=hf_model,
                     messages=[
                         {"role": "system", "content": (
-                            "You are an expert translator from Runyoro-Rutooro to English. "
-                            "Improve the machine-translated English draft for fluency, accuracy and natural phrasing. "
-                            "Output ONLY the improved English text, nothing else."
+                            "You are an expert translator from Runyoro-Rutooro (a Bantu language spoken in "
+                            "western Uganda) to English. You receive a Runyoro/Rutooro source sentence and "
+                            "a machine-translated English draft. Your task is to:\n"
+                            "1. Fix any grammatical errors (especially double subjects like 'The man he went')\n"
+                            "2. Make the English natural and fluent\n"
+                            "3. Preserve the original meaning exactly — do not add or remove content\n"
+                            "4. Output ONLY the corrected English sentence, nothing else."
                         )},
-                        {"role": "user", "content": f"Runyoro source: {req.text}\nDraft: {result['translation']}\nRefined:"},
+                        {"role": "user", "content": (
+                            f"Runyoro/Rutooro: {req.text}\n"
+                            f"Draft English: {result['translation']}\n"
+                            f"Corrected English:"
+                        )},
                     ],
                     max_tokens=256,
-                    temperature=0.2,
+                    temperature=0.15,
                 )
                 refined = resp.choices[0].message.content.strip()
-                if refined and len(refined) > 3:
-                    result["translation_refined"] = refined
+                # Only use the refined version if it's substantively different and non-empty
+                if refined and len(refined) > 3 and refined.lower() != result["translation"].lower():
+                    result["translation_draft"] = result["translation"]
                     result["translation"] = refined
+                    result["refined"] = True
         except Exception:
-            pass
+            pass  # refinement is best-effort — raw MT is still returned
+
     save_history({
         "input": req.text,
         "direction": "lun→en",
         "translation": result.get("translation"),
-        "method": result.get("method") + ("+refined" if req.refine else ""),
+        "method": result.get("method", "") + ("+refined" if result.get("refined") else ""),
         "confidence": result.get("confidence"),
         "timestamp": datetime.utcnow().isoformat(),
     })

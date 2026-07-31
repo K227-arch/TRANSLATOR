@@ -203,14 +203,33 @@ def _normalise_dialect(text: str) -> str:
 def _preprocess_lunyoro_input(text: str) -> str:
     """
     Normalise lun→en input before feeding to the model.
-    Applies nasal assimilation so the model sees canonical forms.
+    - Nasal assimilation (canonical consonant clusters)
+    - Apostrophe elision expansion (n'ente → na ente)
+    - Dialect variant normalisation (kiro → leero, etc.)
     Does NOT apply R/L rule on input — the model was trained on real text.
     """
     if not text:
         return text
     _load_rules()
+    # 1. Nasal assimilation
     if _apply_nasal:
         text = _apply_nasal(text)
+    # 2. Expand apostrophe elisions so model sees canonical forms
+    # e.g. n'ente → na ente, habw'okugonza → habwa okugonza
+    import re as _re_pre
+    text = _re_pre.sub(r"\bn'([aeiouAEIOU])", r"na \1", text)
+    text = _re_pre.sub(r"\bw'([aeiouAEIOU])", r"wa \1", text)
+    text = _re_pre.sub(r"\by'([aeiouAEIOU])", r"ya \1", text)
+    text = _re_pre.sub(r"\bk'([aeiouAEIOU])", r"ka \1", text)
+    # 3. Common spelling variants → canonical forms
+    _VARIANT_MAP = [
+        (r"\bkiro\b", "leero"),       # today (Rutooro → Runyoro)
+        (r"\beky([aeiou])", r"eki\1"),  # eky- → eki- prefix variant
+        (r"\boky([aeiou])", r"oki\1"),  # oky- prefix
+        (r"\baky([aeiou])", r"aki\1"),  # aky- prefix
+    ]
+    for pat, rep in _VARIANT_MAP:
+        text = _re_pre.sub(pat, rep, text, flags=_re_pre.IGNORECASE)
     return text
 
 
@@ -1113,6 +1132,73 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     )
 
 
+def _postprocess_english(text: str) -> str:
+    """
+    Post-process lun→en NLLB/Marian output for natural English.
+
+    Fixes:
+    1. Strip NLLB language-code prefix artifacts (run_Latn: ...)
+    2. Double-subject removal ("The man he went" → "The man went")
+    3. Redundant pronoun after noun ("My father he said" → "My father said")
+    4. Over-capitalisation of common words mid-sentence
+    5. Sentence capitalisation + punctuation cleanup
+    6. Strip leading/trailing whitespace and repeated spaces
+    """
+    if not text or not text.strip():
+        return text
+
+    import re as _re
+
+    # 1. Strip language-code prefix artifacts from NLLB
+    text = _re.sub(r"^\s*[a-z]{2,3}_[A-Za-z]{3,4}\s*:\s*", "", text).strip()
+    text = _re.sub(r"^\s*\[[A-Za-z _]+\]\s*", "", text).strip()
+
+    # 1b. Fix NLLB Latin-script artifact: standalone "L" used as first-person pronoun
+    # NLLB sometimes outputs "L" instead of "I" (character confusion in run_Latn)
+    text = _re.sub(r"\bL\b", "I", text)
+
+    # 2. Double-subject: noun phrase + pronoun ("The child he ...", "My mother she ...")
+    # Pattern: (determiner + noun [+ adj]) followed immediately by he/she/they/it
+    text = _re.sub(
+        r"\b((?:the|a|an|my|your|his|her|our|their|this|that)\s+\w+(?:\s+\w+)?)\s+(he|she|they|it)\s+",
+        r"\1 ",
+        text,
+        flags=_re.IGNORECASE,
+    )
+
+    # 3. Proper name + pronoun ("John he said" → "John said")
+    text = _re.sub(
+        r"\b([A-Z][a-z]+)\s+(he|she|they)\s+",
+        r"\1 ",
+        text,
+    )
+
+    # 4. Fix common over-translations of Runyoro copula constructions
+    # "is is" / "are are" deduplication
+    text = _re.sub(r"\b(is|are|was|were|has|have|had)\s+\1\b", r"\1", text, flags=_re.IGNORECASE)
+
+    # 5. Strip NLLB hallucination artifacts — repeated short fragments at end
+    # e.g. "I went to the market. I went to the market."
+    sentences = _re.split(r"(?<=[.!?])\s+", text.strip())
+    if len(sentences) > 1 and sentences[-1].strip().lower() == sentences[-2].strip().lower():
+        sentences = sentences[:-1]
+    text = " ".join(sentences)
+
+    # 6. Capitalise first letter of each sentence
+    # Only capitalise a–z at sentence start, not mid-word
+    text = _re.sub(r"((?:^|(?<=[.!?]\s))([a-z]))", lambda m: m.group(0).upper(), text)
+
+    # 7. Ensure sentence ends with punctuation
+    text = text.strip()
+    if text and text[-1] not in ".!?":
+        text += "."
+
+    # 8. Collapse multiple spaces
+    text = _re.sub(r"  +", " ", text)
+
+    return text.strip()
+
+
 def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     """Lunyoro/Rutooro → English — uses both MarianMT and NLLB if available."""
     text = _normalise(text.strip())
@@ -1133,6 +1219,12 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
 
     marian = _mt_translate(text, "lun2en", context=context)
     nllb = _nllb_translate(text, "lun2en", context=context)
+
+    # Apply English post-processing to both outputs
+    if nllb:
+        nllb = _postprocess_english(nllb)
+    if marian:
+        marian = _postprocess_english(marian)
 
     if marian or nllb:
         return {
