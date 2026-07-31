@@ -819,6 +819,16 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         output_ids = model.generate(**inputs, **generate_kwargs)
     nllb_result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
+    # Clean SentencePiece/NLLB decode artifacts immediately after decode
+    import re as _re_decode
+    # 1. Strip ▁ (U+2581) SentencePiece boundary markers that sometimes leak through
+    nllb_result = nllb_result.replace("\u2581", " ").strip()
+    # 2. Collapse multiple spaces left by ▁ stripping
+    nllb_result = _re_decode.sub(r"  +", " ", nllb_result)
+    # 3. Fix L→I: NLLB run_Latn proxy confuses capital I with L in lun→en output
+    if direction == "lun2en":
+        nllb_result = _re_decode.sub(r"(?<![A-Za-z])L(?![A-Za-z])", "I", nllb_result)
+
     if _is_notation_garbage(nllb_result):
         return None
 
@@ -1018,6 +1028,8 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
         translation = matched_tgt
         if direction == "en2lun":
             translation = _postprocess_lunyoro(translation)
+        elif direction == "lun2en":
+            translation = _postprocess_english(translation)
         alternatives = [
             {
                 "score": round(float(scores[i]), 3),
@@ -1155,7 +1167,8 @@ def _postprocess_english(text: str) -> str:
 
     # 1b. Fix NLLB Latin-script artifact: standalone "L" used as first-person pronoun
     # NLLB sometimes outputs "L" instead of "I" (character confusion in run_Latn)
-    text = _re.sub(r"\bL\b", "I", text)
+    # Use lookahead/lookbehind instead of \b to handle edge cases
+    text = _re.sub(r"(?<![A-Za-z])L(?![A-Za-z])", "I", text)
 
     # 2. Double-subject: noun phrase + pronoun ("The child he ...", "My mother she ...")
     # Pattern: (determiner + noun [+ adj]) followed immediately by he/she/they/it
@@ -1244,7 +1257,7 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     for i, sent in enumerate(lunyoro_sentences):
         if sent.lower() == lower:
             return {
-                "translation": english_sentences[i],
+                "translation": _postprocess_english(english_sentences[i]),
                 "method": "exact_match",
                 "confidence": 1.0,
                 "alternatives": [],
@@ -1274,7 +1287,7 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
 
     if best_score > 0.5:
         return {
-            "translation": english_sentences[best],
+            "translation": _postprocess_english(english_sentences[best]),
             "method": "semantic_match",
             "confidence": round(best_score, 3),
             "matched_lunyoro": lunyoro_sentences[best],
