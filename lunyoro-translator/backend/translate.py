@@ -980,9 +980,39 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     - Very short inputs (< 4 words) — poor semantic matches
     - Single words — handled by dictionary lookup
     """
-    # Skip for very short inputs — retrieval is unreliable
-    if len(text.split()) < 4:
-        return None
+    # For very short inputs (< 4 words), only allow exact matches from the index
+    # — semantic similarity is unreliable for short phrases but exact matches are valid
+    word_count = len(text.split())
+    if word_count < 4:
+        # Still do exact-match lookup for 1–3 word inputs
+        try:
+            _load_retrieval()
+        except Exception:
+            return None
+        if direction == "en2lun":
+            query_sentences = _index["english_sentences"]
+            target_sentences = _index["lunyoro_sentences"]
+        else:
+            query_sentences = _index["lunyoro_sentences"]
+            target_sentences = _index["english_sentences"]
+        lower = text.strip().lower()
+        for i, sent in enumerate(query_sentences):
+            if sent.strip().lower() == lower:
+                translation = target_sentences[i]
+                if direction == "en2lun":
+                    translation = _postprocess_lunyoro(translation)
+                else:
+                    translation = _postprocess_english(translation)
+                return {
+                    "translation": translation,
+                    "translation_nllb": None,
+                    "translation_marian": None,
+                    "method": "exact_match",
+                    "confidence": 1.0,
+                    "matched_source": sent,
+                    "alternatives": [],
+                }
+        return None  # no exact match — fall through to neural MT
 
     try:
         _load_retrieval()
@@ -1073,6 +1103,24 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     rag_result = _selective_rag(text, direction="en2lun", top_k=top_k)
     if rag_result:
         return rag_result
+
+    # ── Corpus exact-match for short inputs (1-3 words) that RAG skips ────────
+    # Catches single words like "food" → "ebyokulya" that are in the training data
+    if len(text.split()) <= 3:
+        try:
+            _load_retrieval()
+            lower = text.lower()
+            for i, sent in enumerate(_index["english_sentences"]):
+                if sent.strip().lower() == lower:
+                    translation = _postprocess_lunyoro(_index["lunyoro_sentences"][i])
+                    return {
+                        "translation": translation,
+                        "method": "exact_match",
+                        "confidence": 1.0,
+                        "alternatives": [],
+                    }
+        except Exception:
+            pass
 
     marian = _mt_translate(text, "en2lun", context=context)
     nllb = _nllb_translate(text, "en2lun", context=context)
@@ -1228,6 +1276,22 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     rag_result = _selective_rag(text, direction="lun2en", top_k=top_k)
     if rag_result:
         return rag_result
+
+    # ── Corpus exact-match for short lun inputs (1-3 words) that RAG skips ───
+    if len(text.split()) <= 3:
+        try:
+            _load_retrieval()
+            lower = text.lower()
+            for i, sent in enumerate(_index["lunyoro_sentences"]):
+                if sent.strip().lower() == lower:
+                    return {
+                        "translation": _postprocess_english(_index["english_sentences"][i]),
+                        "method": "exact_match",
+                        "confidence": 1.0,
+                        "alternatives": [],
+                    }
+        except Exception:
+            pass
 
     marian = _mt_translate(text, "lun2en", context=context)
     nllb = _nllb_translate(text, "lun2en", context=context)
