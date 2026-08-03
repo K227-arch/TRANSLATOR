@@ -455,7 +455,10 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
     input_text = f"{context} ||| {text}" if context else text
     inputs = tokenizer(
         input_text, return_tensors="pt", truncation=True, max_length=256
-    ).to(device)
+    )
+    # ONNX models (ORTModelForSeq2SeqLM) handle device internally — don't call .to()
+    if not _mt_onnx.get(direction, False):
+        inputs = inputs.to(device)
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
@@ -561,10 +564,15 @@ def _load_nllb(direction: str) -> bool:
             import onnxruntime as _ort
 
             print(f"[translate] Loading NLLB {label}: {direction} from {load_path}")
-            tokenizer = AutoTokenizer.from_pretrained(load_path)
+            # Suppress the spurious Mistral regex warning — only relevant for Mistral models
+            import warnings as _warn
+            with _warn.catch_warnings():
+                _warn.simplefilter("ignore")
+                tokenizer = AutoTokenizer.from_pretrained(load_path)
             providers = _ort.get_available_providers()
             provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
-            device = "cuda" if "CUDA" in provider else "cpu"
+            # ONNX models run on CPU via ORT — device label is "cpu" regardless of provider
+            device = "cpu"
 
             onnx_files = os.listdir(load_path)
             if "decoder_model_merged.onnx" in onnx_files:
@@ -640,7 +648,10 @@ def _load_nllb(direction: str) -> bool:
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
         import torch
 
-        tokenizer = AutoTokenizer.from_pretrained(path)
+        import warnings as _warn
+        with _warn.catch_warnings():
+            _warn.simplefilter("ignore")
+            tokenizer = AutoTokenizer.from_pretrained(path, fix_mistral_regex=True)
         # Load in float16 on CPU to halve memory usage (2.3GB → ~1.2GB)
         # On GPU, float16 is natively fast; on CPU it's slower but avoids OOM
         import torch
@@ -846,7 +857,11 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     input_text = f"{context} ||| {text}" if context else text
     inputs = tokenizer(
         input_text, return_tensors="pt", truncation=True, max_length=256
-    ).to(device)
+    )
+    # ONNX models expect CPU tensors — only move to device for PyTorch models
+    from optimum.onnxruntime import ORTModelForSeq2SeqLM as _ORT_cls
+    if not isinstance(model, _ORT_cls):
+        inputs = inputs.to(device)
 
     generate_kwargs: dict = dict(
         num_beams=8,
