@@ -1678,22 +1678,49 @@ def _build_corpus_vocab() -> set:
             if len(w) >= 2:
                 known.add(w.lower())
 
+    # Only add tokenizer vocab for words that look Bantu (not English)
+    # Filter: must contain at least one of the Bantu vowel patterns and no English-only patterns
     lun2en_path = os.path.join(MODEL_DIR, "lun2en")
     if os.path.isdir(lun2en_path):
         try:
             from transformers import MarianTokenizer
 
             tok = MarianTokenizer.from_pretrained(lun2en_path)
+            _BANTU_STARTS = ("ok", "om", "ab", "ob", "eb", "ek", "ak", "ag",
+                             "or", "en", "em", "ni", "ba", "ka", "ku", "mu",
+                             "bu", "tu", "bi", "ki", "ga", "rw", "nt", "mb")
             for token in tok.get_vocab().keys():
                 clean = token.lstrip("▁").lower()
-                if clean.isalpha() and len(clean) >= 2:
+                if (clean.isalpha() and len(clean) >= 3
+                        and any(clean.startswith(p) for p in _BANTU_STARTS)):
                     known.add(clean)
         except Exception:
             pass
 
+    # Common English words that leak into the dictionary — exclude them from known vocab
+    _EN_STOPLIST = frozenset({
+        "agonizing", "ago", "age", "able", "about", "above", "after", "again",
+        "against", "all", "also", "although", "always", "among", "another",
+        "any", "back", "because", "before", "between", "both", "came", "come",
+        "day", "does", "done", "down", "each", "even", "every", "find", "first",
+        "from", "get", "give", "go", "good", "great", "help", "here", "high",
+        "home", "how", "into", "just", "keep", "know", "large", "last", "life",
+        "like", "little", "long", "look", "made", "make", "man", "many", "men",
+        "might", "more", "most", "much", "must", "name", "need", "never", "new",
+        "now", "old", "one", "only", "other", "out", "over", "own", "part",
+        "people", "place", "put", "right", "said", "same", "say", "see", "seem",
+        "so", "some", "still", "such", "take", "than", "then", "there", "these",
+        "think", "those", "though", "through", "time", "too", "two", "under",
+        "until", "up", "upon", "use", "very", "want", "way", "well", "what",
+        "when", "where", "which", "while", "who", "why", "work", "world",
+        "year", "yet", "your", "their", "have", "been", "will", "would",
+        "could", "should", "shall", "being", "were", "had", "has", "did",
+    })
     for d in _dictionary:
         if d.get("word"):
-            known.add(d["word"].lower())
+            w = d["word"].lower()
+            if w not in _EN_STOPLIST:
+                known.add(w)
 
     return known
 
@@ -1725,62 +1752,46 @@ def spellcheck(text: str) -> list:
     tokens = re.findall(r"[a-zA-Z']+", text)
     misspelled = []
 
+    # Common English words that appear in code-switched Runyoro text — never flag
+    _SKIP_ENGLISH = frozenset({
+        "the", "a", "an", "is", "are", "was", "were", "and", "or", "of",
+        "in", "to", "it", "he", "she", "we", "you", "i", "my", "his", "her",
+    })
+
     for token in tokens:
         lower = token.lower()
 
-        # Skip English-looking words (lun→en input may contain proper nouns, code-switching)
-        if lower in {
-            "the",
-            "a",
-            "an",
-            "is",
-            "are",
-            "was",
-            "were",
-            "and",
-            "or",
-            "of",
-            "in",
-            "to",
-        }:
+        # Skip common English function words
+        if lower in _SKIP_ENGLISH:
             continue
 
-        # Valid Bantu morphological prefixes — never flag these as misspelled
-        _BANTU_PREFIXES = (
-            "oku",
-            "okw",
-            "omu",
-            "aba",
-            "obu",
-            "otu",
-            "ama",
-            "eri",
-            "ebi",
-            "eki",
-            "aka",
-            "aga",
-            "oru",
-            "en",
-            "em",
-            "in",
-            "im",
-            "ni",
-            "ba",
-            "ka",
-            "ku",
-            "mu",
-            "bu",
-            "tu",
-            "bi",
-            "ki",
-            "ga",
-        )
-        if any(lower.startswith(p) for p in _BANTU_PREFIXES) and len(lower) >= 4:
+        # Skip very short tokens
+        if len(lower) < 3:
             continue
 
-        if len(lower) < 3 or lower in _corpus_vocab:
+        # Already known — no issue
+        if lower in _corpus_vocab:
             continue
 
+        # ── Bantu prefix check: skip words that look like valid formed Runyoro words
+        # BUT always check words with suspicious double vowels (aa, ee, oo, ii, uu)
+        # since doubled vowels are almost always a typo in Runyoro
+        import re as _re_dbl
+        has_suspicious_double = bool(_re_dbl.search(r"[aeiou]{3,}|([aeiou])\1{1,}", lower))
+
+        if not has_suspicious_double:
+            _BANTU_PREFIXES = (
+                "oku", "okw", "omu", "aba", "obu", "otu", "ama", "eri",
+                "ebi", "eki", "aka", "aga", "oru",
+            )
+            _SHORT_PREFIXES = ("en", "em", "ni", "ba", "ka", "ku", "mu", "bu",
+                               "tu", "bi", "ki", "ga", "in", "im")
+            if any(lower.startswith(p) for p in _BANTU_PREFIXES) and len(lower) >= 6:
+                continue
+            if any(lower.startswith(p) for p in _SHORT_PREFIXES) and len(lower) >= 9:
+                continue
+
+        # ── Tokenizer check: does the MarianMT model know this word as a single token?
         lun2en_path = os.path.join(MODEL_DIR, "lun2en")
         model_knows = False
         if os.path.isdir(lun2en_path) and _load_mt("lun2en"):
@@ -1795,25 +1806,43 @@ def spellcheck(text: str) -> list:
         if model_knows:
             continue
 
-        prefix = lower[:3]
-        prefix_words = [w for w in vocab_list if w.startswith(prefix)]
-        candidate_pool = prefix_words if len(prefix_words) >= 10 else vocab_list
+        # ── Fuzzy suggestion search ──
+        # Use both fuzz.ratio AND fuzz.partial_ratio for better Bantu stem matching
+        prefix = lower[:4]  # 4-char prefix for better pool narrowing
+        prefix_words = [w for w in vocab_list if w.startswith(prefix[:3])]
+        candidate_pool = prefix_words if len(prefix_words) >= 5 else vocab_list
 
-        suggestions = process.extract(
-            lower,
-            candidate_pool,
-            scorer=fuzz.ratio,
-            limit=5,
-            score_cutoff=75,
+        # Score with WRatio which combines multiple fuzzy strategies
+        suggestions_ratio = process.extract(
+            lower, candidate_pool, scorer=fuzz.WRatio, limit=8, score_cutoff=70,
         )
-        seen: set[str] = set()
-        top: list[str] = []
-        for s in sorted(suggestions, key=lambda x: -x[1]):
-            if s[0] not in seen:
-                seen.add(s[0])
-                top.append(s[0])
-            if len(top) == 3:
-                break
+        # Also try token_sort for morphological variants
+        suggestions_sort = process.extract(
+            lower, candidate_pool, scorer=fuzz.token_sort_ratio, limit=5, score_cutoff=72,
+        )
+
+        # Merge, dedupe, sort by score — filter out English-looking words
+        all_suggestions = {s[0]: s[1] for s in suggestions_ratio}
+        for s in suggestions_sort:
+            if s[0] not in all_suggestions or s[1] > all_suggestions[s[0]]:
+                all_suggestions[s[0]] = s[1]
+
+        # Filter suggestions: keep only words that are in the Runyoro corpus vocab
+        # This removes any English words that leaked into the candidate pool
+        def _is_runyoro_word(w: str) -> bool:
+            """True if word looks like a valid Runyoro/Rutooro word."""
+            if w in _corpus_vocab:
+                return True
+            # Must start with a known multi-char Bantu prefix (3+ chars)
+            # and be long enough to be a real word
+            _BANTU_P3 = ("oku", "okw", "omu", "aba", "obu", "otu", "ama",
+                         "eri", "ebi", "eki", "aka", "aga", "oru", "eng",
+                         "emb", "ngo", "nka", "nkug", "nin", "wee", "ree",
+                         "bwa", "kwa", "twa", "mwa", "nya", "nyi")
+            return (any(w.startswith(p) for p in _BANTU_P3) and len(w) >= 5)
+
+        top = [w for w, _ in sorted(all_suggestions.items(), key=lambda x: -x[1])
+               if w != lower and _is_runyoro_word(w)][:3]
 
         misspelled.append({"word": token, "suggestions": top})
 
