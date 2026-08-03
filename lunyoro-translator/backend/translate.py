@@ -543,51 +543,58 @@ def _load_nllb(direction: str) -> bool:
     else:
         path = path_primary  # will trigger HF download below
 
-    # ── Try ONNX first (faster CPU inference, ~3x speedup) ───────────────────
+    # ── Try ONNX INT8 first (fastest), then ONNX FP32, then PyTorch ────────────
+    int8_path = os.path.join(MODEL_DIR, f"nllb_{direction}_int8")
     onnx_path = os.path.join(MODEL_DIR, f"nllb_{direction}_onnx")
+
     def _dir_has_onnx(p: str) -> bool:
         return os.path.isdir(p) and any(
             f.endswith(".onnx") for f in os.listdir(p)
             if os.path.isfile(os.path.join(p, f))
         )
 
-    if _dir_has_onnx(onnx_path):
+    def _try_load_onnx(load_path: str, label: str) -> bool:
+        """Attempt to load an ONNX model from load_path. Returns True on success."""
         try:
             from optimum.onnxruntime import ORTModelForSeq2SeqLM
             from transformers import AutoTokenizer
             import onnxruntime as _ort
 
-            print(f"[translate] Loading NLLB ONNX model: {direction} from {onnx_path}")
-            tokenizer = AutoTokenizer.from_pretrained(onnx_path)
+            print(f"[translate] Loading NLLB {label}: {direction} from {load_path}")
+            tokenizer = AutoTokenizer.from_pretrained(load_path)
             providers = _ort.get_available_providers()
             provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
             device = "cuda" if "CUDA" in provider else "cpu"
 
-            # Determine which decoder file to use
-            onnx_files = os.listdir(onnx_path)
+            onnx_files = os.listdir(load_path)
             if "decoder_model_merged.onnx" in onnx_files:
                 decoder_file = "decoder_model_merged.onnx"
                 use_cache = True
             elif "decoder_model.onnx" in onnx_files:
-                # Use the non-past decoder — simpler and avoids KV cache shape issues
-                # decoder_with_past requires careful session management; use decoder_model instead
                 decoder_file = "decoder_model.onnx"
                 use_cache = False
             else:
-                raise FileNotFoundError(f"No decoder ONNX file found in {onnx_path}")
+                raise FileNotFoundError(f"No decoder ONNX file in {load_path}")
 
             model = ORTModelForSeq2SeqLM.from_pretrained(
-                onnx_path,
+                load_path,
                 provider=provider,
                 decoder_file_name=decoder_file,
                 use_cache=use_cache,
             )
             _nllb_models[direction] = (tokenizer, model, device)
             _nllb_available[direction] = True
-            print(f"[translate] Loaded NLLB ONNX model: {direction} on {provider}")
+            print(f"[translate] Loaded NLLB {label}: {direction} on {provider}")
             return True
         except Exception as e:
-            print(f"[translate] NLLB ONNX load failed ({e}), falling back to PyTorch")
+            print(f"[translate] NLLB {label} load failed ({e}), trying next option")
+            return False
+
+    # Priority: INT8 > FP32 ONNX > PyTorch
+    if _dir_has_onnx(int8_path) and _try_load_onnx(int8_path, "ONNX INT8"):
+        return True
+    if _dir_has_onnx(onnx_path) and _try_load_onnx(onnx_path, "ONNX FP32"):
+        return True
 
     # On HF Space cpu-basic: /app/model has 1GB limit so NLLB can't be stored there.
     # Instead, stream from HF Hub cache (/root/.cache/huggingface) which is unlimited.
