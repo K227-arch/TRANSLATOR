@@ -337,11 +337,12 @@ export default function CameraTranslator() {
 
       {/* ── INACTIVE / UPLOAD STATE ── */}
       {!cameraActive && (
-        <div className="flex flex-col gap-6 py-2 w-full items-center justify-between" style={{ minHeight: "calc(100vh - 160px)" }}>
-          <div className="flex flex-col items-center gap-6 w-full">
-            {/* Captured image */}
+        <div className="w-full px-4 pb-8" style={{ minHeight: "calc(100vh - 160px)" }}>
+          <div className="max-w-md mx-auto flex flex-col items-center gap-5 pt-4">
+
+            {/* Captured image preview */}
             {capturedImage && (
-              <div className="relative w-full max-w-lg aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-outline-variant/30">
+              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-outline-variant/30">
                 <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
                 {showOverlay && regions.length > 0 && (
                   <div className="absolute inset-0 pointer-events-none">
@@ -366,27 +367,29 @@ export default function CameraTranslator() {
               </div>
             )}
 
-            {/* Mode toggle */}
-            <div className="flex items-center bg-surface-container rounded-xl p-1">
+            {/* Mode toggle — Text OCR / Identify */}
+            <div className="flex items-center w-full bg-surface-container rounded-xl p-1">
               <button onClick={() => { setMode("ocr"); setClassifications([]); }}
-                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 transition-all ${mode === "ocr" ? "bg-surface-container-lowest text-on-background shadow" : "text-on-surface-variant"}`}>
-                <span className="material-symbols-outlined text-[16px]">text_fields</span> Text OCR
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${mode === "ocr" ? "bg-surface-container-lowest text-on-background shadow" : "text-on-surface-variant"}`}>
+                <span className="material-symbols-outlined text-[16px]">text_fields</span>
+                Text OCR
               </button>
               <button onClick={() => { setMode("classify"); setRegions([]); }}
-                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 transition-all ${mode === "classify" ? "bg-surface-container-lowest text-on-background shadow" : "text-on-surface-variant"}`}>
-                <span className="material-symbols-outlined text-[16px]">image_search</span> Identify
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${mode === "classify" ? "bg-surface-container-lowest text-on-background shadow" : "text-on-surface-variant"}`}>
+                <span className="material-symbols-outlined text-[16px]">image_search</span>
+                Identify
               </button>
             </div>
 
-            {/* Direction toggle (OCR only) */}
+            {/* Direction toggle — OCR only */}
             {mode === "ocr" && (
-              <div className="flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-full p-1 shadow-sm">
+              <div className="flex items-center w-full bg-surface-container-lowest border border-outline-variant/40 rounded-full p-1 shadow-sm">
                 <button onClick={() => setDirection("en->lun")}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${direction === "en->lun" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"}`}>
+                  className={`flex-1 py-2 rounded-full text-sm font-medium text-center transition-all ${direction === "en->lun" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"}`}>
                   English → Runyoro
                 </button>
                 <button onClick={() => setDirection("lun->en")}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${direction === "lun->en" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"}`}>
+                  className={`flex-1 py-2 rounded-full text-sm font-medium text-center transition-all ${direction === "lun->en" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant"}`}>
                   Runyoro → English
                 </button>
               </div>
@@ -394,36 +397,36 @@ export default function CameraTranslator() {
 
             {/* Action buttons */}
             {mode === "ocr" ? (
-              <div className="flex items-center justify-center gap-4 w-full flex-wrap px-4">
+              <div className="grid grid-cols-2 gap-3 w-full">
                 <button onClick={startCamera}
-                  className="flex flex-col items-center gap-2 bg-primary text-on-primary px-8 py-5 rounded-2xl shadow-lg active:scale-95 transition-all">
+                  className="flex flex-col items-center gap-2 bg-primary text-on-primary py-5 rounded-2xl shadow-lg active:scale-95 transition-all">
                   <span className="material-symbols-outlined text-[32px]">photo_camera</span>
                   <span className="text-sm font-semibold">Open Camera</span>
                 </button>
-                <label className="flex flex-col items-center gap-2 bg-surface-container-lowest border border-outline-variant/40 text-on-surface px-8 py-5 rounded-2xl cursor-pointer active:scale-95 transition-all shadow-sm">
+                <label className="flex flex-col items-center gap-2 bg-surface-container-lowest border border-outline-variant/40 text-on-surface py-5 rounded-2xl cursor-pointer active:scale-95 transition-all shadow-sm">
                   <span className="material-symbols-outlined text-[32px] text-primary">photo_library</span>
                   <span className="text-sm font-medium">Upload Image</span>
                   <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                 </label>
               </div>
             ) : (
-              <label className="flex flex-col items-center gap-2 bg-primary text-on-primary px-8 py-5 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-all">
+              <label className="flex flex-col items-center gap-2 bg-primary text-on-primary w-full py-5 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-all">
                 <span className="material-symbols-outlined text-[32px]">image_search</span>
-                <span className="text-sm font-semibold">Upload Photo</span>
+                <span className="text-sm font-semibold">Upload Photo to Identify</span>
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleClassifyUpload} />
               </label>
             )}
 
             {/* Error */}
             {error && (
-              <div className="bg-error-container/30 border border-error/30 rounded-xl px-4 py-3 text-sm text-error max-w-lg w-full text-center">
+              <div className="w-full bg-error-container/30 border border-error/30 rounded-xl px-4 py-3 text-sm text-error text-center">
                 <span className="material-symbols-outlined text-[16px] align-middle mr-1">error</span>{error}
               </div>
             )}
 
             {/* Classification results */}
             {classifications.length > 0 && (
-              <div className="w-full max-w-lg bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
+              <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2 bg-surface-container/30">
                   <span className="material-symbols-outlined text-primary text-[18px]">image_search</span>
                   <h3 className="text-sm font-semibold text-on-background">Objects Identified</h3>
@@ -444,9 +447,9 @@ export default function CameraTranslator() {
               </div>
             )}
 
-            {/* OCR results */}
+            {/* OCR translation results */}
             {regions.length > 0 && (
-              <div className="w-full max-w-lg bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
+              <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container/30">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-[18px]">translate</span>
@@ -456,44 +459,38 @@ export default function CameraTranslator() {
                     {showOverlay ? "Hide overlay" : "Show overlay"}
                   </button>
                 </div>
-                <div className="px-4 py-3 max-h-72 overflow-y-auto space-y-2">
-                  {Array.from({ length: Math.ceil(regions.length / 2) }, (_, i) => {
-                    const pair = regions.slice(i * 2, i * 2 + 2);
-                    return (
-                      <p key={i} className="text-sm leading-relaxed">
-                        {pair.map((r, j) => (
-                          <span key={j}>
-                            <span className="text-on-surface-variant">{r.original}</span>{" → "}
-                            <span className="font-semibold text-primary">{r.translated}</span>
-                            {j === 0 && pair.length > 1 && <span className="text-on-surface-variant/40">{" · "}</span>}
-                          </span>
-                        ))}
-                      </p>
-                    );
-                  })}
+                <div className="px-4 py-3 max-h-64 overflow-y-auto space-y-2">
+                  {regions.map((r, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <span className="text-on-surface-variant flex-1 min-w-0 break-words">{r.original}</span>
+                      <span className="text-on-surface-variant/40 shrink-0 mt-0.5">→</span>
+                      <span className="font-semibold text-primary flex-1 min-w-0 break-words">{r.translated}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Instructions */}
-          {!capturedImage && regions.length === 0 && classifications.length === 0 && (
-            <div style={{ width: "100%", maxWidth: "380px", textAlign: "center", padding: "0 16px", marginTop: "auto" }}>
-              <div className="flex justify-center gap-1 mb-3">
-                {(mode === "ocr"
-                  ? ["photo_camera","arrow_forward","text_fields","arrow_forward","g_translate"]
-                  : ["image_search","arrow_forward","label","arrow_forward","g_translate"]
-                ).map((icon, i) => (
-                  <span key={i} className={`material-symbols-outlined ${i % 2 === 0 ? "text-primary text-[28px]" : "text-on-surface-variant/40 text-[18px]"}`}>{icon}</span>
-                ))}
+            {/* Empty state instructions */}
+            {!capturedImage && regions.length === 0 && classifications.length === 0 && (
+              <div className="w-full text-center py-4">
+                <div className="flex justify-center items-center gap-1 mb-3">
+                  {(mode === "ocr"
+                    ? ["photo_camera","arrow_forward","text_fields","arrow_forward","g_translate"]
+                    : ["image_search","arrow_forward","label","arrow_forward","g_translate"]
+                  ).map((icon, i) => (
+                    <span key={i} className={`material-symbols-outlined ${i % 2 === 0 ? "text-primary text-[26px]" : "text-on-surface-variant/30 text-[16px]"}`}>{icon}</span>
+                  ))}
+                </div>
+                <p className="text-sm leading-relaxed text-on-surface-variant">
+                  {mode === "ocr"
+                    ? "Point your camera at signs, documents, or menus to instantly detect and translate text into Runyoro/Rutooro."
+                    : "Upload a photo of any object to identify it and get its Runyoro/Rutooro name."}
+                </p>
               </div>
-              <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--color-on-surface-variant)", overflowWrap: "break-word" }}>
-                {mode === "ocr"
-                  ? "Point your camera at signs, documents, or menus to instantly detect and translate text into Runyoro/Rutooro."
-                  : "Upload a photo of any object to identify it and get its Runyoro/Rutooro name."}
-              </p>
-            </div>
-          )}
+            )}
+
+          </div>
         </div>
       )}
     </div>
