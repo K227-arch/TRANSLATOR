@@ -64,7 +64,7 @@ Grammar Rule Engine (noun classes, R/L, suffix mutations, tense)
     ↓
 Selective RAG (score >= 0.92 → direct retrieval, 0.70-0.91 → hint)
     ↓
-Neural MT (MarianMT + NLLB-200, ensemble)
+Neural MT (NLLB-200 primary + MarianMT fallback, both directions)
     ↓
 Post-Processing (gr4 + gr5 grammar rules, dialect normalisation)
     ↓

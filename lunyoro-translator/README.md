@@ -22,6 +22,7 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **Context-aware:** Uses previous sentence for better coherence
 - **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation, Grammar Rules 4 (copula, kinship, enumeratives, ka particle, demonstratives, dara presentative, verb-noun derivation)
 - **Translation chain (en→lun):** Selective RAG (high-confidence corpus match) → Neural MT (NLLB + MarianMT) → Semantic search → Dictionary lookup
+- **Translation chain (lun→en):** Neural MT (NLLB primary, MarianMT fallback) → Semantic search → Dictionary lookup
 - **Spellcheck:** Real-time Lunyoro spellcheck with suggestions
 
 ### Runyoro-Rutooro Writing Editor (`RunyoroEditor.tsx`)
@@ -99,6 +100,9 @@ python backend/build_index.py
 #   - dictionary entries
 #   - english_sentences / lunyoro_sentences arrays
 #   - embeddings matrix for cosine-similarity retrieval
+# Note: if the index is missing sentence data (e.g. built before train.csv was
+# available), Selective RAG degrades gracefully — returns None and falls through
+# to neural MT rather than raising a KeyError.
 ```
 
 ### 2. Clean Training Data
@@ -802,6 +806,7 @@ lunyoro-translator/
 │   ├── generate_grammar_pairs.py    # Generate 8,000+ grammar pairs from GR4/GR5 rule tables → data/cleaned/gr_grammar_pairs.csv
 │   ├── gr4_full_pipeline.py         # Complete GR4 training pipeline (automated)
 │   ├── upload_models_to_hf.py       # Upload models to HuggingFace Hub
+│   ├── _pull_from_space.py          # Pull source files back from HF Space (dry run by default; --apply to download)
 │   ├── feedback_store.py            # Human feedback storage + auto-export
 │   ├── retrain_from_feedback.py     # End-to-end feedback retraining
 │   ├── auto_retrain.py              # Automated retraining service
@@ -1017,6 +1022,25 @@ This uploads models to HuggingFace Hub, removing the need for Git LFS storage. M
 python backend/push_to_hf_space.py
 # Pushes to: keithtwesigye-runyoro-translator-api.hf.space
 ```
+
+### Pull Source Files from HuggingFace Space
+```bash
+python backend/_pull_from_space.py           # dry run — preview files to download
+python backend/_pull_from_space.py --apply   # actually download files
+```
+
+Pulls backend source files from the live HF Space back to the local repo. Useful for syncing hotfixes or edits made directly in the Space UI.
+
+**What is pulled:** `.py`, `.json`, `.txt`, `.md`, `.sh`, `.pkl`, and small `.csv` files (source code, configs, key assets).
+
+**What is skipped:**
+- Model weights (`model/en2lun/`, `model/lun2en/`, `model/nllb_*/`)
+- Large training data (`data/training/train.csv`, `val.csv`, augmented files, back-translated files)
+- Secrets (`.env`)
+- Logs (`auto_retrain.log`, `backend*.log`, `feedback.jsonl`)
+- Backup files (`.bak`, `.bak2`, `~$` suffixes)
+
+Retries each file up to 3 times on failure and prints a summary of any files that could not be downloaded. Always run without `--apply` first to preview what will be fetched.
 
 ### Push Benchmark Files to GitHub
 ```bash
