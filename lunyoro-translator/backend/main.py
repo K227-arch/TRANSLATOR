@@ -68,7 +68,7 @@ def _clean_translation(text: str) -> str:
 app = FastAPI(title="Lunyoro/Rutooro Translator API")
 
 # CORS — configurable via CORS_ORIGINS env var (comma-separated)
-_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3002,http://localhost:3000,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app")
+_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3002,http://localhost:3000,http://10.0.2.2:3002,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app")
 _cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(
