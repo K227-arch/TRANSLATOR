@@ -20,10 +20,12 @@ A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - **Dual neural models:** NLLB-200 (primary for both directions) + MarianMT (fallback/comparison); the best available translation is shown as a single output
 - **HuggingFace Hub integration:** Models loaded automatically from HF Hub on first use and cached locally
 - **Context-aware:** Uses previous sentence for better coherence
-- **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation, Grammar Rules 4 (copula, kinship, enumeratives, ka particle, demonstratives, dara presentative, verb-noun derivation)
+- **Grammar rules:** Automatic R/L rule, apostrophe elision, nasal assimilation, initial vowel rule (ensures each word carries the correct class vowel before its prefix; skips a known exception list of verb infinitives and derived nouns whose internal vowels must not be altered — e.g. `okulya`, `ebyokulya`, `okunywa`, `okugenda`), Grammar Rules 4 (copula, kinship, enumeratives, ka particle, demonstratives, dara presentative, verb-noun derivation)
 - **Hallucination guard:** Detects and rejects degenerate MT output (repetitive tokens or bigrams exceeding 40%/35% thresholds) — falls back to the next translation method automatically
-- **Translation chain (en→lun):** Curated phrase override (idiomatic translations for common expressions) → Selective RAG (high-confidence corpus match) → Neural MT (NLLB + MarianMT) → Semantic search → Dictionary lookup
-- **Spellcheck:** Real-time Lunyoro spellcheck with suggestions
+- **Translation chain (en→lun):** Curated phrase override (idiomatic translations for common expressions) → Selective RAG (high-confidence corpus match) → Corpus exact-match (for short inputs of 1–3 words, scans the full sentence corpus for a case-insensitive exact match before invoking neural MT) → Neural MT (NLLB + MarianMT) → Semantic search → Dictionary lookup
+- **lun→en input preprocessing:** Before the Lunyoro source is fed to the model, three normalisation passes run in sequence: (1) nasal assimilation (nb→mb, np→mp, etc.) for canonical consonant clusters; (2) apostrophe elision expansion so contracted particles reach the model in their full form (`n'ente` → `na ente`, `w'okugonza` → `wa okugonza`, etc.); (3) common spelling-variant normalisation (`kiro` → `leero`, `eky-` → `eki-` prefix variants, etc.). The R/L rule is intentionally **not** applied to input — the model was trained on real speaker text.
+- **lun→en output post-processing:** Every lun→en translation (regardless of model path) goes through two cleaning stages before being shown. **Stage 1 — decode-time artefact cleaning** (applied immediately after `tokenizer.decode()`, NLLB only): (1) SentencePiece word-boundary markers (`▁`, U+2581) that occasionally leak through the NLLB `run_Latn` decoder are stripped and excess whitespace collapsed; (2) isolated `L` → `I` substitution — NLLB occasionally confuses the Latin letter `L` with the first-person pronoun `I` due to character-level ambiguity in the `run_Latn` script mapping; the regex (`(?<![A-Za-z])L(?![A-Za-z])`) uses lookahead/lookbehind rather than `\b` so it correctly handles punctuation-adjacent occurrences. **Stage 2 — `_postprocess_english` (applied universally in `POST /translate-reverse`)**: runs on the final translation regardless of which model produced it — (1) language-code prefix stripping (e.g. `run_Latn:` or `[GENERAL]` prefixes); (2) double-subject removal (e.g. `The child he went` → `The child went`); (3) redundant pronoun removal after proper nouns; (4) duplicate copula deduplication (`is is` → `is`); (5) repeated trailing sentence removal; (6) sentence capitalisation and terminal punctuation enforcement. The Qwen LLM refinement pass runs on top of both stages as a best-effort fluency improvement.
+- **Spellcheck:** Real-time Lunyoro spellcheck with suggestions; the known-word vocabulary is built from the sentence corpus, the dictionary, and the MarianMT tokenizer — tokenizer tokens are filtered to Bantu-prefix patterns only — the filter now requires a 3-character prefix match (e.g. `oku`, `omu`, `aba`, `eki`, `ebi`, `eri`, `oru`, `eng`, `emb`, `ngo`, `nka`, `wee`, `ree`) and a minimum word length of 5 characters, so short sub-word fragments and 2-char English noise tokens are excluded; this stricter filter reduces false negatives in the spellchecker; dictionary entries are additionally filtered through an English stoplist (~70 common English words such as `ago`, `down`, `from`, `people`, `world`, etc.) to exclude English words that leak into the dictionary from being registered as known Runyoro vocabulary
 
 ### Navigation
 
@@ -491,7 +493,7 @@ Converts the fine-tuned MarianMT models to ONNX format using [Hugging Face Optim
 | `--verify` | — | After export, run a side-by-side comparison of PyTorch vs ONNX output and latency for 3 test sentences |
 
 **Notes:**
-- Only MarianMT is exported — NLLB-200 is too large and the autoregressive loop limits ONNX speedup
+- Exports MarianMT only — for NLLB-200 ONNX export see section 6c-4 (`export_nllb_onnx.py`)
 - Provider selection uses `onnxruntime.get_available_providers()` at runtime — prefers `CUDAExecutionProvider` when available, otherwise falls back to `CPUExecutionProvider`
 - Decoder file auto-detected: `decoder_model_merged.onnx` (newer Optimum) takes priority over `decoder_model.onnx` (older export); a clear error is raised if neither is found
 - `use_cache=False` is set on `ORTModelForSeq2SeqLM` — `use_cache=True` requires a separate `decoder_with_past` model that is not always exported
@@ -526,6 +528,38 @@ Exports MarianMT models to ONNX with INT8 dynamic quantization using [Optimum](h
 - `translate.py` auto-detects ONNX models at load time — no code changes needed after export
 - Reports PyTorch vs INT8 model sizes and compression percentage after export
 - Requires `optimum[onnxruntime]` (already in `requirements.txt`)
+
+### 6c-4. Export NLLB-200 Models to ONNX (Faster CPU Inference)
+```bash
+python backend/export_nllb_onnx.py
+```
+
+Converts the fine-tuned NLLB-200 models to ONNX format using [Hugging Face Optimum](https://github.com/huggingface/optimum). Provides ~3× faster inference on CPU and is particularly useful on the HF Space CPU tier where loading the full PyTorch NLLB model (~2.3 GB) can cause OOM errors.
+
+**Output directories:**
+
+| Direction | Source path | Output path |
+|-----------|-------------|-------------|
+| en2lun | `model/nllb_en2lun/` | `model/nllb_en2lun_onnx/` |
+| lun2en | `model/nllb_lun2en/` | `model/nllb_lun2en_onnx/` |
+
+**Export options used:**
+- Task: `text2text-generation-with-past` (seq2seq with KV cache for decoder)
+- ONNX opset: 14
+- Optimization: `O2` (basic optimizations, safe for all runtimes)
+- Encoder and decoder kept separate (`monolith=False`) for memory efficiency
+
+**Post-export verification:** After each export, a smoke-test translation runs automatically (`"Hello"` for en→lun, `"ningenda"` for lun→en) to confirm the ONNX runtime loads and produces output correctly.
+
+**Notes:**
+- The old ONNX directory is deleted and recreated on each run — re-export after retraining to keep ONNX models in sync
+- Provider selection uses `onnxruntime.get_available_providers()` at runtime — prefers `CUDAExecutionProvider` when available, otherwise `CPUExecutionProvider`
+- `translate.py` automatically selects the best available NLLB backend at load time using this priority order:
+  1. **INT8 ONNX** — `model/nllb_{direction}_int8/` (fastest; produced by `export_nllb_onnx_int8.py`)
+  2. **FP32 ONNX** — `model/nllb_{direction}_onnx/` (produced by `export_nllb_onnx.py`)
+  3. **PyTorch** — `model/nllb_{direction}/` (fallback; loads in `float16` on CPU to reduce memory)
+- Decoder file auto-detected in priority order: `decoder_model_merged.onnx` (newer Optimum, `use_cache=True`) → `decoder_model.onnx` (`use_cache=False`); a clear error is raised if neither is found
+- Requires `optimum[onnxruntime]` (already in `requirements.txt`); install with `pip install optimum[onnxruntime]` if missing
 
 ### 6d. Run Full Training Pipeline with New-Only Data + Full Deploy
 ```bash
@@ -864,6 +898,57 @@ python show_benchmarks.py
 # Run from the lunyoro-translator/ root directory.
 ```
 
+### 11c-2. Benchmark ONNX Translation Speed
+```bash
+python backend/benchmark_onnx.py
+# Requires the backend to be running on http://localhost:8000
+#
+# Sends 8 test sentences (4 EN→LUN + 4 LUN→EN) to the live API and
+# measures wall-clock latency per call.  Reports:
+#   - Per-call direction, elapsed time, source text, translation, and model used
+#   - Total time + average time per call
+#
+# To compare ONNX FP32 (current) against INT8 quantized models:
+#   1. Run: python backend/quantize_onnx_int8.py
+#   2. Restart the backend
+#   3. Run this benchmark again to see the INT8 latency improvement
+```
+
+### 11c-3. Grammar and Translation Quality Test
+```bash
+python backend/quality_test.py
+# Requires the backend to be running on http://localhost:8000
+#
+# Evaluates the primary translation model (NLLB-200 INT8 ONNX) across key
+# Runyoro-Rutooro linguistic features, grouped into four categories:
+#
+#   TENSES
+#     — Present, past, future, and continuous forms for 1sg, 3sg, and 1pl
+#       (e.g. "I eat food" / "He went to the market" / "I will go to school")
+#
+#   GRAMMAR AGREEMENT
+#     — Subject-verb concord (noun classes 2, 8, 9), possession,
+#       and object markers (ku-, m-)
+#
+#   COMPLEX SENTENCES
+#     — Conditional clauses, relative clauses, object-in-relative,
+#       negation, and perfect negation
+#
+#   REVERSE (LUN→EN)
+#     — Six Lunyoro sentences covering past tense, future tense,
+#       plural agreement, reported speech, universal statements,
+#       and negation
+#
+# For each test case the script prints:
+#   - Direction (EN→LUN or LUN→EN), source text
+#   - Model translation and method used (e.g. "nllb", "marian", "retrieval")
+#   - Expected linguistic form or gloss for manual evaluation
+#
+# Usage:
+#   1. Start the backend: python backend/main.py
+#   2. In another terminal: python backend/quality_test.py
+```
+
 ### 11b. Inspect Training Data Composition
 ```bash
 python backend/check_weights.py
@@ -1020,6 +1105,8 @@ lunyoro-translator/
 │   ├── back_translate.py            # Back-translation augmentation
 │   ├── retrain_tokenizer.py         # SentencePiece retraining
 │   ├── export_to_onnx.py            # Export MarianMT models to ONNX for 2-5x faster CPU inference (en2lun_onnx/ + lun2en_onnx/)
+│   ├── benchmark_onnx.py            # Benchmark ONNX FP32 vs INT8 translation speed and quality against the live API
+│   ├── quality_test.py              # Grammar and translation quality evaluation: tenses, agreement, complex sentences, lun→en — prints model output alongside expected linguistic forms for manual review
 │   ├── train_all.py                 # Unified pipeline: MarianMT + NLLB sequentially, then HF push
 │   ├── run_full_training.py         # New-only data pipeline: MarianMT (initial) + NLLB + MarianMT retrain on full val → HF Hub + HF Space + git push; supports --retrain-marian-only to run only the retrain step
 │   ├── train_marian.py              # MarianMT fine-tuning
@@ -1095,9 +1182,9 @@ lunyoro-translator/
 
 ### Translation
 - `POST /translate` — English → Lunyoro
-  - Parameters: `text` (required), `context` (optional, previous sentence for coherence), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Qwen 2.5 7B pass to improve grammar, noun-class agreement, R/L rule, apostrophe elision, and kinship terms before returning the result)
+  - Parameters: `text` (required), `context` (optional, previous sentence for coherence), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Qwen 2.5 7B pass to improve grammar, noun-class agreement, R/L rule, apostrophe elision, and kinship terms before returning the result), `direction` (optional string, default `"en->lun"` — accepted for API compatibility but ignored; the endpoint itself determines the translation direction)
 - `POST /translate-reverse` — Lunyoro → English
-  - Parameters: `text` (required), `context` (optional), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Qwen 2.5 7B pass to improve fluency, accuracy, and natural phrasing of the English output before returning the result)
+  - Parameters: `text` (required), `context` (optional), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Qwen 2.5 7B pass to improve fluency, accuracy, and natural phrasing of the English output before returning the result), `direction` (optional string — accepted for API compatibility but ignored; use `/translate` for en→lun and `/translate-reverse` for lun→en)
 - `POST /lookup` — Dictionary word lookup
 - `POST /spellcheck` — Lunyoro spellcheck
 

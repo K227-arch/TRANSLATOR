@@ -1,13 +1,138 @@
-timestamp,direction,rating,model_used,source_text,translation,correction,error_type,ip,rating_label,has_correction
-2026-05-07T08:10:18.413670,en→lun,-1,,the cat is running,enjangu neiruka,,spelling,127.0.0.1,Negative,No
-2026-05-07T08:11:00.881233,en→lun,-1,none,the cat is running,enjangu neiruka,enjango neiruka,both_models_wrong,127.0.0.1,Negative,Yes
-2026-05-07T14:54:43.219747,en→lun,1,,the cat is running,enjangu neiruka,,,127.0.0.1,Positive,No
-2026-05-07T14:54:48.221378,en→lun,1,nllb,the cat is running,enjangu niiruka,,,127.0.0.1,Positive,No
-2026-05-07T18:23:35.466563,en→lun,-1,,the girl is running,omwasiki narubatana,,different meaning,127.0.0.1,Negative,No
-2026-05-07T18:23:43.698353,en→lun,1,nllb,the girl is running,omwasiki nairuka,,different meaning,127.0.0.1,Positive,No
-2026-05-07T18:29:57.805359,en→lun,1,,the cat has died,enjangu efiire,,,127.0.0.1,Positive,No
-2026-05-07T18:30:06.693799,en→lun,1,both,the cat has died,enjangu efiire,,both_models_correct,127.0.0.1,Positive,No
-2026-05-08T14:29:24.149560,en→lun,-1,,the girl is going to the market to buy fish for a mad person,omwasiki nagenda mukatale kugura ensumaki habw 'omuntu musawe,,context,127.0.0.1,Negative,No
-2026-05-08T14:29:31.428189,en→lun,1,nllb,the girl is going to the market to buy fish for a mad person,omwasiki nagenda mukatale kugura encu habw 'omuntu agwire iraro,,context,127.0.0.1,Positive,No
-2026-05-09T08:25:43.539258,en->lun,-1,,animals are kept,enyamaiswa bazitundwa,,different meaning,127.0.0.1,Negative,No
-2026-05-09T08:25:53.132714,en->lun,1,nllb,animals are kept,ebisoro nibabilinda,,different meaning,127.0.0.1,Positive,No
+timestamp,direction,rating,model_used,refined,source_text,translation,correction,error_type,ip,rating_label,has_correction
+2026-05-22T12:13:59.426802,en->lun,1,nllb,False,The child is eating food,Omwana arya ebyokurya,,,,Positive,No
+2026-05-07T08:10:18.413670,en→lun,-1,,,the cat is running,enjangu neiruka,,spelling,127.0.0.1,Negative,No
+2026-05-07T08:11:00.881233,en→lun,-1,none,,the cat is running,enjangu neiruka,enjango neiruka,both_models_wrong,127.0.0.1,Negative,Yes
+2026-05-07T14:54:43.219747,en→lun,1,,,the cat is running,enjangu neiruka,,,127.0.0.1,Positive,No
+2026-05-07T14:54:48.221378,en→lun,1,nllb,,the cat is running,enjangu niiruka,,,127.0.0.1,Positive,No
+2026-05-07T18:23:35.466563,en→lun,-1,,,the girl is running,omwasiki narubatana,,different meaning,127.0.0.1,Negative,No
+2026-05-07T18:23:43.698353,en→lun,1,nllb,,the girl is running,omwasiki nairuka,,different meaning,127.0.0.1,Positive,No
+2026-05-07T18:29:57.805359,en→lun,1,,,the cat has died,enjangu efiire,,,127.0.0.1,Positive,No
+2026-05-07T18:30:06.693799,en→lun,1,both,,the cat has died,enjangu efiire,,both_models_correct,127.0.0.1,Positive,No
+2026-05-08T14:29:24.149560,en→lun,-1,,,the girl is going to the market to buy fish for a mad person,omwasiki nagenda mukatale kugura ensumaki habw 'omuntu musawe,,context,127.0.0.1,Negative,No
+2026-05-08T14:29:31.428189,en→lun,1,nllb,,the girl is going to the market to buy fish for a mad person,omwasiki nagenda mukatale kugura encu habw 'omuntu agwire iraro,,context,127.0.0.1,Positive,No
+2026-05-09T08:25:43.539258,en->lun,-1,,,animals are kept,enyamaiswa bazitundwa,,different meaning,127.0.0.1,Negative,No
+2026-05-09T08:25:53.132714,en->lun,1,nllb,,animals are kept,ebisoro nibabilinda,,different meaning,127.0.0.1,Positive,No
+2026-05-11T16:06:14.174903,en->lun,-1,,,animals and people,enyamaiswa n'abantu,,different meaning,127.0.0.1,Negative,No
+2026-05-11T16:06:17.779987,en->lun,1,nllb,,animals and people,ebisoro n'abantu,,different meaning,127.0.0.1,Positive,No
+2026-05-11T16:27:59.023811,en->lun,1,both,,people and animals,abantu n'ebisoro,,both_models_correct,127.0.0.1,Positive,No
+2026-05-08T08:39:07.155233,en→lun,1,,,the girl has run mad,omwasiki agwire iraro,,,10.16.29.229,Positive,No
+2026-05-08T08:40:54.797261,en->lun,1,marian,,test,obuteekateeka,,,10.16.42.153,Positive,No
+2026-05-08T09:51:21.061217,en→lun,1,,,where is my girl,omwasiki wange ali nkaha,,,10.16.29.229,Positive,No
+2026-05-08T13:09:16.435980,en→lun,1,,,the man has ran wild,omusaija agwire obwooki,,,10.16.42.153,Positive,No
+2026-05-08T13:11:20.950669,en→lun,-1,none,,What did the grandmother say about food,Nyinenkuru akagamba ata habwebyokuzya,Nyinenkuru akagamba ata habwebyokulya,both_models_wrong,10.16.14.160,Negative,Yes
+2026-05-08T13:24:13.595033,en→lun,1,marian,,The car was moving so fast that it was hard for driver to control,Emetooka ekaba nayanguha kukira bwango eki kibaire kigumire hali omubimbi,,,10.16.1.102,Positive,No
+2026-05-08T13:31:39.211674,en→lun,-1,marian,,The car was moving so fast that it was hard for driver to control,Emetooka ekaba nayanguha kukira bwango eki kibaire kigumire hali omubimbi,Emotoka ekaba niruka munu eki kiaba kigumire omubingi wayo okukisonora,,10.16.1.102,Negative,Yes
+2026-05-08T13:36:37.219587,en→lun,-1,none,,Teacher can I go for short call,Omwagesa nasobora kugenda kweta,Omusomesa/ omwegesa Ninsobora kugenda kataito,both_models_wrong,10.16.42.153,Negative,Yes
+2026-05-08T13:38:25.699013,en→lun,-1,marian,,Teacher can I go for short call,Omwagesa nasobora kugenda kweta,Omusomesa/ omwegesa Ninsobora kugenda kataito,"spelling, different meaning",10.16.14.160,Negative,Yes
+2026-05-08T13:41:42.967138,en→lun,1,nllb,,Look at him he is not ok,Murole tali kurungi,,,10.16.1.102,Positive,No
+2026-05-08T13:42:16.184988,en→lun,1,nllb,,Look at him he is not ok,Murole tali kurungi,,,10.16.14.160,Positive,No
+2026-05-08T13:43:32.487532,en→lun,1,marian,,How is life,Obwomezi buta,,,10.16.29.229,Positive,No
+2026-05-08T17:52:49.788169,en→lun,-1,none,,"Halo, where is my money","Haro, efeza zange zizizi nkaha",,both_models_wrong,10.16.14.160,Negative,No
+2026-05-08T17:56:02.735635,en→lun,1,nllb,,Where are you leaving these days,Ogenda nkaha ebiro binu,,,10.16.42.153,Positive,No
+2026-05-08T18:03:44.478632,en→lun,1,nllb,,Where are you living these days,Oikaire nkaha ebiro binu,,,10.16.14.160,Positive,No
+2026-05-08T18:04:21.624046,en->lun,-1,,,animals,enyamaiswa,,different meaning,10.16.29.107,Negative,No
+2026-05-08T18:47:10.808521,en->lun,1,marian,,The boy is running,Omwajo nairuka,,,10.16.29.107,Positive,No
+2026-05-08T18:48:47.961807,en->lun,1,marian,,The boy is running,Omwajo nairuka,,,10.16.29.107,Positive,No
+2026-05-08T18:54:18.000158,en->lun,1,nllb,,What is agriculture in Rutooro,ebyebulimi omu Rutooro,,,10.16.14.160,Positive,No
+2026-05-08T18:55:45.592361,en->lun,-1,nllb,,What is agriculture in Rutooro,ebyebulimi omu Rutooro,,other: Ebyobulimi no Buliisa mu Rutooro kintuki,10.16.42.153,Negative,No
+2026-05-09T08:28:32.580418,en->lun,1,nllb,,animals,ebisoro,,different meaning,10.16.42.153,Positive,No
+2026-05-22T08:23:34.655427,en->lun,1,,False,Where are you going?,Ogenda nkaha?,,,10.20.32.255,Positive,No
+2026-05-22T08:24:04.318593,en->lun,1,nllb,False,Where are you going?,Ogenda nkaha?,,,10.20.2.69,Positive,No
+2026-05-22T12:17:46.731461,en->lun,1,,False,the goat is very big,embuzi enkazi,,,10.16.20.36,Positive,No
+2026-05-22T12:18:06.771876,en->lun,-1,,False,the goat is very big,embuzi enkazi,,grammar,10.16.34.163,Negative,No
+2026-05-22T12:52:00.234681,en->lun,1,,False,the cat is big,enJangu ikoto,,,10.16.25.130,Positive,No
+2026-05-22T17:57:02.562431,en->lun,1,,False,the goat is big,embuzi enkazi,,,10.20.32.255,Positive,No
+2026-05-22T17:59:16.433751,lun->en,1,,False,oraire otya,how are you doing,,,10.20.25.44,Positive,No
+2026-05-22T22:37:52.146653,en->lun,1,marian,False,with a cow,n'ente,n'ente,vocabulary,10.16.20.36,Positive,Yes
+2026-05-23T04:23:34.420830,en->lun,-1,,False,I didn't see you at the party yesterday evening,tinkakuroraga habugenyi ijo nyenkyakara,,,10.16.20.36,Negative,No
+2026-05-23T04:26:18.442609,en->lun,-1,,False,I didn't see you at the party yesterday evening,tinkakuroraga habugenyi ijo nyenkyakara,Tinkurozirege hamukoro ijo rwebajyo,,10.16.25.130,Negative,Yes
+2026-05-23T04:31:53.405381,en->lun,-1,,False,The introduction party was postponed to next month,Ekijaguzo kyokwemanyiiza bakasigirayo omwazi ogukwija,,,10.16.34.163,Negative,No
+2026-05-23T04:36:43.868125,en->lun,-1,,False,The introduction party was postponed to next month,Ekijaguzo kyokwemanyiiza bakasigirayo omwazi ogukwija,Omukoro gwo'kwanjura/okumanyagana ba kagwogezayo mpaka omwezi ogurukwija,spelling,10.16.20.36,Negative,Yes
+2026-05-25T17:50:29.185071,en->lun,1,,False,where are you going?,Ogenda nkaha?,,,10.16.20.36,Positive,No
+2026-05-28T07:14:17.736676,en->lun,-1,none,False,Did the police arrest the bus driver,Abapolisi bakakwata omujaasi webbasi,,both_models_wrong,10.16.37.205,Negative,No
+2026-05-28T07:17:47.331813,en->lun,-1,,False,Did the police arrest the bus driver,Abapolisi bakakwata omujaasi webbasi,Abasirukale bakwasirege omuvugi wa baasi,"different meaning, grammar, spelling",10.16.37.205,Negative,Yes
+2026-05-28T07:32:47.769748,en->lun,1,marian,False,The hotel in town was closed due to the death of the owner,Eworukarra omu kibuga rwakingwaho habwokufa kw'omuiru rubale,,,10.16.40.242,Positive,No
+2026-05-28T07:50:37.459286,en->lun,-1,marian,False,The hotel in town was closed due to the death of the owner,Eworukarra omu kibuga rwakingwaho habwokufa kw'omuiru rubale,Hoteri mutawuni ekingire habwokuba mukama wayo afwire,"different meaning, grammar",10.16.3.80,Negative,Yes
+2026-05-28T08:49:00.562300,en->lun,1,marian,False,Come and we dance together till the visitors come,Ija tuzina hamu kuhikya abagenyi niija,,,10.16.3.80,Positive,No
+2026-05-28T08:50:21.901517,en->lun,-1,marian,False,Come and we dance together till the visitors come,Ija tuzina hamu kuhikya abagenyi niija,Ija tuzine hamu kuhikya abagenyi baizire,spelling,10.16.3.80,Negative,Yes
+2026-05-28T08:55:30.445372,en->lun,-1,none,False,"The rain was too much, it had hailstones and caused floods","Enjura egwire muno, omwijurraine gukaleeta n'emiyaga",,both_models_wrong,10.16.37.205,Negative,No
+2026-05-28T09:01:12.207740,en->lun,-1,marian,False,"The rain was too much, it had hailstones and caused floods","Enjura egwire muno, omwijurraine gukaleeta n'emiyaga","Enjura ekaba nyingi muno, ekabamu orubale Kandi ekaleta amaizi okusandara","spelling, different meaning, context",10.16.37.205,Negative,Yes
+2026-05-29T11:21:56.703364,en->lun,1,,False,Every dog has its own day,Buli embwa egira ekiro kyayo,,,10.16.40.242,Positive,No
+2026-05-29T11:22:09.036419,en->lun,1,both,False,Every dog has its own day,Buli embwa egira ekiro kyayo,,both_models_correct,10.16.40.242,Positive,No
+2026-05-29T15:37:16.559776,en->lun,1,,False,each dog has its own day,buli embwa iba ne leero kyayo,,,10.16.47.7,Positive,No
+2026-05-30T16:56:09.880141,en->lun,1,,False,Good rainfall is important for farming,Emvura nziza niiha abalimi,,,10.16.40.242,Positive,No
+2026-06-01T05:53:59.650434,en->lun,1,,True,"Good morning, how did you sleep?",Oraire n'omuntu?,,,10.16.37.205,Positive,No
+2026-06-01T05:55:56.009828,en->lun,-1,,True,"Good morning, how did you sleep?",Oraire n'omuntu?,"Nyenkyara enungi, oraire ota?",,10.16.40.242,Negative,Yes
+2026-06-01T05:58:14.081463,en->lun,1,both,True,My name is Tumusiime and I am from Hoima.,Ibara ryange Tumusiime kandi ndi Hoima.,,both_models_correct,10.16.47.7,Positive,No
+2026-06-01T06:00:00.392327,en->lun,1,,True,My name is Tumusiime and I am from Hoima.,Ibara ryange Tumusiime kandi ndi Hoima.,,,10.16.3.80,Positive,No
+2026-06-01T06:06:11.648087,en->lun,1,,True,I am going to the market to buy tomatoes and onions.,Ningenda mukale kugira entaanya na entatunguru.,,,10.16.3.80,Positive,No
+2026-06-01T06:08:36.000886,en->lun,-1,,True,I am going to the market to buy tomatoes and onions.,Ningenda mukale kugira entaanya na entatunguru.,Nogenda mukatale kugura enyanya no'butunguru,"spelling, other: Plurals",10.16.47.7,Negative,Yes
+2026-06-01T06:14:47.549419,en->lun,-1,,True,Please give me a cup of water; I am very thirsty.,Onganyira mpaire nkopo y'amaizi; nyin'iroho.,,,10.16.47.7,Negative,No
+2026-06-01T06:18:11.760182,en->lun,-1,,True,Please give me a cup of water; I am very thirsty.,Onganyira mpaire nkopo y'amaizi; nyin'iroho.,Cali mpaho ekikopo kyamaizi; nyine iroho ringi,"spelling, different meaning",10.16.3.80,Negative,Yes
+2026-06-01T06:29:50.017947,en->lun,-1,,True,Where did you put the keys to the house?,Okaghetti nkaha ebisumuruzo by'enzu?,Ebisumuruzo bye'nju obitaire nkaha?,"spelling, vocabulary",10.16.40.242,Negative,Yes
+2026-06-01T06:30:24.279353,en->lun,1,,True,Where did you put the keys to the house?,Okaghetti nkaha ebisumuruzo by'enzu?,Ebisumuruzo bye'nju obitaire nkaha?,"spelling, vocabulary",10.16.37.205,Positive,Yes
+2026-06-01T06:35:20.920567,en->lun,1,,True,Yesterday my my children played football until evening.,Ijo abaana bange bana nibazaana omupiira kuhikya nyenkyakara.,,,10.16.40.242,Positive,No
+2026-06-01T06:37:00.706705,en->lun,-1,,True,Yesterday my my children played football until evening.,Ijo abaana bange bana nibazaana omupiira kuhikya nyenkyakara.,Ijo abaana bange bakazana omupiira okuhikya rwebajyo,"spelling, vocabulary",10.16.40.242,Negative,Yes
+2026-06-01T06:45:47.278617,en->lun,1,,True,Tell your mother that I will visit tomorrow.,Gambira nyoko nyije n'omugonza nyenkya.,,,10.16.47.7,Positive,No
+2026-06-01T07:34:11.350637,en->lun,1,marian,True,The food is delicious but a little testy,Ebyokurya birungi baitu bikyokya muno,,,10.16.40.242,Positive,No
+2026-06-01T07:36:05.595105,en->lun,1,marian,True,The food is delicious but a little testy,Ebyokurya birungi baitu bikyokya muno,,,10.16.3.80,Positive,No
+2026-06-01T07:44:09.671365,en->lun,1,,True,"If you finish your work early,  we can go together to the well.","Kakuba wamazire kara omulimo, nitusobora kugenda hamu ha iziba.","Kakuba Omaha Kara omulimo gwawe,  nitusobora kugenda hamu haiziba","grammar, spelling",10.16.40.242,Positive,Yes
+2026-06-01T07:44:12.183445,en->lun,1,nllb,True,"If you finish your work early,  we can go together to the well.",Kakuba wamazire kara omulimo nitusobora kugenda hamu ha iziba.,"Kakuba Omaha Kara omulimo gwawe,  nitusobora kugenda hamu haiziba","grammar, spelling",10.16.37.205,Positive,Yes
+2026-06-01T09:00:36.343842,en->lun,-1,none,True,The president addressed the nation about the new education policy.,Omuhikirwa akataahya ihanga habwebiragiro by'enjigiriza ebihyaka.,,both_models_wrong,10.16.3.80,Negative,No
+2026-06-01T09:08:23.999166,en->lun,-1,nllb,True,The president addressed the nation about the new education policy.,Omuhikirwa akataahya ihanga habwebiragiro by'enjigiriza ebihyaka.,Omwebembezi wihanga akabazaho enyegesa empyaka,"spelling, different meaning, context",10.16.47.7,Negative,Yes
+2026-06-01T09:12:01.716202,en->lun,-1,none,True,Parliament passed the bill with a  two-thirds majority vote.,Orukurato nurubinga ebiragiro ebi habwiboro bibiri bya kasatu.,,both_models_wrong,10.16.3.80,Negative,No
+2026-06-01T09:17:22.947397,en->lun,-1,nllb,True,Parliament passed the bill with a  two-thirds majority vote.,Orukurato nurubinga ebiragiro ebi habwiboro bibiri bya kasatu.,,"other, vocabulary, context",10.16.3.80,Negative,No
+2026-05-26T18:47:36.949468,en->lun,1,,False,Every dog has its day,Buli embwa egira ekiro kyayo,,,10.16.5.171,Positive,No
+2026-05-26T18:48:26.469297,en->lun,1,,False,Every dog has its day,Buli embwa egira ekiro kyayo,,,10.16.25.130,Positive,No
+2026-05-28T08:51:12.373705,en->lun,1,marian,False,Come and we dance together till the visitors come,Ija tuzina hamu kuhikya abagenyi niija,Ija tuzine hamu kuhikya abagenyi baizire,spelling,10.16.47.7,Positive,Yes
+2026-06-03T05:10:55.041534,en->lun,1,marian,True,Heavy rains have destroyed roads and bridges in three districts,Enjura omwingi esisire enguudo n'ebitebe omu micweka esatu,Enjura enyingi ekasisa egudo hamu ne'tindo omu disiturikiti isatu,"other: Vocabulary, spelling",10.16.37.205,Positive,Yes
+2026-06-03T05:19:07.361438,en->lun,1,marian,True,The minister of health launched a  vaccination campaign on Monday,Omufumu akatandika omukoro gw'okwiitiriza omugenzi hakiro ky'okubanza,Omuhikirwaho we'byobomezi akatandikaho okugema balaza,"other, different meaning, vocabulary",10.16.37.205,Positive,Yes
+2026-06-03T05:28:25.930979,en->lun,1,marian,True,Coffee prices have risen by fifteen percent this year.,Emihendo y'enkoko esisimukire kikumi n'ikumi mwaaka gunu.,Emihendo yo'mwani etembere ebicweka ikumi na bitaano ha kimumi omwaka gunu,"vocabulary, different meaning",10.16.25.26,Positive,Yes
+2026-06-03T05:44:49.076726,en->lun,-1,marian,True,The court ruled that the company must pay compensation to the workers,Ekitebe kikatekwaho emisango ngu ekitongole kiina kusubura abakozi ebintu byona,Koti ekaramura eti ekitongole kine okusasura abakozi,"different meaning, vocabulary",10.16.29.130,Negative,Yes
+2026-06-03T06:46:53.571075,en->lun,-1,marian,True,A delegation from Kenya arrived yesterday from trade talks.,Omukitebe kyokutanga kuruga Kenya kyaija kurunga obusubuzi bwona.,Omukuru kuruga Kenya ahikirege ijo habworubazo rwo'busubuzi,"different meaning, vocabulary, context",10.16.37.205,Negative,Yes
+2026-06-03T06:56:41.272222,en->lun,-1,marian,True,The journalist reported that violence has decreased in the northern region,Abarukugeruliriza bakaragira ngu obubi bwenziha bukasiisa omukihanga,Abanyamakuru bakarangira nti obuvuyo no'bumalyangaine omumateba bukakeha,"different meaning, vocabulary, context",10.16.37.205,Negative,Yes
+2026-06-03T07:07:36.514585,en->lun,1,marian,True,School will resume on the first of February after the holidays.,Isomero nirikugarukaho hakubanza kwa feburahere hanyuma y'obugenyi.,Isomero nirinja kugarukamu kibaza okwakabiri hanyuma yo'ruhumuro,"different meaning, vocabulary",10.16.37.205,Positive,Yes
+2026-06-03T07:50:19.209411,en->lun,-1,marian,True,Investigations are ongoing into the cause of the fire at the warehouse,ebyokukebera nibizooka kutandikaho omubaro hakyombeko,Okuseruruza nikukyagenda mumaiso hansonga eyaleterire omuro omulyahuro lyebintu,"different meaning, vocabulary, spelling",10.16.3.80,Negative,Yes
+2026-06-04T07:43:36.107052,en->lun,1,,False,Girls are going to school,Abaisiki bagenda haisomero,,,10.16.3.80,Positive,No
+2026-06-04T07:44:02.644827,en->lun,1,,False,Girls are going to school,Abaisiki bagenda haisomero,,,10.16.47.7,Positive,No
+2026-06-15T08:26:54.465596,en->lun,1,,False,the cat is running,enjangu erukwiragura,,,10.16.47.7,Positive,No
+2026-06-15T08:35:11.528013,en->lun,-1,,True,The crane flew over the crane near the construction site,Entuuh kinu kikahuliriza haihi n'ekyombeko,Enkura ekaguruka yarabaho enkura haihi n'omwanya  gw'okwombekamu,"context, different meaning",10.16.25.137,Negative,Yes
+2026-06-15T08:36:59.062844,en->lun,-1,,True,Can you check the balance of my account?,Nosobora okukebera obulemeezi b'omuntu wange?,Noosobora kukebera sente ezisigaire ha akawunti yange?,"different meaning, context",10.16.47.7,Negative,Yes
+2026-06-15T08:38:37.645347,en->lun,-1,,True,She saw a bear near the bare tree,Akarwarro kaine omukubi n'ekisaru,Akarora ekibere haihi n'omuti ogutaina bijuma,"different meaning, context",10.16.25.137,Negative,Yes
+2026-06-15T08:40:01.715497,en->lun,-1,,True,File this document before you lose the file,Kuhandiika ekihandiko kinu kitakaswekere n'ebwokuba otakaferirwe egamu,,"context, different meaning",10.16.47.7,Negative,No
+2026-06-15T08:41:25.994410,en->lun,-1,,True,"Don't beat around the bush, just spill the beans","Otalitera engano, oleke kusegesa ebere bye",,"grammar, context, different meaning",10.16.24.253,Negative,No
+2026-06-15T08:42:45.255199,en->lun,-1,,True,This project is a piece of cake so don't bite off more than you can chew,Ekihangirwe kinu kijuma kine omubiri guroho nukwo n'omubiri otahendeka kukira kunu otakateere,,"different meaning, context",10.16.47.7,Negative,No
+2026-06-15T08:43:38.945737,en->lun,-1,,True,He woke up on the wrong side of the bed today,"Akasiimuka ha kitabu ekibi leero
+
+The draft is actually correct in Runyoro-Rutooro. Here's a breakdown:
+
+- ""Akasiimuka"" means ""He woke up""
+- ""ha"" is a negative particle
+- ""kitabu"" means ""the wrong side""
+- ""ekibi"" means ""of the bed""
+- ""leero"" means ""today""
+
+So the corrected version remains the same:
+Akasiimuka ha kitabu ekibi leero",,"context, different meaning",10.16.25.137,Negative,No
+2026-06-15T08:44:26.283009,en->lun,-1,,True,It's raining cats and dogs out there,kulindiramu obwana lw'ejju aheru,,"context, different meaning",10.16.25.137,Negative,No
+2026-06-15T08:48:25.620029,en->lun,-1,,True,The doctor asked the nurse to assist her in the operating room,Dakitali akasaba omujanjabi kumukonyera n'irukurato,,"vocabulary, different meaning, context, grammar",10.16.25.137,Negative,No
+2026-06-15T11:30:14.823383,en->lun,-1,,False,the cat is running,enjangu erukwiragura,,grammar,127.0.0.1,Negative,No
+2026-06-15T11:30:27.610454,en->lun,1,nllb,False,the cat is running,enjangu iruka,,grammar,127.0.0.1,Positive,No
+2026-06-15T11:30:39.796305,en->lun,1,nllb,False,the cat is running,enjangu iruka,,grammar,127.0.0.1,Positive,No
+2026-06-15T13:04:06.845652,en->lun,-1,,False,the cat is running,enjangu erukwiragura,,spelling,127.0.0.1,Negative,No
+2026-06-15T13:04:10.391728,en->lun,1,nllb,False,the cat is running,enjangu iruka,,spelling,127.0.0.1,Positive,No
+2026-06-15T13:04:25.603523,en->lun,1,nllb,False,the cat is running,enjangu iruka,,spelling,127.0.0.1,Positive,No
+2026-06-15T13:55:10.470470,en->lun,-1,,False,the cat is running,enjangu erukwiragura,,spelling,127.0.0.1,Negative,No
+2026-06-15T13:55:12.939147,en->lun,1,nllb,False,the cat is running,enjangu iruka,,spelling,127.0.0.1,Positive,No
+2026-07-16T13:06:58.368018,en->lun,1,,False,Good Morning,Oraire ota?,,,127.0.0.1,Positive,No
+2026-07-16T13:07:03.719186,en->lun,1,nllb,False,Good Morning,Oraire ota?,,,127.0.0.1,Positive,No
+2026-07-27T12:27:43.396655,en->lun,1,marian,False,the cat is making alot of noise,enjangu erukwiragura muno,,,127.0.0.1,Positive,No
+2026-07-27T12:27:56.372261,en->lun,1,marian,False,the cat is making alot of noise,enjangu erukwiragura muno,,,127.0.0.1,Positive,No
+2026-07-30T14:16:19.830567,en->lun,1,,False,good night girl,ekyero kirungi ekyesiki,,,127.0.0.1,Positive,No
+2026-07-30T14:17:10.896513,en->lun,1,,False,beans,ebihimba,,,127.0.0.1,Positive,No
+2026-07-30T14:18:48.643068,en->lun,1,marian,False,beans for eating,ebihimba habwokuzya,,,127.0.0.1,Positive,No
+2026-07-30T14:18:55.301113,en->lun,-1,marian,False,beans for eating,ebihimba habwokuzya,,,127.0.0.1,Negative,No
+2026-07-30T14:19:21.081256,en->lun,-1,marian,False,beans for eating,ebihimba habwokuzya,ebihimba ebyokurya,"grammar, spelling, context, vocabulary",127.0.0.1,Negative,Yes
+2026-07-30T14:20:07.143170,en->lun,1,nllb,False,me,nyowe,,,127.0.0.1,Positive,No
+2026-07-30T14:20:43.139734,en->lun,1,nllb,False,me,nyowe,,,127.0.0.1,Positive,No
+2026-07-30T14:21:51.121055,en->lun,1,nllb,False,you,iwe,,,127.0.0.1,Positive,No
