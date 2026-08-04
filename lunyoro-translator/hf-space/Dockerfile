@@ -4,7 +4,7 @@ WORKDIR /app
 
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl build-essential \
+    git curl build-essential tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps

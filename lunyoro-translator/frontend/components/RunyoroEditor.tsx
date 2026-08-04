@@ -179,25 +179,54 @@ export default function RunyoroEditor() {
     finally { setAiLoading(false); }
   }
 
-  // ── Translate text (Runyoro → English) ─────────────────────────────────────────
+  // ── Translate text (English → Runyoro or Runyoro → English) ─────────────────────
   async function translateText() {
     if (!text.trim()) return;
     setTransLoading(true);
     setTranslation("");
+
+    // Detect if text is mostly English (translate en→lun) or Runyoro (translate lun→en)
+    const commonEn = new Set(["the","a","an","is","are","was","were","be","been","have","has","had","do","does","did","will","would","could","should","to","of","in","on","at","for","with","and","or","but","not","this","that","it","he","she","they","we","you","i","my","your","his","her","their","its","our","am"]);
+    const words = text.trim().toLowerCase().split(/\s+/);
+    const enScore = words.filter(w => commonEn.has(w)).length / words.length;
+    const isEnglish = enScore > 0.15 || /[a-z]/.test(text) && enScore > 0;
+
     try {
-      const res = await fetch(`${API}/translate-reverse`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.trim() }),
-      });
-      const data = await res.json();
-      const nllb = data.translation_nllb || "";
-      const marian = data.translation_marian || "";
-      const primary = data.translation || "";
-      let output = primary;
-      if (nllb && marian && nllb !== marian) {
-        output = `NLLB: ${nllb}\nMarianMT: ${marian}`;
+      if (isEnglish) {
+        // Translate English → Runyoro and REPLACE content in editor
+        const res = await fetch(`${API}/translate`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text.trim(), context: "" }),
+        });
+        const data = await res.json();
+        const translated = data.translation_nllb || data.translation || "";
+        if (translated) {
+          // Replace editor content with the translation
+          const newText = translated;
+          setText(newText);
+          if (editorRef.current) {
+            editorRef.current.innerText = newText;
+          }
+          setTranslation("");
+          // Auto-run spellcheck on the translated Runyoro text
+          setTimeout(() => runSpellcheck(newText), 300);
+        }
+      } else {
+        // Runyoro → English — show below editor
+        const res = await fetch(`${API}/translate-reverse`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text.trim(), context: "" }),
+        });
+        const data = await res.json();
+        const nllb = data.translation_nllb || "";
+        const marian = data.translation_marian || "";
+        const primary = data.translation || "";
+        let output = primary;
+        if (nllb && marian && nllb !== marian) {
+          output = `NLLB: ${nllb}\nMarianMT: ${marian}`;
+        }
+        setTranslation(output || "No translation available.");
       }
-      setTranslation(output || "No translation available.");
     } catch { setTranslation("Translation failed — backend unavailable."); }
     finally { setTransLoading(false); }
   }
@@ -321,7 +350,7 @@ export default function RunyoroEditor() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-secondary-container text-secondary hover:bg-surface-container-low text-xs font-semibold transition-colors disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[16px]">translate</span>
-              {transLoading ? "Translating..." : "Translate"}
+              {transLoading ? "Translating..." : "Translate → Runyoro"}
             </button>
             <button
               onClick={handleSave}
@@ -368,12 +397,12 @@ export default function RunyoroEditor() {
         </div>
       )}
 
-      {/* Translation panel */}
+      {/* Translation panel — shows when translating Runyoro → English */}
       {translation && (
         <div className="bg-secondary-fixed/30 border border-secondary-container/50 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-secondary text-[18px]">translate</span>
-            <p className="text-xs font-semibold text-secondary uppercase tracking-wide">English Translation</p>
+            <p className="text-xs font-semibold text-secondary uppercase tracking-wide">English Translation (Runyoro → English)</p>
           </div>
           <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap">{translation}</p>
         </div>

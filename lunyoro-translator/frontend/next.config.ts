@@ -23,6 +23,8 @@ const isDocker = process.env.DOCKER_BUILD === "1";
 const nextConfig: NextConfig = {
   reactCompiler: true,
   turbopack: {},
+  // Allow Android emulator (10.0.2.2) and any local network device to access dev server
+  allowedDevOrigins: ["10.0.2.2", "10.0.2.2:3002"],
   ...(isDocker && { output: "standalone" }),
 };
 

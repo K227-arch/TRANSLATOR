@@ -68,7 +68,7 @@ def _clean_translation(text: str) -> str:
 app = FastAPI(title="Lunyoro/Rutooro Translator API")
 
 # CORS — configurable via CORS_ORIGINS env var (comma-separated)
-_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3002,http://localhost:3000")
+_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3002,http://localhost:3000,http://10.0.2.2:3002,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app")
 _cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(
@@ -143,6 +143,13 @@ def preload_model():
         except Exception as _e:
             print(f"[startup/bg] Grammar context failed: {_e}")
 
+        # Load image classifier (MobileNetV2) — lightweight, ~14MB
+        try:
+            from image_classifier import image_classifier
+            image_classifier.load_model()
+        except Exception as _e:
+            print(f"[startup/bg] Image classifier failed: {_e}")
+
         print("[startup/bg] All models loaded successfully")
 
     threading.Thread(target=_bg_load, daemon=True).start()
@@ -167,6 +174,7 @@ class TranslateRequest(BaseModel):
     text: str
     context: str = ""  # optional previous sentence for context-aware translation
     refine: bool = False  # optional LLM refinement pass for higher quality
+    direction: str = "en->lun"  # accepted but ignored — endpoint determines direction
 
 
 def _qwen_refine_translation(source_en: str, draft_lun: str) -> str:
@@ -257,42 +265,164 @@ def translate_reverse(req: TranslateRequest):
     if len(req.text) > 1000:
         raise HTTPException(status_code=400, detail="Text too long (max 1000 chars)")
     result = translate_to_english(req.text, context=req.context)
-    # Optional LLM refinement pass for lun→en
-    if req.refine and result.get("translation"):
+
+    # Apply English post-processing to the final translation (catches any path)
+    from translate import _postprocess_english as _ppenglish
+    if result.get("translation"):
+        result["translation"] = _ppenglish(result["translation"])
+
+    # ── LLM refinement pass — always on for lun→en (opt out with refine=False) ──
+    # Qwen improves fluency, resolves double-subjects, and naturalises English.
+    # Falls back silently so translation still returns if the API is down.
+    should_refine = req.refine is not False  # True by default, opt-out with refine=False
+    if should_refine and result.get("translation"):
         try:
             hf_token = os.getenv("HF_TOKEN", "")
             hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
             if hf_token:
                 from openai import OpenAI as _OAI
-                client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+                client = _OAI(
+                    base_url="https://router.huggingface.co/v1",
+                    api_key=hf_token,
+                    timeout=12.0,  # hard cap — don't block the response beyond 12s
+                )
                 resp = client.chat.completions.create(
                     model=hf_model,
                     messages=[
                         {"role": "system", "content": (
-                            "You are an expert translator from Runyoro-Rutooro to English. "
-                            "Improve the machine-translated English draft for fluency, accuracy and natural phrasing. "
-                            "Output ONLY the improved English text, nothing else."
+                            "You are an expert translator from Runyoro-Rutooro (a Bantu language spoken in "
+                            "western Uganda) to English. You receive a Runyoro/Rutooro source sentence and "
+                            "a machine-translated English draft. Your task is to:\n"
+                            "1. Fix any grammatical errors (especially double subjects like 'The man he went')\n"
+                            "2. Make the English natural and fluent\n"
+                            "3. Preserve the original meaning exactly — do not add or remove content\n"
+                            "4. Output ONLY the corrected English sentence, nothing else."
                         )},
-                        {"role": "user", "content": f"Runyoro source: {req.text}\nDraft: {result['translation']}\nRefined:"},
+                        {"role": "user", "content": (
+                            f"Runyoro/Rutooro: {req.text}\n"
+                            f"Draft English: {result['translation']}\n"
+                            f"Corrected English:"
+                        )},
                     ],
                     max_tokens=256,
-                    temperature=0.2,
+                    temperature=0.15,
                 )
                 refined = resp.choices[0].message.content.strip()
-                if refined and len(refined) > 3:
-                    result["translation_refined"] = refined
+                # Only use the refined version if it's substantively different and non-empty
+                if refined and len(refined) > 3 and refined.lower() != result["translation"].lower():
+                    result["translation_draft"] = result["translation"]
                     result["translation"] = refined
+                    result["refined"] = True
         except Exception:
-            pass
+            pass  # refinement is best-effort — raw MT is still returned
+
     save_history({
         "input": req.text,
         "direction": "lun→en",
         "translation": result.get("translation"),
-        "method": result.get("method") + ("+refined" if req.refine else ""),
+        "method": result.get("method", "") + ("+refined" if result.get("refined") else ""),
         "confidence": result.get("confidence"),
         "timestamp": datetime.utcnow().isoformat(),
     })
     return result
+
+
+# ── Batch/Bulk Translation ─────────────────────────────────────────────────────
+
+class BatchTranslateRequest(BaseModel):
+    sentences: list[str]
+    direction: str = "en->lun"  # "en->lun" or "lun->en"
+
+
+@app.post("/translate-batch")
+def translate_batch(req: BatchTranslateRequest):
+    """Translate a list of sentences in bulk. Max 100 sentences per request."""
+    if not req.sentences:
+        raise HTTPException(status_code=400, detail="No sentences provided")
+    if len(req.sentences) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 sentences per batch")
+
+    results = []
+    for sentence in req.sentences:
+        text = sentence.strip()
+        if not text:
+            results.append({"source": sentence, "translation": "", "method": "skipped"})
+            continue
+        if len(text) > 1000:
+            results.append({"source": sentence, "translation": "", "method": "error", "error": "Too long (max 1000 chars)"})
+            continue
+
+        if req.direction == "lun->en":
+            result = translate_to_english(text)
+        else:
+            result = translate(text)
+
+        results.append({
+            "source": text,
+            "translation": result.get("translation", ""),
+            "method": result.get("method", "unknown"),
+            "confidence": result.get("confidence"),
+        })
+
+    return {
+        "results": results,
+        "total": len(results),
+        "direction": req.direction,
+    }
+
+
+@app.post("/translate-batch-file")
+async def translate_batch_file(file: UploadFile = File(...), direction: str = "en->lun"):
+    """Upload a CSV or TXT file, translate each line/row, return results as JSON."""
+    import csv as _csv
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".csv", ".txt"):
+        raise HTTPException(status_code=400, detail="Supported formats: .csv, .txt")
+
+    contents = await file.read()
+    text_content = contents.decode("utf-8", errors="ignore")
+
+    # Parse sentences
+    sentences: list[str] = []
+    if ext == ".csv":
+        reader = _csv.reader(text_content.splitlines())
+        for row in reader:
+            if row:
+                sentences.append(row[0].strip())
+    else:
+        sentences = [line.strip() for line in text_content.splitlines() if line.strip()]
+
+    if not sentences:
+        raise HTTPException(status_code=400, detail="No text found in file")
+    if len(sentences) > 200:
+        raise HTTPException(status_code=400, detail="Maximum 200 sentences per file upload")
+
+    # Translate
+    results = []
+    for text in sentences:
+        if not text or len(text) > 1000:
+            results.append({"source": text, "translation": "", "method": "skipped"})
+            continue
+        if direction == "lun->en":
+            result = translate_to_english(text)
+        else:
+            result = translate(text)
+        results.append({
+            "source": text,
+            "translation": result.get("translation", ""),
+            "method": result.get("method", "unknown"),
+        })
+
+    return {
+        "results": results,
+        "total": len(results),
+        "direction": direction,
+        "filename": file.filename,
+    }
 
 
 @app.post("/lookup")
@@ -434,7 +564,10 @@ def debug_nllb():
         try:
             from translate import _load_nllb, _nllb_available, MODEL_DIR
             import os
-            path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
+            # Prefer the trained model dir; fall back to legacy _pre_nyo
+            path = os.path.join(MODEL_DIR, f"nllb_{direction}")
+            if not (os.path.isdir(path) and any(f.endswith((".safetensors", ".bin")) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)))):
+                path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
             exists = os.path.isdir(path)
             files = os.listdir(path) if exists else []
             has_weights = any(f.endswith((".safetensors", ".bin")) for f in files)
@@ -960,6 +1093,7 @@ def chat(req: ChatRequest, request: Request):
         _hf_client = OpenAI(
             base_url="https://router.huggingface.co/v1",
             api_key=_hf_token,
+            timeout=45.0,
         )
         completion = _hf_client.chat.completions.create(
             model=_hf_model,
@@ -990,6 +1124,9 @@ def chat(req: ChatRequest, request: Request):
             nllb_out = apply_rl_rule_to_text(_clean_translation(nllb_out))
 
     if not marian_out and not nllb_out:
+        # If LLM replied but translation failed, return English reply
+        if reply_en:
+            return {"reply": reply_en, "reply_marian": None, "reply_nllb": None}
         return {"reply": "Sorry, the chat assistant is unavailable right now. Please try again.",
                 "reply_marian": None, "reply_nllb": None}
 
@@ -1425,9 +1562,11 @@ def _get_ocr_engine():
 
     try:
         import easyocr
-        _ocr_reader = easyocr.Reader(["en"], gpu=False)
+        import torch
+        use_gpu = torch.cuda.is_available()
+        _ocr_reader = easyocr.Reader(["en"], gpu=use_gpu)
         _ocr_engine = "easyocr"
-        print("[ocr] Using EasyOCR engine")
+        print(f"[ocr] Using EasyOCR engine (GPU={use_gpu})")
     except ImportError:
         try:
             import pytesseract
@@ -1449,7 +1588,8 @@ def _run_ocr(img):
         global _ocr_reader
         if _ocr_reader is None:
             import easyocr
-            _ocr_reader = easyocr.Reader(["en"], gpu=False)
+            import torch
+            _ocr_reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
         return _ocr_reader.readtext(img)
 
     elif engine == "tesseract":
@@ -1617,5 +1757,74 @@ async def ocr_translate_base64(request: Request):
         "image_size": {"width": w, "height": h},
         "direction": direction,
         "engine": engine,
+    }
+
+
+# ── Image Classification & Translation ────────────────────────────────────────
+
+@app.post("/classify-image")
+async def classify_image(file: UploadFile = File(...), top_k: int = 5):
+    """
+    Upload an image → classify objects with MobileNetV2 → translate labels to Runyoro.
+
+    Returns top-K predictions with English labels and their Runyoro translations.
+    Supported formats: JPEG, PNG, WebP (validated via magic bytes).
+    Max file size: 10 MB.
+    """
+    from image_classifier import image_classifier, validate_image_upload
+
+    # Check model readiness
+    if not image_classifier.is_ready():
+        load_err = image_classifier.get_load_error()
+        if load_err:
+            raise HTTPException(status_code=503, detail=f"Image classifier failed to load: {load_err}")
+        raise HTTPException(status_code=503, detail="Image classifier is still loading. Try again in a moment.")
+
+    # Read and validate
+    contents = await file.read()
+    try:
+        validated_bytes = validate_image_upload(
+            content_type=file.content_type,
+            filename=file.filename,
+            file_bytes=contents,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Classify
+    try:
+        predictions = image_classifier.classify(validated_bytes, top_k=min(top_k, 10))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    # Translate each English label to Runyoro
+    results = []
+    for pred in predictions:
+        label_en = pred["label"]
+        translation_result = translate(label_en)
+        label_lun = translation_result.get("translation", label_en)
+        results.append({
+            "label_en": label_en,
+            "label_lun": label_lun,
+            "confidence": pred["confidence"],
+            "method": translation_result.get("method", "unknown"),
+        })
+
+    return {
+        "predictions": results,
+        "top_k": len(results),
+        "model": "google/mobilenet_v2_1.0_224",
+    }
+
+
+@app.get("/classify-image/status")
+def classify_image_status():
+    """Check whether the image classification model is ready."""
+    from image_classifier import image_classifier
+    return {
+        "ready": image_classifier.is_ready(),
+        "error": image_classifier.get_load_error(),
     }
 

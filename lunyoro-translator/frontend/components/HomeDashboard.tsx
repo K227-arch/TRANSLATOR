@@ -5,17 +5,13 @@ import type { Tab } from "@/app/page";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface HistoryEntry { input: string; translation: string | null; direction?: string; timestamp: string; }
-interface SystemInfo { marian_en2lun: boolean; marian_lun2en: boolean; nllb_en2lun: boolean; nllb_lun2en: boolean; gpu_available: boolean; marian_onnx: boolean; }
 
 export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [history, setHistory]     = useState<HistoryEntry[]>([]);
-  const [sysInfo, setSysInfo]     = useState<SystemInfo | null>(null);
 
   useEffect(() => {
     fetch(`${API}/history`).then(r => r.json())
       .then(d => setHistory((d.history || []).slice(0, 3))).catch(() => {});
-    fetch(`${API}/system-info`).then(r => r.json())
-      .then(d => setSysInfo(d)).catch(() => {});
   }, []);
 
   const tools: { id: Tab; icon: string; title: string; desc: string; span?: boolean; iconBg: string; iconColor: string; size?: "lg" | "sm" }[] = [
@@ -53,7 +49,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
           </div>
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-primary-container/20 rounded-full blur-3xl" />
           <div className="absolute -right-4 bottom-0 opacity-8">
-            <span className="material-symbols-outlined text-[120px] text-primary" style={{fontVariationSettings:"'wght' 200"}}>g_translate</span>
+            <span className="material-symbols-outlined text-[120px] text-primary animate-float" style={{fontVariationSettings:"'wght' 200"}}>g_translate</span>
           </div>
         </div>
       </section>
@@ -61,10 +57,10 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
       {/* Bento tools */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-on-background mb-4">Tools</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 stagger-children">
           {tools.map(({ id, icon, title, desc, span, iconBg, iconColor, size }) => (
             <div key={id} onClick={() => onNavigate(id)}
-              className={`glass-card rounded-2xl p-4 flex flex-col gap-3 hover:border-primary transition-all cursor-pointer group premium-shadow active:scale-98 ${span ? "col-span-2 flex-row items-center" : ""}`}>
+              className={`glass-card rounded-2xl p-4 flex flex-col gap-3 hover:border-primary transition-all cursor-pointer group premium-shadow active:scale-95 animate-fade-in-up ${span ? "col-span-2 flex-row items-center" : ""}`}>
               <div className={`${size === "lg" ? "w-12 h-12" : "w-10 h-10"} rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform flex-shrink-0`}>
                 <span className={`material-symbols-outlined ${size === "lg" ? "text-[28px]" : "text-[22px]"}`}>{icon}</span>
               </div>
@@ -78,45 +74,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
         </div>
       </section>
 
-      {/* System status */}
-      <section className="mb-8">
-        <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/50">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs font-semibold text-on-surface uppercase tracking-widest">Model Status</h3>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${sysInfo ? "bg-green-500 animate-pulse" : "bg-outline"}`} />
-              <span className="text-xs font-medium text-on-surface-variant">{sysInfo ? "Ready" : "Loading..."}</span>
-            </div>
-          </div>
-          {sysInfo ? (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-              {[
-                { label: "Translation en→lun", ok: sysInfo.marian_en2lun },
-                { label: "Translation lun→en", ok: sysInfo.marian_lun2en },
-                { label: "Advanced en→lun", ok: sysInfo.nllb_en2lun },
-                { label: "Advanced lun→en", ok: sysInfo.nllb_lun2en },
-              ].map(({ label, ok }) => (
-                <div key={label} className="flex items-center justify-between text-on-surface-variant">
-                  <span className="text-xs">{label}</span>
-                  <span className={`text-xs font-semibold ${ok ? "text-green-600" : "text-outline"}`}>
-                    {ok ? "✓" : "—"}
-                  </span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between text-on-surface-variant col-span-2 border-t border-outline-variant/30 pt-1.5 mt-0.5">
-                <span className="text-xs">Inference</span>
-                <span className="text-xs font-semibold text-on-surface">
-                  {sysInfo.gpu_available ? "GPU" : sysInfo.marian_onnx ? "Optimized CPU" : "CPU"}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {[1,2,3].map(i => <div key={i} className="h-3 bg-surface-container rounded animate-pulse" />)}
-            </div>
-          )}
-        </div>
-      </section>
+
 
       {/* Recent activity */}
       <section>

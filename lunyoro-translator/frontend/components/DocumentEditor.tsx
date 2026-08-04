@@ -2,11 +2,13 @@
 import { useState } from "react";
 import PdfTranslator from "./PdfTranslator";
 import RunyoroEditor from "./RunyoroEditor";
+import BatchTranslator from "./BatchTranslator";
 
-type SubTab = "write" | "pdf";
+type SubTab = "write" | "batch" | "pdf";
 
 const tabs: { id: SubTab; icon: string; label: string }[] = [
   { id: "write", icon: "edit_note",   label: "Write" },
+  { id: "batch", icon: "list_alt",    label: "Batch" },
   { id: "pdf",   icon: "upload_file", label: "PDF Translate" },
 ];
 
@@ -31,6 +33,7 @@ export default function DocumentEditor() {
       </div>
 
       {subTab === "write" && <RunyoroEditor />}
+      {subTab === "batch" && <BatchTranslator />}
       {subTab === "pdf"   && <PdfTranslator />}
     </div>
   );

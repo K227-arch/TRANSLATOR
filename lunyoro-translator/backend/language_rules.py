@@ -49,7 +49,7 @@ RL_RULE = (
 )
 
 def apply_rl_rule(text: str) -> str:
-    """Replace L with R except when adjacent to e or i."""
+    """Replace L with R except when adjacent to e, i, or y (semi-vowel for i)."""
     if not text:
         return text
     chars = list(text)
@@ -60,7 +60,9 @@ def apply_rl_rule(text: str) -> str:
             continue
         prev = chars[i - 1].lower() if i > 0 else ''
         nxt  = chars[i + 1].lower() if i < len(chars) - 1 else ''
-        if prev in ('e', 'i') or nxt in ('e', 'i'):
+        # L is kept before/after e, i, or y (y acts as semi-vowel for i in Runyoro)
+        # e.g. okulya (eat), okuleeta (bring) — l before y or e is preserved
+        if prev in ('e', 'i', 'y') or nxt in ('e', 'i', 'y'):
             result.append(ch)
         else:
             result.append('R' if ch.isupper() else 'r')
@@ -2199,6 +2201,17 @@ _PREFIX_INITIAL_VOWEL: list[tuple[_re2.Pattern, str]] = [
 # Known exceptions where initial vowel rule does NOT apply
 _INITIAL_VOWEL_EXCEPTIONS = frozenset({
     "icumu",   # spear — not *eicumu
+    # Verb infinitives used as nouns — their internal vowels must not be changed
+    "ebyokulya",   # food (lit. things to eat)
+    "ebikulya",    # food (alternative form)
+    "ebyokunywa",  # drinks
+    "ebyokugira",  # things to do
+    "ebyokwambara", # clothing
+    "okulya",      # to eat
+    "okunywa",     # to drink
+    "okugenda",    # to go
+    "okuzaara",    # to give birth
+    "okukola",     # to work
 })
 
 def apply_initial_vowel_rule(text: str) -> str:

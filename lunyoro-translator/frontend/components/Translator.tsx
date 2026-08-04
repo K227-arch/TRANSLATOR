@@ -275,11 +275,26 @@ export default function Translator() {
         <div className="flex-1 bg-surface-container-lowest border-2 border-primary-container/50 rounded-2xl premium-shadow p-5 flex flex-col">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-primary uppercase tracking-widest font-semibold">{toLabel}</span>
-            {result?.translation && (
-              <button onClick={() => navigator.clipboard.writeText(result.translation||"")} className="p-1 text-outline hover:text-primary transition-colors">
-                <span className="material-symbols-outlined text-[20px]">content_copy</span>
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {result?.translation && !feedbackSent && (
+                <>
+                  <button onClick={() => submitFeedback(1)} className={`p-1.5 rounded-full transition-colors ${feedbackRating===1 ? "text-primary bg-primary/10" : "text-outline hover:text-primary"}`} title="Good translation">
+                    <span className="material-symbols-outlined text-[20px]" style={feedbackRating===1 ? {fontVariationSettings:"'FILL' 1"} : undefined}>thumb_up</span>
+                  </button>
+                  <button onClick={() => {setFeedbackRating(-1); setShowCorrection(true);}} className={`p-1.5 rounded-full transition-colors ${feedbackRating===-1 ? "text-error bg-error/10" : "text-outline hover:text-error"}`} title="Bad translation">
+                    <span className="material-symbols-outlined text-[20px]" style={feedbackRating===-1 ? {fontVariationSettings:"'FILL' 1"} : undefined}>thumb_down</span>
+                  </button>
+                </>
+              )}
+              {feedbackSent && (
+                <span className="text-xs text-primary font-medium">Thanks!</span>
+              )}
+              {result?.translation && (
+                <button onClick={() => navigator.clipboard.writeText(result.translation||"")} className="p-1.5 rounded-full text-outline hover:text-primary transition-colors" title="Copy">
+                  <span className="material-symbols-outlined text-[20px]">content_copy</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex-grow text-lg text-on-surface flex flex-col justify-start">
             {loading ? (
@@ -321,17 +336,10 @@ export default function Translator() {
             </div>
           )}
 
-          {/* Feedback section */}
+          {/* Feedback correction form (shows after thumbs down) */}
           {result?.translation && (
             <div className="mt-4 pt-4 border-t border-outline-variant/30 space-y-3">
-              {!feedbackSent && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-on-surface-variant font-semibold">Correct translation?</span>
-                    <button onClick={() => submitFeedback(1)} className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-colors border ${feedbackRating===1?"bg-primary text-on-primary border-primary":"bg-surface-container text-on-surface border-outline-variant hover:border-primary hover:text-primary"}`}>Yes</button>
-                    <button onClick={() => {setFeedbackRating(-1); setShowCorrection(true);}} className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-colors border ${feedbackRating===-1?"bg-error text-on-error border-error":"bg-surface-container text-on-surface border-outline-variant hover:border-error hover:text-error"}`}>No</button>
-                  </div>
-                  {showCorrection && feedbackRating === -1 && (
+              {showCorrection && feedbackRating === -1 && (
                     <div className="bg-surface-container-low p-3 rounded-xl border border-outline-variant space-y-2">
                       <p className="text-xs text-on-surface-variant font-semibold">What is wrong?</p>
                       <div className="space-y-1">
@@ -354,8 +362,6 @@ export default function Translator() {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
               {feedbackSent && !modelFeedbackSent && <p className="text-xs text-primary font-semibold">Thanks for the feedback!</p>}
 
               {/* Model comparison — always visible when both models return output */}

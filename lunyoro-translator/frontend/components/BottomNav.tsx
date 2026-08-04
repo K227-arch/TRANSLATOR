@@ -5,8 +5,8 @@ const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: "home",       icon: "home",        label: "Home"      },
   { id: "translate",  icon: "g_translate", label: "Translate" },
   { id: "camera",     icon: "photo_camera", label: "Lens" },
+  { id: "editor",     icon: "edit_note",   label: "Editor"    },
   { id: "chat",       icon: "chat_bubble", label: "Chat"      },
-  { id: "dictionary", icon: "menu_book",   label: "Dict"      },
 ];
 
 export default function BottomNav({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {

@@ -1,6 +1,7 @@
 """
 Translation logic:
-  Primary  — fine-tuned MarianMT models (en2lun / lun2en) from HuggingFace Hub
+  Primary  — fine-tuned NLLB-200 models (nllb_en2lun / nllb_lun2en) trained locally
+  Secondary — fine-tuned MarianMT models (en2lun / lun2en) as fallback
   Fallback — semantic similarity retrieval + dictionary lookup
 """
 
@@ -202,14 +203,33 @@ def _normalise_dialect(text: str) -> str:
 def _preprocess_lunyoro_input(text: str) -> str:
     """
     Normalise lun→en input before feeding to the model.
-    Applies nasal assimilation so the model sees canonical forms.
+    - Nasal assimilation (canonical consonant clusters)
+    - Apostrophe elision expansion (n'ente → na ente)
+    - Dialect variant normalisation (kiro → leero, etc.)
     Does NOT apply R/L rule on input — the model was trained on real text.
     """
     if not text:
         return text
     _load_rules()
+    # 1. Nasal assimilation
     if _apply_nasal:
         text = _apply_nasal(text)
+    # 2. Expand apostrophe elisions so model sees canonical forms
+    # e.g. n'ente → na ente, habw'okugonza → habwa okugonza
+    import re as _re_pre
+    text = _re_pre.sub(r"\bn'([aeiouAEIOU])", r"na \1", text)
+    text = _re_pre.sub(r"\bw'([aeiouAEIOU])", r"wa \1", text)
+    text = _re_pre.sub(r"\by'([aeiouAEIOU])", r"ya \1", text)
+    text = _re_pre.sub(r"\bk'([aeiouAEIOU])", r"ka \1", text)
+    # 3. Common spelling variants → canonical forms
+    _VARIANT_MAP = [
+        (r"\bkiro\b", "leero"),       # today (Rutooro → Runyoro)
+        (r"\beky([aeiou])", r"eki\1"),  # eky- → eki- prefix variant
+        (r"\boky([aeiou])", r"oki\1"),  # oky- prefix
+        (r"\baky([aeiou])", r"aki\1"),  # aky- prefix
+    ]
+    for pat, rep in _VARIANT_MAP:
+        text = _re_pre.sub(pat, rep, text, flags=_re_pre.IGNORECASE)
     return text
 
 
@@ -435,7 +455,10 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
     input_text = f"{context} ||| {text}" if context else text
     inputs = tokenizer(
         input_text, return_tensors="pt", truncation=True, max_length=256
-    ).to(device)
+    )
+    # ONNX models (ORTModelForSeq2SeqLM) handle device internally — don't call .to()
+    if not _mt_onnx.get(direction, False):
+        inputs = inputs.to(device)
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
@@ -502,18 +525,91 @@ def _load_nllb(direction: str) -> bool:
         _nllb_available[direction] = False
         return False
 
-    path = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
+    # Prefer the freshly trained model dir (nllb_en2lun / nllb_lun2en).
+    # Fall back to the legacy _pre_nyo checkpoint if the primary doesn't exist.
+    path_primary = os.path.join(MODEL_DIR, f"nllb_{direction}")
+    path_legacy  = os.path.join(MODEL_DIR, f"nllb_{direction}_pre_nyo")
+
+    def _dir_has_weights(p: str) -> bool:
+        return os.path.isdir(p) and any(
+            f.endswith((".safetensors", ".bin"))
+            for f in os.listdir(p)
+            if os.path.isfile(os.path.join(p, f))
+        )
+
+    if _dir_has_weights(path_primary):
+        path = path_primary
+        print(f"[translate] Using trained NLLB model: {path_primary}")
+    elif _dir_has_weights(path_legacy):
+        path = path_legacy
+        print(f"[translate] Falling back to legacy NLLB model: {path_legacy}")
+    else:
+        path = path_primary  # will trigger HF download below
+
+    # ── Try ONNX INT8 first (fastest), then ONNX FP32, then PyTorch ────────────
+    int8_path = os.path.join(MODEL_DIR, f"nllb_{direction}_int8")
+    onnx_path = os.path.join(MODEL_DIR, f"nllb_{direction}_onnx")
+
+    def _dir_has_onnx(p: str) -> bool:
+        return os.path.isdir(p) and any(
+            f.endswith(".onnx") for f in os.listdir(p)
+            if os.path.isfile(os.path.join(p, f))
+        )
+
+    def _try_load_onnx(load_path: str, label: str) -> bool:
+        """Attempt to load an ONNX model from load_path. Returns True on success."""
+        try:
+            from optimum.onnxruntime import ORTModelForSeq2SeqLM
+            from transformers import AutoTokenizer
+            import onnxruntime as _ort
+
+            print(f"[translate] Loading NLLB {label}: {direction} from {load_path}")
+            # Suppress the spurious Mistral regex warning — only relevant for Mistral models
+            import warnings as _warn
+            with _warn.catch_warnings():
+                _warn.simplefilter("ignore")
+                tokenizer = AutoTokenizer.from_pretrained(load_path)
+            providers = _ort.get_available_providers()
+            provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
+            # ONNX models run on CPU via ORT — device label is "cpu" regardless of provider
+            device = "cpu"
+
+            onnx_files = os.listdir(load_path)
+            if "decoder_model_merged.onnx" in onnx_files:
+                decoder_file = "decoder_model_merged.onnx"
+                use_cache = True
+            elif "decoder_model.onnx" in onnx_files:
+                decoder_file = "decoder_model.onnx"
+                use_cache = False
+            else:
+                raise FileNotFoundError(f"No decoder ONNX file in {load_path}")
+
+            model = ORTModelForSeq2SeqLM.from_pretrained(
+                load_path,
+                provider=provider,
+                decoder_file_name=decoder_file,
+                use_cache=use_cache,
+            )
+            _nllb_models[direction] = (tokenizer, model, device)
+            _nllb_available[direction] = True
+            print(f"[translate] Loaded NLLB {label}: {direction} on {provider}")
+            return True
+        except Exception as e:
+            print(f"[translate] NLLB {label} load failed ({e}), trying next option")
+            return False
+
+    # Priority: INT8 > FP32 ONNX > PyTorch
+    if _dir_has_onnx(int8_path) and _try_load_onnx(int8_path, "ONNX INT8"):
+        return True
+    if _dir_has_onnx(onnx_path) and _try_load_onnx(onnx_path, "ONNX FP32"):
+        return True
 
     # On HF Space cpu-basic: /app/model has 1GB limit so NLLB can't be stored there.
     # Instead, stream from HF Hub cache (/root/.cache/huggingface) which is unlimited.
     # Detect Space environment: no GPU + /app exists but model path is missing/tiny.
     import torch as _torch_check
     is_cpu_only = not _torch_check.cuda.is_available()
-    local_model_ok = (
-        os.path.isdir(path) and
-        any(f.endswith((".safetensors", ".bin")) for f in os.listdir(path)
-            if os.path.isfile(os.path.join(path, f)))
-    )
+    local_model_ok = _dir_has_weights(path)
 
     if not local_model_ok:
         hf_repos = {
@@ -552,7 +648,10 @@ def _load_nllb(direction: str) -> bool:
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
         import torch
 
-        tokenizer = AutoTokenizer.from_pretrained(path)
+        import warnings as _warn
+        with _warn.catch_warnings():
+            _warn.simplefilter("ignore")
+            tokenizer = AutoTokenizer.from_pretrained(path, fix_mistral_regex=True)
         # Load in float16 on CPU to halve memory usage (2.3GB → ~1.2GB)
         # On GPU, float16 is natively fast; on CPU it's slower but avoids OOM
         import torch
@@ -758,7 +857,11 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     input_text = f"{context} ||| {text}" if context else text
     inputs = tokenizer(
         input_text, return_tensors="pt", truncation=True, max_length=256
-    ).to(device)
+    )
+    # ONNX models expect CPU tensors — only move to device for PyTorch models
+    from optimum.onnxruntime import ORTModelForSeq2SeqLM as _ORT_cls
+    if not isinstance(model, _ORT_cls):
+        inputs = inputs.to(device)
 
     generate_kwargs: dict = dict(
         num_beams=8,
@@ -783,6 +886,15 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     with torch.no_grad():
         output_ids = model.generate(**inputs, **generate_kwargs)
     nllb_result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+
+    # Clean SentencePiece/NLLB decode artifacts immediately after decode
+    # 1. Strip ▁ (U+2581) SentencePiece boundary markers that sometimes leak through
+    nllb_result = nllb_result.replace("\u2581", " ").strip()
+    # 2. Collapse multiple spaces left by ▁ stripping
+    nllb_result = re.sub(r"  +", " ", nllb_result)
+    # 3. Fix L→I: NLLB run_Latn proxy confuses capital I with L in lun→en output
+    if direction == "lun2en":
+        nllb_result = re.sub(r"(?<![A-Za-z])L(?![A-Za-z])", "I", nllb_result)
 
     if _is_notation_garbage(nllb_result):
         return None
@@ -936,9 +1048,39 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     - Very short inputs (< 4 words) — poor semantic matches
     - Single words — handled by dictionary lookup
     """
-    # Skip for very short inputs — retrieval is unreliable
-    if len(text.split()) < 4:
-        return None
+    # For very short inputs (< 4 words), only allow exact matches from the index
+    # — semantic similarity is unreliable for short phrases but exact matches are valid
+    word_count = len(text.split())
+    if word_count < 4:
+        # Still do exact-match lookup for 1–3 word inputs
+        try:
+            _load_retrieval()
+        except Exception:
+            return None
+        if direction == "en2lun":
+            query_sentences = _index["english_sentences"]
+            target_sentences = _index["lunyoro_sentences"]
+        else:
+            query_sentences = _index["lunyoro_sentences"]
+            target_sentences = _index["english_sentences"]
+        lower = text.strip().lower()
+        for i, sent in enumerate(query_sentences):
+            if sent.strip().lower() == lower:
+                translation = target_sentences[i]
+                if direction == "en2lun":
+                    translation = _postprocess_lunyoro(translation)
+                else:
+                    translation = _postprocess_english(translation)
+                return {
+                    "translation": translation,
+                    "translation_nllb": None,
+                    "translation_marian": None,
+                    "method": "exact_match",
+                    "confidence": 1.0,
+                    "matched_source": sent,
+                    "alternatives": [],
+                }
+        return None  # no exact match — fall through to neural MT
 
     try:
         _load_retrieval()
@@ -983,6 +1125,8 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
         translation = matched_tgt
         if direction == "en2lun":
             translation = _postprocess_lunyoro(translation)
+        elif direction == "lun2en":
+            translation = _postprocess_english(translation)
         alternatives = [
             {
                 "score": round(float(scores[i]), 3),
@@ -1027,6 +1171,24 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     rag_result = _selective_rag(text, direction="en2lun", top_k=top_k)
     if rag_result:
         return rag_result
+
+    # ── Corpus exact-match for short inputs (1-3 words) that RAG skips ────────
+    # Catches single words like "food" → "ebyokulya" that are in the training data
+    if len(text.split()) <= 3:
+        try:
+            _load_retrieval()
+            lower = text.lower()
+            for i, sent in enumerate(_index["english_sentences"]):
+                if sent.strip().lower() == lower:
+                    translation = _postprocess_lunyoro(_index["lunyoro_sentences"][i])
+                    return {
+                        "translation": translation,
+                        "method": "exact_match",
+                        "confidence": 1.0,
+                        "alternatives": [],
+                    }
+        except Exception:
+            pass
 
     marian = _mt_translate(text, "en2lun", context=context)
     nllb = _nllb_translate(text, "en2lun", context=context)
@@ -1097,6 +1259,74 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     )
 
 
+def _postprocess_english(text: str) -> str:
+    """
+    Post-process lun→en NLLB/Marian output for natural English.
+
+    Fixes:
+    1. Strip NLLB language-code prefix artifacts (run_Latn: ...)
+    2. Double-subject removal ("The man he went" → "The man went")
+    3. Redundant pronoun after noun ("My father he said" → "My father said")
+    4. Over-capitalisation of common words mid-sentence
+    5. Sentence capitalisation + punctuation cleanup
+    6. Strip leading/trailing whitespace and repeated spaces
+    """
+    if not text or not text.strip():
+        return text
+
+    import re as _re
+
+    # 1. Strip language-code prefix artifacts from NLLB
+    text = _re.sub(r"^\s*[a-z]{2,3}_[A-Za-z]{3,4}\s*:\s*", "", text).strip()
+    text = _re.sub(r"^\s*\[[A-Za-z _]+\]\s*", "", text).strip()
+
+    # 1b. Fix NLLB Latin-script artifact: standalone "L" used as first-person pronoun
+    # NLLB sometimes outputs "L" instead of "I" (character confusion in run_Latn)
+    # Use lookahead/lookbehind instead of \b to handle edge cases
+    text = _re.sub(r"(?<![A-Za-z])L(?![A-Za-z])", "I", text)
+
+    # 2. Double-subject: noun phrase + pronoun ("The child he ...", "My mother she ...")
+    # Pattern: (determiner + noun [+ adj]) followed immediately by he/she/they/it
+    text = _re.sub(
+        r"\b((?:the|a|an|my|your|his|her|our|their|this|that)\s+\w+(?:\s+\w+)?)\s+(he|she|they|it)\s+",
+        r"\1 ",
+        text,
+        flags=_re.IGNORECASE,
+    )
+
+    # 3. Proper name + pronoun ("John he said" → "John said")
+    text = _re.sub(
+        r"\b([A-Z][a-z]+)\s+(he|she|they)\s+",
+        r"\1 ",
+        text,
+    )
+
+    # 4. Fix common over-translations of Runyoro copula constructions
+    # "is is" / "are are" deduplication
+    text = _re.sub(r"\b(is|are|was|were|has|have|had)\s+\1\b", r"\1", text, flags=_re.IGNORECASE)
+
+    # 5. Strip NLLB hallucination artifacts — repeated short fragments at end
+    # e.g. "I went to the market. I went to the market."
+    sentences = _re.split(r"(?<=[.!?])\s+", text.strip())
+    if len(sentences) > 1 and sentences[-1].strip().lower() == sentences[-2].strip().lower():
+        sentences = sentences[:-1]
+    text = " ".join(sentences)
+
+    # 6. Capitalise first letter of each sentence
+    # Only capitalise a–z at sentence start, not mid-word
+    text = _re.sub(r"((?:^|(?<=[.!?]\s))([a-z]))", lambda m: m.group(0).upper(), text)
+
+    # 7. Ensure sentence ends with punctuation
+    text = text.strip()
+    if text and text[-1] not in ".!?":
+        text += "."
+
+    # 8. Collapse multiple spaces
+    text = _re.sub(r"  +", " ", text)
+
+    return text.strip()
+
+
 def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     """Lunyoro/Rutooro → English — uses both MarianMT and NLLB if available."""
     text = _normalise(text.strip())
@@ -1115,8 +1345,30 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     if rag_result:
         return rag_result
 
+    # ── Corpus exact-match for short lun inputs (1-3 words) that RAG skips ───
+    if len(text.split()) <= 3:
+        try:
+            _load_retrieval()
+            lower = text.lower()
+            for i, sent in enumerate(_index["lunyoro_sentences"]):
+                if sent.strip().lower() == lower:
+                    return {
+                        "translation": _postprocess_english(_index["english_sentences"][i]),
+                        "method": "exact_match",
+                        "confidence": 1.0,
+                        "alternatives": [],
+                    }
+        except Exception:
+            pass
+
     marian = _mt_translate(text, "lun2en", context=context)
     nllb = _nllb_translate(text, "lun2en", context=context)
+
+    # Apply English post-processing to both outputs
+    if nllb:
+        nllb = _postprocess_english(nllb)
+    if marian:
+        marian = _postprocess_english(marian)
 
     if marian or nllb:
         return {
@@ -1136,7 +1388,7 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     for i, sent in enumerate(lunyoro_sentences):
         if sent.lower() == lower:
             return {
-                "translation": english_sentences[i],
+                "translation": _postprocess_english(english_sentences[i]),
                 "method": "exact_match",
                 "confidence": 1.0,
                 "alternatives": [],
@@ -1166,7 +1418,7 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
 
     if best_score > 0.5:
         return {
-            "translation": english_sentences[best],
+            "translation": _postprocess_english(english_sentences[best]),
             "method": "semantic_match",
             "confidence": round(best_score, 3),
             "matched_lunyoro": lunyoro_sentences[best],
@@ -1494,22 +1746,49 @@ def _build_corpus_vocab() -> set:
             if len(w) >= 2:
                 known.add(w.lower())
 
+    # Only add tokenizer vocab for words that look Bantu (not English)
+    # Filter: must contain at least one of the Bantu vowel patterns and no English-only patterns
     lun2en_path = os.path.join(MODEL_DIR, "lun2en")
     if os.path.isdir(lun2en_path):
         try:
             from transformers import MarianTokenizer
 
             tok = MarianTokenizer.from_pretrained(lun2en_path)
+            _BANTU_STARTS = ("ok", "om", "ab", "ob", "eb", "ek", "ak", "ag",
+                             "or", "en", "em", "ni", "ba", "ka", "ku", "mu",
+                             "bu", "tu", "bi", "ki", "ga", "rw", "nt", "mb")
             for token in tok.get_vocab().keys():
                 clean = token.lstrip("▁").lower()
-                if clean.isalpha() and len(clean) >= 2:
+                if (clean.isalpha() and len(clean) >= 3
+                        and any(clean.startswith(p) for p in _BANTU_STARTS)):
                     known.add(clean)
         except Exception:
             pass
 
+    # Common English words that leak into the dictionary — exclude them from known vocab
+    _EN_STOPLIST = frozenset({
+        "agonizing", "ago", "age", "able", "about", "above", "after", "again",
+        "against", "all", "also", "although", "always", "among", "another",
+        "any", "back", "because", "before", "between", "both", "came", "come",
+        "day", "does", "done", "down", "each", "even", "every", "find", "first",
+        "from", "get", "give", "go", "good", "great", "help", "here", "high",
+        "home", "how", "into", "just", "keep", "know", "large", "last", "life",
+        "like", "little", "long", "look", "made", "make", "man", "many", "men",
+        "might", "more", "most", "much", "must", "name", "need", "never", "new",
+        "now", "old", "one", "only", "other", "out", "over", "own", "part",
+        "people", "place", "put", "right", "said", "same", "say", "see", "seem",
+        "so", "some", "still", "such", "take", "than", "then", "there", "these",
+        "think", "those", "though", "through", "time", "too", "two", "under",
+        "until", "up", "upon", "use", "very", "want", "way", "well", "what",
+        "when", "where", "which", "while", "who", "why", "work", "world",
+        "year", "yet", "your", "their", "have", "been", "will", "would",
+        "could", "should", "shall", "being", "were", "had", "has", "did",
+    })
     for d in _dictionary:
         if d.get("word"):
-            known.add(d["word"].lower())
+            w = d["word"].lower()
+            if w not in _EN_STOPLIST:
+                known.add(w)
 
     return known
 
@@ -1541,62 +1820,46 @@ def spellcheck(text: str) -> list:
     tokens = re.findall(r"[a-zA-Z']+", text)
     misspelled = []
 
+    # Common English words that appear in code-switched Runyoro text — never flag
+    _SKIP_ENGLISH = frozenset({
+        "the", "a", "an", "is", "are", "was", "were", "and", "or", "of",
+        "in", "to", "it", "he", "she", "we", "you", "i", "my", "his", "her",
+    })
+
     for token in tokens:
         lower = token.lower()
 
-        # Skip English-looking words (lun→en input may contain proper nouns, code-switching)
-        if lower in {
-            "the",
-            "a",
-            "an",
-            "is",
-            "are",
-            "was",
-            "were",
-            "and",
-            "or",
-            "of",
-            "in",
-            "to",
-        }:
+        # Skip common English function words
+        if lower in _SKIP_ENGLISH:
             continue
 
-        # Valid Bantu morphological prefixes — never flag these as misspelled
-        _BANTU_PREFIXES = (
-            "oku",
-            "okw",
-            "omu",
-            "aba",
-            "obu",
-            "otu",
-            "ama",
-            "eri",
-            "ebi",
-            "eki",
-            "aka",
-            "aga",
-            "oru",
-            "en",
-            "em",
-            "in",
-            "im",
-            "ni",
-            "ba",
-            "ka",
-            "ku",
-            "mu",
-            "bu",
-            "tu",
-            "bi",
-            "ki",
-            "ga",
-        )
-        if any(lower.startswith(p) for p in _BANTU_PREFIXES) and len(lower) >= 4:
+        # Skip very short tokens
+        if len(lower) < 3:
             continue
 
-        if len(lower) < 3 or lower in _corpus_vocab:
+        # Already known — no issue
+        if lower in _corpus_vocab:
             continue
 
+        # ── Bantu prefix check: skip words that look like valid formed Runyoro words
+        # BUT always check words with suspicious double vowels (aa, ee, oo, ii, uu)
+        # since doubled vowels are almost always a typo in Runyoro
+        import re as _re_dbl
+        has_suspicious_double = bool(_re_dbl.search(r"[aeiou]{3,}|([aeiou])\1{1,}", lower))
+
+        if not has_suspicious_double:
+            _BANTU_PREFIXES = (
+                "oku", "okw", "omu", "aba", "obu", "otu", "ama", "eri",
+                "ebi", "eki", "aka", "aga", "oru",
+            )
+            _SHORT_PREFIXES = ("en", "em", "ni", "ba", "ka", "ku", "mu", "bu",
+                               "tu", "bi", "ki", "ga", "in", "im")
+            if any(lower.startswith(p) for p in _BANTU_PREFIXES) and len(lower) >= 6:
+                continue
+            if any(lower.startswith(p) for p in _SHORT_PREFIXES) and len(lower) >= 9:
+                continue
+
+        # ── Tokenizer check: does the MarianMT model know this word as a single token?
         lun2en_path = os.path.join(MODEL_DIR, "lun2en")
         model_knows = False
         if os.path.isdir(lun2en_path) and _load_mt("lun2en"):
@@ -1611,25 +1874,43 @@ def spellcheck(text: str) -> list:
         if model_knows:
             continue
 
-        prefix = lower[:3]
-        prefix_words = [w for w in vocab_list if w.startswith(prefix)]
-        candidate_pool = prefix_words if len(prefix_words) >= 10 else vocab_list
+        # ── Fuzzy suggestion search ──
+        # Use both fuzz.ratio AND fuzz.partial_ratio for better Bantu stem matching
+        prefix = lower[:4]  # 4-char prefix for better pool narrowing
+        prefix_words = [w for w in vocab_list if w.startswith(prefix[:3])]
+        candidate_pool = prefix_words if len(prefix_words) >= 5 else vocab_list
 
-        suggestions = process.extract(
-            lower,
-            candidate_pool,
-            scorer=fuzz.ratio,
-            limit=5,
-            score_cutoff=75,
+        # Score with WRatio which combines multiple fuzzy strategies
+        suggestions_ratio = process.extract(
+            lower, candidate_pool, scorer=fuzz.WRatio, limit=8, score_cutoff=70,
         )
-        seen: set[str] = set()
-        top: list[str] = []
-        for s in sorted(suggestions, key=lambda x: -x[1]):
-            if s[0] not in seen:
-                seen.add(s[0])
-                top.append(s[0])
-            if len(top) == 3:
-                break
+        # Also try token_sort for morphological variants
+        suggestions_sort = process.extract(
+            lower, candidate_pool, scorer=fuzz.token_sort_ratio, limit=5, score_cutoff=72,
+        )
+
+        # Merge, dedupe, sort by score — filter out English-looking words
+        all_suggestions = {s[0]: s[1] for s in suggestions_ratio}
+        for s in suggestions_sort:
+            if s[0] not in all_suggestions or s[1] > all_suggestions[s[0]]:
+                all_suggestions[s[0]] = s[1]
+
+        # Filter suggestions: keep only words that are in the Runyoro corpus vocab
+        # This removes any English words that leaked into the candidate pool
+        def _is_runyoro_word(w: str) -> bool:
+            """True if word looks like a valid Runyoro/Rutooro word."""
+            if w in _corpus_vocab:
+                return True
+            # Must start with a known multi-char Bantu prefix (3+ chars)
+            # and be long enough to be a real word
+            _BANTU_P3 = ("oku", "okw", "omu", "aba", "obu", "otu", "ama",
+                         "eri", "ebi", "eki", "aka", "aga", "oru", "eng",
+                         "emb", "ngo", "nka", "nkug", "nin", "wee", "ree",
+                         "bwa", "kwa", "twa", "mwa", "nya", "nyi")
+            return (any(w.startswith(p) for p in _BANTU_P3) and len(w) >= 5)
+
+        top = [w for w, _ in sorted(all_suggestions.items(), key=lambda x: -x[1])
+               if w != lower and _is_runyoro_word(w)][:3]
 
         misspelled.append({"word": token, "suggestions": top})
 
