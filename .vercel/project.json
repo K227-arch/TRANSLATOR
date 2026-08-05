@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_G0zF62MYIMaySJcsPADaAt4lddrI",
+  "orgId": "team_K6qRP6TF3XwvLK3IqAp7cZYl",
+  "projectName": "runyoro-rutooro-translator",
+  "settings": {
+    "createdAt": 1777996749838,
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": "npm ci",
+    "buildCommand": "npm run build",
+    "outputDirectory": ".next",
+    "rootDirectory": "lunyoro-translator/frontend",
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}

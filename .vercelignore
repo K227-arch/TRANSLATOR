@@ -1,0 +1,5 @@
+# Ignore everything except the frontend source
+*
+!lunyoro-translator/frontend/**
+!lunyoro-translator/frontend/
+!.vercel/
