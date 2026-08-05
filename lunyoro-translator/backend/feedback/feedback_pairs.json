@@ -499,5 +499,17 @@
     "refined": false,
     "ip": "127.0.0.1",
     "timestamp": "2026-07-30T14:21:51.121055"
+  },
+  {
+    "source_text": "hello, how are you doing",
+    "translation": "orole ota?",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "",
+    "error_type": "grammar, spelling",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.38.135",
+    "timestamp": "2026-08-05T14:21:25.453548"
   }
 ]
