@@ -1,6 +1,5 @@
 {
   "framework": "nextjs",
-  "rootDirectory": "lunyoro-translator/frontend",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": ".next"
