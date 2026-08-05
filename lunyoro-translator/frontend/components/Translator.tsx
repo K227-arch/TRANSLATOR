@@ -311,6 +311,30 @@ export default function Translator() {
             )}
           </div>
 
+          {/* ── Dual model output panel — NLLB vs MarianMT ── */}
+          {result?.method === "neural_mt" && (result?.translation_nllb || result?.translation_marian) && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {result.translation_nllb && (
+                <div className={`rounded-xl p-3 border transition-all ${result.translation === result.translation_nllb ? "border-secondary-container bg-secondary-container/20" : "border-outline-variant/30 bg-surface-container/40"}`}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${result.translation === result.translation_nllb ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container-high text-on-surface-variant"}`}>NLLB</span>
+                    {result.translation === result.translation_nllb && <span className="text-[10px] text-secondary font-semibold">Primary ✓</span>}
+                  </div>
+                  <p className="text-sm text-on-surface leading-relaxed break-words">{result.translation_nllb}</p>
+                </div>
+              )}
+              {result.translation_marian && (
+                <div className={`rounded-xl p-3 border transition-all ${result.translation === result.translation_marian ? "border-primary-fixed bg-primary-fixed/20" : "border-outline-variant/30 bg-surface-container/40"}`}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${result.translation === result.translation_marian ? "bg-primary-fixed text-on-primary-fixed" : "bg-surface-container-high text-on-surface-variant"}`}>MarianMT</span>
+                    {result.translation === result.translation_marian && <span className="text-[10px] text-primary font-semibold">Primary ✓</span>}
+                  </div>
+                  <p className="text-sm text-on-surface leading-relaxed break-words">{result.translation_marian}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Model badges */}
           {result && (
             <div className="mt-2 flex gap-2 flex-wrap">

@@ -1154,6 +1154,75 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
 # ── public API ───────────────────────────────────────────────────────────────
 
 
+def _mirror_punctuation(source: str, translation: str) -> str:
+    """
+    Intelligently apply punctuation to translations based on:
+    1. What the source input punctuation says (user intent)
+    2. Whether the translation already has appropriate punctuation
+    3. Whether the translation is a complete sentence or a phrase/fragment
+
+    Rules:
+    - Source has '?' → translation ends with '?' (always — it's a question)
+    - Source has '!' → translation ends with '!' (always — it's an exclamation)
+    - Source has '.' → add '.' only if translation looks like a full sentence
+    - Source has no terminal punct → don't add any (user typed a fragment/phrase)
+    - Never double-punctuate (if translation already ends with correct punct, leave it)
+    - Single words or very short phrases don't get periods
+    """
+    if not translation or not source:
+        return translation
+
+    src = source.strip()
+    tgt = translation.strip()
+
+    if not src or not tgt:
+        return tgt
+
+    # Detect source terminal punctuation
+    src_end = src[-1]
+    tgt_end = tgt[-1]
+
+    # Already has correct punctuation — don't touch it
+    if tgt_end in ".?!":
+        # But fix wrong type: if source is ? and translation ends with . swap it
+        if src_end == "?" and tgt_end != "?":
+            return tgt.rstrip(".!") + "?"
+        if src_end == "!" and tgt_end != "!":
+            return tgt.rstrip(".?") + "!"
+        return tgt  # already punctuated correctly
+
+    # Translation has no terminal punctuation yet — decide whether to add
+    tgt_words = tgt.split()
+    tgt_word_count = len(tgt_words)
+
+    # Question mark — always if source is a question
+    if src_end == "?":
+        return tgt + "?"
+
+    # Exclamation — always if source is exclamatory
+    if src_end == "!":
+        return tgt + "!"
+
+    # Period — only if source has one AND translation looks like a full sentence
+    # (more than 2 words and doesn't end mid-construction)
+    if src_end == ".":
+        if tgt_word_count >= 3:
+            # Check the translation isn't ending on a preposition, conjunction or particle
+            _incomplete_endings = {
+                "omu", "ha", "na", "ni", "ne", "aha", "ku", "mu", "nga",
+                "ngu", "kandi", "baitu", "kuba", "of", "in", "on", "at",
+                "and", "or", "but", "the", "a", "an",
+            }
+            last_word = tgt_words[-1].lower().rstrip(".,;:")
+            if last_word not in _incomplete_endings:
+                return tgt + "."
+        return tgt  # short or incomplete — no period
+
+    # Source has no terminal punctuation (user typed a word/phrase)
+    # Don't add anything — respect that it's a fragment
+    return tgt
+
+
 def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     """English → Lunyoro/Rutooro — uses both MarianMT and NLLB if available."""
     text = _normalise(text.strip())
@@ -1207,6 +1276,14 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     if marian or nllb:
         # NLLB is primary (better quality), fall back to MarianMT if NLLB is null or garbled
         best = nllb if not _is_garbage(nllb) else marian
+        # Apply punctuation mirroring
+        orig_text = text  # keep original before normalisation stripped it
+        if best:
+            best = _mirror_punctuation(orig_text, best)
+        if nllb:
+            nllb = _mirror_punctuation(orig_text, nllb)
+        if marian:
+            marian = _mirror_punctuation(orig_text, marian)
         return {
             "translation": best,
             "translation_nllb": nllb,
@@ -1316,10 +1393,9 @@ def _postprocess_english(text: str) -> str:
     # Only capitalise a–z at sentence start, not mid-word
     text = _re.sub(r"((?:^|(?<=[.!?]\s))([a-z]))", lambda m: m.group(0).upper(), text)
 
-    # 7. Ensure sentence ends with punctuation
+    # 7. Preserve existing terminal punctuation — don't add period blindly
+    # (_mirror_punctuation handles this based on source input)
     text = text.strip()
-    if text and text[-1] not in ".!?":
-        text += "."
 
     # 8. Collapse multiple spaces
     text = _re.sub(r"  +", " ", text)
@@ -1371,8 +1447,15 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
         marian = _postprocess_english(marian)
 
     if marian or nllb:
+        orig_text = text  # save before normalisation
+        # Apply punctuation mirroring based on source input
+        if nllb:
+            nllb = _mirror_punctuation(orig_text, nllb)
+        if marian:
+            marian = _mirror_punctuation(orig_text, marian)
+        best = nllb or marian
         return {
-            "translation": nllb or marian,  # NLLB is primary
+            "translation": best,  # NLLB is primary
             "translation_nllb": nllb,
             "translation_marian": marian,
             "method": "neural_mt",
