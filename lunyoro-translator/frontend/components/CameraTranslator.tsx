@@ -49,138 +49,112 @@ export default function CameraTranslator() {
     ? (renderedOcrImage && !showOriginal ? renderedOcrImage : ocrImage)
     : classifyImage;
 
-  // ── Render translated image as clean organised card ───────────────────────
+  // ── Render translated image — replace text in-place, no background, auto font ──
   const renderTranslatedImage = useCallback((
     originalSrc: string,
     translatedRegions: TranslatedRegion[]
   ) => {
     if (!translatedRegions.length) return;
-
     const img = new Image();
     img.onload = () => {
       const W = img.naturalWidth;
       const H = img.naturalHeight;
-
-      // ── Group OCR fragments into sentences ──────────────────────────────
-      // Sort regions top-to-bottom, left-to-right by bbox position
-      const sorted = [...translatedRegions].sort((a, b) =>
-        a.bbox_norm.y !== b.bbox_norm.y
-          ? a.bbox_norm.y - b.bbox_norm.y
-          : a.bbox_norm.x - b.bbox_norm.x
-      );
-
-      // Merge fragments that are on the same line (within 3% vertical proximity)
-      // into a single sentence entry
-      const sentences: { original: string; translated: string }[] = [];
-      const ROW_THRESHOLD = 0.04; // 4% of image height = same row
-      let currentRow: TranslatedRegion[] = [];
-
-      const flushRow = () => {
-        if (!currentRow.length) return;
-        const origText = currentRow.map(r => r.original).join(" ").trim();
-        const tranText = currentRow.map(r => r.translated).join(" ").trim();
-        if (origText || tranText) sentences.push({ original: origText, translated: tranText });
-        currentRow = [];
-      };
-
-      sorted.forEach((r, i) => {
-        if (i === 0) { currentRow.push(r); return; }
-        const prev = currentRow[currentRow.length - 1];
-        const sameRow = Math.abs(r.bbox_norm.y - prev.bbox_norm.y) < ROW_THRESHOLD;
-        if (sameRow) { currentRow.push(r); }
-        else { flushRow(); currentRow.push(r); }
-      });
-      flushRow();
-
-      if (!sentences.length) return;
-
-      // ── Layout constants ────────────────────────────────────────────────
-      const FONT = "600 28px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-      const FONT_SIZE = 28;
-      const LINE_HEIGHT = FONT_SIZE * 1.55;
-      const PAD_X = 48;
-      const PAD_Y = 40;
-      const ROW_GAP = 28; // vertical gap between sentence rows
-      const DIVIDER_H = 1;
-      const BG = "#FFFFFF";
-      const TEXT_PRIMARY = "#1A1A1A";    // original text colour
-      const TEXT_TRANSLATED = "#735C00"; // translated — matches app primary gold
-
-      // ── Measure each sentence to determine canvas height ────────────────
-      const measureCanvas = document.createElement("canvas");
-      measureCanvas.width = W;
-      const mCtx = measureCanvas.getContext("2d")!;
-      mCtx.font = FONT;
-
-      const usableW = W - PAD_X * 2;
-
-      type RowEntry = { origLines: string[]; tranLines: string[] };
-      const rows: RowEntry[] = sentences.map(({ original, translated }) => {
-        const wrapText = (text: string): string[] => {
-          const words = text.split(" ");
-          const lines: string[] = [];
-          let line = "";
-          for (const word of words) {
-            const test = line ? `${line} ${word}` : word;
-            if (mCtx.measureText(test).width > usableW && line) {
-              lines.push(line); line = word;
-            } else { line = test; }
-          }
-          if (line) lines.push(line);
-          return lines.length ? lines : [""];
-        };
-        return { origLines: wrapText(original), tranLines: wrapText(translated) };
-      });
-
-      // Total canvas height
-      let totalH = PAD_Y;
-      rows.forEach((row, i) => {
-        totalH += row.origLines.length * LINE_HEIGHT;
-        totalH += row.tranLines.length * LINE_HEIGHT;
-        if (i < rows.length - 1) totalH += ROW_GAP + DIVIDER_H + ROW_GAP;
-      });
-      totalH += PAD_Y;
-
-      // ── Draw ─────────────────────────────────────────────────────────────
       const canvas = document.createElement("canvas");
       canvas.width = W;
-      canvas.height = Math.round(totalH);
+      canvas.height = H;
       const ctx = canvas.getContext("2d")!;
 
-      // White background
-      ctx.fillStyle = BG;
-      ctx.fillRect(0, 0, W, canvas.height);
+      // Draw original image
+      ctx.drawImage(img, 0, 0, W, H);
 
-      ctx.font = FONT;
-      ctx.textBaseline = "top";
+      translatedRegions.forEach(r => {
+        const x = Math.round(r.bbox_norm.x * W);
+        const y = Math.round(r.bbox_norm.y * H);
+        const w = Math.round(r.bbox_norm.width * W);
+        const h = Math.round(r.bbox_norm.height * H);
+        if (w < 2 || h < 2) return;
 
-      let curY = PAD_Y;
-
-      rows.forEach((row, rowIdx) => {
-        // Original text
-        ctx.fillStyle = TEXT_PRIMARY;
-        row.origLines.forEach(line => {
-          ctx.fillText(line, PAD_X, curY, usableW);
-          curY += LINE_HEIGHT;
-        });
-
-        // Translated text (gold/primary)
-        ctx.fillStyle = TEXT_TRANSLATED;
-        row.tranLines.forEach(line => {
-          ctx.fillText(line, PAD_X, curY, usableW);
-          curY += LINE_HEIGHT;
-        });
-
-        // Divider between rows (not after last)
-        if (rowIdx < rows.length - 1) {
-          curY += ROW_GAP;
-          ctx.fillStyle = "#E8E0D0";
-          ctx.fillRect(PAD_X, curY, usableW, DIVIDER_H);
-          curY += DIVIDER_H + ROW_GAP;
+        // ── Sample dominant text color from region to match original ───────
+        const px = ctx.getImageData(x, y, w, h).data;
+        // Build a brightness histogram to find the text color (minority dark/light pixels)
+        let darkR = 0, darkG = 0, darkB = 0, darkN = 0;
+        let lightR = 0, lightG = 0, lightB = 0, lightN = 0;
+        let bgR = 0, bgG = 0, bgB = 0, bgN = 0;
+        for (let i = 0; i < px.length; i += 4) {
+          const lum = (0.299 * px[i] + 0.587 * px[i+1] + 0.114 * px[i+2]) / 255;
+          if (lum < 0.35) { darkR+=px[i]; darkG+=px[i+1]; darkB+=px[i+2]; darkN++; }
+          else if (lum > 0.65) { lightR+=px[i]; lightG+=px[i+1]; lightB+=px[i+2]; lightN++; }
+          else { bgR+=px[i]; bgG+=px[i+1]; bgB+=px[i+2]; bgN++; }
         }
+        // Background = majority pixels
+        const total = darkN + lightN + bgN || 1;
+        let textColor: string;
+        let bgColor: string;
+        if (darkN / total > lightN / total) {
+          // Dark text on light bg
+          const tr = Math.round(darkR / (darkN||1));
+          const tg = Math.round(darkG / (darkN||1));
+          const tb = Math.round(darkB / (darkN||1));
+          textColor = `rgb(${tr},${tg},${tb})`;
+          const br = Math.round((lightR + bgR) / ((lightN+bgN)||1));
+          const bg2 = Math.round((lightG + bgG) / ((lightN+bgN)||1));
+          const bb = Math.round((lightB + bgB) / ((lightN+bgN)||1));
+          bgColor = `rgb(${br},${bg2},${bb})`;
+        } else {
+          // Light text on dark bg
+          const tr = Math.round(lightR / (lightN||1));
+          const tg = Math.round(lightG / (lightN||1));
+          const tb = Math.round(lightB / (lightN||1));
+          textColor = `rgb(${tr},${tg},${tb})`;
+          const br = Math.round((darkR + bgR) / ((darkN+bgN)||1));
+          const bg2 = Math.round((darkG + bgG) / ((darkN+bgN)||1));
+          const bb = Math.round((darkB + bgB) / ((darkN+bgN)||1));
+          bgColor = `rgb(${br},${bg2},${bb})`;
+        }
+
+        // ── Paint background to erase original text cleanly ────────────────
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(x, y, w, h);
+
+        // ── Auto font size matching original text height ─────────────────
+        // Text height in the original ≈ bbox height * 0.8 (accounting for descenders/ascenders)
+        let fontSize = Math.max(6, Math.round(h * 0.78));
+        const fontStyle = `${fontSize}px sans-serif`;
+        ctx.font = fontStyle;
+
+        // Shrink font until translated text fits the width
+        while (fontSize > 5 && ctx.measureText(r.translated).width > w * 0.98) {
+          fontSize -= 1;
+          ctx.font = `${fontSize}px sans-serif`;
+        }
+
+        // ── Word-wrap within bbox width ───────────────────────────────────
+        const lineH = fontSize * 1.2;
+        const words = r.translated.split(" ");
+        const lines: string[] = [];
+        let line = "";
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (ctx.measureText(test).width > w * 0.98 && line) {
+            lines.push(line); line = word;
+          } else { line = test; }
+        }
+        if (line) lines.push(line);
+
+        // Center the text block vertically within the bbox
+        const blockH = lines.length * lineH;
+        let textY = y + (h - blockH) / 2 + fontSize * 0.8;
+
+        ctx.fillStyle = textColor;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        lines.forEach(l => {
+          ctx.fillText(l, x + 1, textY, w - 2);
+          textY += lineH;
+        });
       });
 
-      setRenderedOcrImage(canvas.toDataURL("image/png"));
+      setRenderedOcrImage(canvas.toDataURL("image/jpeg", 0.95));
       setShowOriginal(false);
     };
     img.src = originalSrc;
@@ -438,7 +412,7 @@ export default function CameraTranslator() {
               {/* Captured image preview */}
               {capturedImage && (
                 <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border border-outline-variant/30">
-                  <img src={capturedImage} alt="Captured" className="w-full h-auto object-contain" />
+                  <img src={capturedImage} alt="Captured" className="w-full h-auto object-contain block" />
 
                   {/* Toggle original/translated — only when rendered image exists */}
                   {mode === "ocr" && renderedOcrImage && (
