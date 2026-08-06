@@ -1,12 +1,15 @@
 {
-  "name": "Runyoro / Rutooro Translator",
+  "name": "Runyoro-Rutooro Translator",
   "short_name": "Runyoro",
-  "description": "Translate English to Runyoro-Rutooro and back",
+  "description": "AI-powered English ↔ Runyoro-Rutooro translation — works offline",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#FFFBF5",
+  "theme_color": "#8B6914",
   "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["education", "utilities"],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -21,6 +24,21 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "utilities"],
-  "lang": "en"
+  "shortcuts": [
+    {
+      "name": "Translate",
+      "short_name": "Translate",
+      "description": "Translate English to Runyoro-Rutooro",
+      "url": "/?tab=translate",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dictionary",
+      "short_name": "Dictionary",
+      "description": "Look up Runyoro-Rutooro words",
+      "url": "/?tab=dictionary",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
 }

@@ -190,6 +190,10 @@ export default function Translator() {
     const text = direction === "lun->en" ? (editorRef.current?.innerText || input) : input;
     if (!text.trim()) return;
     setLoading(true); setError(""); setResult(null);
+
+    // ── Offline cache key ────────────────────────────────────────────────────
+    const cacheKey = `tx:${direction}:${text.trim().toLowerCase()}`;
+
     try {
       const res = await fetch(`${API}${endpoint}`, {
         method:"POST", headers:{"Content-Type":"application/json"},
@@ -199,12 +203,25 @@ export default function Translator() {
       const data = await res.json();
       if (preferredModel && data.translation_marian && data.translation_nllb)
         data.translation = preferredModel === "marian" ? data.translation_marian : data.translation_nllb;
-      if (data.translation_nllb && data.translation_nllb.trim().toLowerCase() === text.trim().toLowerCase()) {
-        data.translation_nllb = data.translation_marian;
-        if (!preferredModel || preferredModel === "nllb") data.translation = data.translation_marian;
-      }
+      // Save to localStorage for offline use
+      try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch { /* storage full */ }
       setResult(data); resetFeedback();
-    } catch { setError("Could not connect to the translation server."); }
+    } catch {
+      // ── Offline fallback: check localStorage cache ───────────────────────
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const data = JSON.parse(cached);
+          setResult({ ...data, method: "cached_offline" });
+          setError("Offline — showing cached translation");
+          resetFeedback();
+          return;
+        }
+      } catch { /* ignore */ }
+      setError(!navigator.onLine
+        ? "You're offline and this translation isn't cached yet."
+        : "Could not connect to the translation server.");
+    }
     finally { setLoading(false); }
   }
 
@@ -305,15 +322,14 @@ export default function Translator() {
             ) : result?.translation ? (
               <p className="leading-relaxed">{result.translation}</p>
             ) : error ? (
-              <p className="text-error text-base">{error}</p>
+              <p className={`text-base ${error.startsWith("Offline") ? "text-tertiary" : "text-error"}`}>{error}</p>
             ) : (
               <p className="text-outline/60 italic text-base">Translation will appear here...</p>
             )}
           </div>
 
           {/* ── Dual model output panel — NLLB vs MarianMT ── */}
-          {result?.method === "neural_mt" && (result?.translation_nllb || result?.translation_marian) && (
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {result?.method === "neural_mt" && (result?.translation_nllb || result?.translation_marian) && (            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {result.translation_nllb && (
                 <div className={`rounded-xl p-3 border transition-all ${result.translation === result.translation_nllb ? "border-secondary-container bg-secondary-container/20" : "border-outline-variant/30 bg-surface-container/40"}`}>
                   <div className="flex items-center gap-1.5 mb-1.5">

@@ -50,6 +50,7 @@ Additional pages accessible from Home dashboard cards:
 Inner pages (Editor, Dictionary, History, Voice, Camera, Help) display a section title in the **TopBar** and a back button that returns to Home.
 
 - **Page transitions:** Tab switches remount the content area (`key={tab}`) and wrap pages in a `.page-enter` CSS animation for a smooth fade/slide-in effect
+- **Offline banner (`OfflineBanner.tsx`):** Fixed top-of-screen strip that appears automatically when the device loses network connectivity; shows a red `wifi_off` banner with the message "You're offline — showing cached translations"; when connectivity is restored, switches to a green `wifi` banner ("Back online") that auto-dismisses after 3 seconds; renders nothing when the connection is stable
 
 ### Dictionary (`Dictionary.tsx`)
 - **Direction toggle:** Segmented control switches between English → Runyoro and Runyoro → English; resets query and results on change
@@ -125,10 +126,12 @@ Inner pages (Editor, Dictionary, History, Voice, Camera, Help) display a section
 - **Auto-scan mode:** Captures and translates frames every 3 seconds while the camera is active; pause/resume pill toggle in the bottom control row
 - **Manual capture:** Large circular shutter button for on-demand frame translation; disabled while a scan is in progress to prevent duplicate requests
 - **Direction pill:** Compact top-bar toggle showing current direction (EN ↔ LUN) with swap icon
-- **Translation overlay:** Bounding boxes with translated text overlaid on the live feed using normalized coordinates; dark background with backdrop blur for readability; green text with font size clamped and scaled to region height
-- **Overlay toggle:** Pill button to show/hide translation overlays
+- **Translation overlay:** Bounding boxes with translated text overlaid on the captured image using normalized coordinates; dark background with backdrop blur for readability; green text with font size clamped and scaled to region height; **only rendered on the OCR tab and only when the original image view is active** (`showOriginal === true`) — the Identify tab never shows bounding-box overlays, and the overlay is hidden when the canvas-painted translated image is displayed
+- **Canvas-painted translated image:** After OCR results arrive — whether from a file upload or a camera capture — translated text is rendered onto an HTML5 Canvas as a clean, organised card rather than being overlaid on the source image. OCR fragments are first sorted top-to-bottom / left-to-right by their normalised bounding-box position, then merged into sentences by grouping fragments within 4% vertical proximity into the same row. Each sentence is rendered as a two-line entry: the original detected text in dark (`#1A1A1A`) above the translation in the app's gold accent (`#735C00`), sized at 600-weight 28 px with 1.55× line-height and 48 px horizontal padding. Sentence rows are separated by a subtle `#E8E0D0` 1 px divider. The canvas is sized to fit all content (white `#FFFFFF` background) and exported as PNG. The result is stored as `renderedOcrImage` and shown by default in place of the original photo; any previously rendered canvas image is cleared at the start of each new upload so stale results never persist; on each new file upload the view state is also reset (`showOriginal → false`) so the translated canvas view is always shown immediately for the new image; **translations are displayed exclusively on the canvas image — there is no separate text list panel**
+- **Original / Translated toggle:** A pill button (top-right of the image preview, visible only after the canvas-painted image is ready) switches between the canvas-painted translated view and the unmodified original image (`showOriginal` state); when showing the original, the bounding-box overlay is also re-displayed; toggling does not re-run OCR — both images are kept in memory
 - **Results panel:** Slide-up bottom sheet displaying detected translations in a compact paragraph layout — regions are grouped in pairs per line as "original → translated · original → translated"; toggled via a "Results" pill with a close button
 - **Camera switch:** Flip between front and rear cameras via a bottom-bar icon button
+- **Per-tab state persistence:** OCR and Identify tabs maintain independent image previews (`ocrImage` / `classifyImage`) and independent results (`regions` / `classifications`); switching tabs preserves both the image and results of each tab so users can compare outputs without re-scanning; starting the camera clears both image previews so neither tab shows a stale image from a previous session; the loading spinner is also tab-scoped (`loading` for OCR, `classifyLoading` for Identify) so activity on one tab never bleeds into the other's UI
 - **Image upload:** Gallery icon button in the bottom controls; also available as a card in the inactive state; sends image as `FormData` to `/ocr-translate`
 - **Inactive state:** Full-height layout (`minHeight: calc(100vh - 160px)`) with instructions pinned to the bottom via `marginTop: auto`; two action cards (Open Camera / Upload Text Image) with direction toggle; a Material Symbols icon strip (📷 → 🔤 → 🌐) above the instruction text visually illustrates the capture → detect → translate workflow; results from uploaded images display with the same overlay system
 - **Error handling:** Checks for camera API availability before attempting access (catches insecure-context / unsupported-browser scenarios); displays camera permission errors and server connection failures in a centred styled error banner
@@ -1558,6 +1561,28 @@ FORCE_OFFLINE=0                    # Set to 1/true/yes to force fully offline mo
 ```bash
 NEXT_PUBLIC_API_URL=https://keithtwesigye-runyoro-translator-api.hf.space
 ```
+
+---
+
+## PWA & Service Worker Caching
+
+The frontend is a Progressive Web App (PWA) powered by `next-pwa` / Workbox (`next.config.ts`). The service worker is **enabled in all environments** (including development) to support offline usage.
+
+### Cache strategy by resource type
+
+| URL pattern | Strategy | Cache name | TTL |
+|---|---|---|---|
+| `/_next/static/*` | CacheFirst | `next-static` | 30 days |
+| `/_next/image?*` | CacheFirst | `next-images` | 7 days |
+| `*/translate*` | StaleWhileRevalidate | `translation-api` | 30 days / 500 entries |
+| `*/(dictionary\|spellcheck\|lookup)*` | StaleWhileRevalidate | `dictionary-api` | 30 days / 1 000 entries |
+| All other `https://` requests | NetworkFirst | `runyoro-general` | 7 days / 200 entries, 5 s timeout |
+
+**StaleWhileRevalidate** on the translation and dictionary endpoints means a cached response is returned immediately while a fresh response is fetched in the background — the app stays responsive even on slow or offline connections.
+
+The `OfflineBanner` component provides visible feedback for connectivity state changes: a red banner when offline and a brief green banner on reconnection (auto-dismisses after 3 s). It is rendered at the app root so it overlays all pages.
+
+**CacheFirst** on Next.js static assets is safe because those files carry content-hash filenames and never change after a build.
 
 ---
 

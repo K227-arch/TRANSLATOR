@@ -26,19 +26,165 @@ export default function CameraTranslator() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [cameraActive, setCameraActive] = useState(false);
+  // Each tab has its own independent image + results state
+  const [ocrImage, setOcrImage] = useState<string | null>(null);
+  const [classifyImage, setClassifyImage] = useState<string | null>(null);
+  const [renderedOcrImage, setRenderedOcrImage] = useState<string | null>(null); // canvas-painted version
   const [regions, setRegions] = useState<TranslatedRegion[]>([]);
+  const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [classifyLoading, setClassifyLoading] = useState(false);
   const [error, setError] = useState("");
   const [direction, setDirection] = useState<Direction>("en->lun");
   const [paused, setPaused] = useState(false);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [showOverlay, setShowOverlay] = useState(true);
+  const [showOverlay, setShowOverlay] = useState(false); // translations list collapsed by default
   const [showResults, setShowResults] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false); // toggle between original and translated
   const [scanCount, setScanCount] = useState(0);
   const [mode, setMode] = useState<Mode>("ocr");
-  const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
-  const [classifyLoading, setClassifyLoading] = useState(false);
+
+  // Convenience: current tab's image (for OCR tab, show rendered if available)
+  const capturedImage = mode === "ocr"
+    ? (renderedOcrImage && !showOriginal ? renderedOcrImage : ocrImage)
+    : classifyImage;
+
+  // ── Render translated image as clean organised card ───────────────────────
+  const renderTranslatedImage = useCallback((
+    originalSrc: string,
+    translatedRegions: TranslatedRegion[]
+  ) => {
+    if (!translatedRegions.length) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const W = img.naturalWidth;
+      const H = img.naturalHeight;
+
+      // ── Group OCR fragments into sentences ──────────────────────────────
+      // Sort regions top-to-bottom, left-to-right by bbox position
+      const sorted = [...translatedRegions].sort((a, b) =>
+        a.bbox_norm.y !== b.bbox_norm.y
+          ? a.bbox_norm.y - b.bbox_norm.y
+          : a.bbox_norm.x - b.bbox_norm.x
+      );
+
+      // Merge fragments that are on the same line (within 3% vertical proximity)
+      // into a single sentence entry
+      const sentences: { original: string; translated: string }[] = [];
+      const ROW_THRESHOLD = 0.04; // 4% of image height = same row
+      let currentRow: TranslatedRegion[] = [];
+
+      const flushRow = () => {
+        if (!currentRow.length) return;
+        const origText = currentRow.map(r => r.original).join(" ").trim();
+        const tranText = currentRow.map(r => r.translated).join(" ").trim();
+        if (origText || tranText) sentences.push({ original: origText, translated: tranText });
+        currentRow = [];
+      };
+
+      sorted.forEach((r, i) => {
+        if (i === 0) { currentRow.push(r); return; }
+        const prev = currentRow[currentRow.length - 1];
+        const sameRow = Math.abs(r.bbox_norm.y - prev.bbox_norm.y) < ROW_THRESHOLD;
+        if (sameRow) { currentRow.push(r); }
+        else { flushRow(); currentRow.push(r); }
+      });
+      flushRow();
+
+      if (!sentences.length) return;
+
+      // ── Layout constants ────────────────────────────────────────────────
+      const FONT = "600 28px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      const FONT_SIZE = 28;
+      const LINE_HEIGHT = FONT_SIZE * 1.55;
+      const PAD_X = 48;
+      const PAD_Y = 40;
+      const ROW_GAP = 28; // vertical gap between sentence rows
+      const DIVIDER_H = 1;
+      const BG = "#FFFFFF";
+      const TEXT_PRIMARY = "#1A1A1A";    // original text colour
+      const TEXT_TRANSLATED = "#735C00"; // translated — matches app primary gold
+
+      // ── Measure each sentence to determine canvas height ────────────────
+      const measureCanvas = document.createElement("canvas");
+      measureCanvas.width = W;
+      const mCtx = measureCanvas.getContext("2d")!;
+      mCtx.font = FONT;
+
+      const usableW = W - PAD_X * 2;
+
+      type RowEntry = { origLines: string[]; tranLines: string[] };
+      const rows: RowEntry[] = sentences.map(({ original, translated }) => {
+        const wrapText = (text: string): string[] => {
+          const words = text.split(" ");
+          const lines: string[] = [];
+          let line = "";
+          for (const word of words) {
+            const test = line ? `${line} ${word}` : word;
+            if (mCtx.measureText(test).width > usableW && line) {
+              lines.push(line); line = word;
+            } else { line = test; }
+          }
+          if (line) lines.push(line);
+          return lines.length ? lines : [""];
+        };
+        return { origLines: wrapText(original), tranLines: wrapText(translated) };
+      });
+
+      // Total canvas height
+      let totalH = PAD_Y;
+      rows.forEach((row, i) => {
+        totalH += row.origLines.length * LINE_HEIGHT;
+        totalH += row.tranLines.length * LINE_HEIGHT;
+        if (i < rows.length - 1) totalH += ROW_GAP + DIVIDER_H + ROW_GAP;
+      });
+      totalH += PAD_Y;
+
+      // ── Draw ─────────────────────────────────────────────────────────────
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = Math.round(totalH);
+      const ctx = canvas.getContext("2d")!;
+
+      // White background
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, W, canvas.height);
+
+      ctx.font = FONT;
+      ctx.textBaseline = "top";
+
+      let curY = PAD_Y;
+
+      rows.forEach((row, rowIdx) => {
+        // Original text
+        ctx.fillStyle = TEXT_PRIMARY;
+        row.origLines.forEach(line => {
+          ctx.fillText(line, PAD_X, curY, usableW);
+          curY += LINE_HEIGHT;
+        });
+
+        // Translated text (gold/primary)
+        ctx.fillStyle = TEXT_TRANSLATED;
+        row.tranLines.forEach(line => {
+          ctx.fillText(line, PAD_X, curY, usableW);
+          curY += LINE_HEIGHT;
+        });
+
+        // Divider between rows (not after last)
+        if (rowIdx < rows.length - 1) {
+          curY += ROW_GAP;
+          ctx.fillStyle = "#E8E0D0";
+          ctx.fillRect(PAD_X, curY, usableW, DIVIDER_H);
+          curY += DIVIDER_H + ROW_GAP;
+        }
+      });
+
+      setRenderedOcrImage(canvas.toDataURL("image/png"));
+      setShowOriginal(false);
+    };
+    img.src = originalSrc;
+  }, []);
 
   const attachStream = useCallback((stream: MediaStream) => {
     const video = videoRef.current;
@@ -62,7 +208,7 @@ export default function CameraTranslator() {
     const tryStart = async (c: MediaStreamConstraints) => {
       const stream = await navigator.mediaDevices.getUserMedia(c);
       streamRef.current = stream;
-      setCapturedImage(null); setRegions([]); setScanCount(0);
+      setOcrImage(null); setClassifyImage(null); setRenderedOcrImage(null); setRegions([]); setScanCount(0);
       setCameraActive(true);
     };
     try {
@@ -101,8 +247,7 @@ export default function CameraTranslator() {
       if (data.error) setError(data.error);
       else { setRegions(data.regions || []); setScanCount(c => c + 1); setError(""); }
     } catch { setError("Could not connect to translation server."); }
-    finally { setLoading(false); }
-  }, [direction, loading]);
+    finally { setLoading(false); }  }, [direction, loading]);
 
   useEffect(() => {
     if (cameraActive && !paused) intervalRef.current = setInterval(captureAndTranslate, 3000);
@@ -117,19 +262,25 @@ export default function CameraTranslator() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    setLoading(true); setError(""); setCapturedImage(URL.createObjectURL(file)); stopCamera();
+    const objectUrl = URL.createObjectURL(file);
+    setLoading(true); setError(""); setOcrImage(objectUrl); setRenderedOcrImage(null); setShowOriginal(false); setShowOverlay(false); stopCamera();
     const fd = new FormData(); fd.append("file", file);
     try {
       const res = await fetch(`${API}/ocr-translate?direction=${direction}`, { method: "POST", body: fd });
       const data = await res.json();
-      if (data.error) setError(data.error); else setRegions(data.regions || []);
+      if (data.error) { setError(data.error); }
+      else {
+        const r = data.regions || [];
+        setRegions(r);
+        if (r.length > 0) renderTranslatedImage(objectUrl, r);
+      }
     } catch { setError("Could not connect to translation server."); }
     finally { setLoading(false); }
   };
 
   const handleClassifyUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    setClassifyLoading(true); setError(""); setCapturedImage(URL.createObjectURL(file)); setClassifications([]); stopCamera();
+    setClassifyLoading(true); setError(""); setClassifyImage(URL.createObjectURL(file)); setClassifications([]); stopCamera();
     const fd = new FormData(); fd.append("file", file);
     try {
       const res = await fetch(`${API}/classify-image?top_k=5`, { method: "POST", body: fd });
@@ -286,11 +437,24 @@ export default function CameraTranslator() {
 
               {/* Captured image preview */}
               {capturedImage && (
-                <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border border-outline-variant/30"
-                  style={{ aspectRatio: "4/3" }}>
-                  <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
-                  {showOverlay && regions.length > 0 && (
-                    <div className="absolute inset-0 pointer-events-none">
+                <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border border-outline-variant/30">
+                  <img src={capturedImage} alt="Captured" className="w-full h-auto object-contain" />
+
+                  {/* Toggle original/translated — only when rendered image exists */}
+                  {mode === "ocr" && renderedOcrImage && (
+                    <button
+                      onClick={() => setShowOriginal(s => !s)}
+                      className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[11px] font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all z-10">
+                      <span className="material-symbols-outlined text-[14px]">
+                        {showOriginal ? "translate" : "image"}
+                      </span>
+                      {showOriginal ? "Show Translated" : "Show Original"}
+                    </button>
+                  )}
+
+                  {/* OCR overlay — shown on original image, controlled by showOverlay */}
+                  {mode === "ocr" && showOriginal && regions.length > 0 && (
+                    <div className={`absolute inset-0 pointer-events-none transition-opacity duration-200 ${showOverlay ? "opacity-100" : "opacity-0"}`}>
                       {regions.map((r, i) => (
                         <div key={i} className="absolute flex items-center justify-center"
                           style={{ left: `${r.bbox_norm.x * 100}%`, top: `${r.bbox_norm.y * 100}%`, width: `${r.bbox_norm.width * 100}%`, height: `${r.bbox_norm.height * 100}%` }}>
@@ -301,7 +465,9 @@ export default function CameraTranslator() {
                       ))}
                     </div>
                   )}
-                  {(loading || classifyLoading) && (
+
+                  {/* Loading spinner — only for current tab's loader */}
+                  {(mode === "ocr" ? loading : classifyLoading) && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <div className="bg-black/70 backdrop-blur-md rounded-2xl px-5 py-3 flex items-center gap-2">
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -315,10 +481,14 @@ export default function CameraTranslator() {
               {/* Mode toggle */}
               <div className="w-full flex bg-surface-container rounded-xl p-1">
                 {(["ocr", "classify"] as const).map(m => (
-                  <button key={m} onClick={() => { setMode(m); if (m === "ocr") setClassifications([]); else setRegions([]); }}
+                  <button key={m} onClick={() => {
+                    setMode(m);
+                    setError("");
+                    // Results are preserved per tab — nothing cleared on switch
+                  }}
                     className={`flex-1 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition-all min-w-0 ${mode === m ? "bg-surface-container-lowest text-on-background shadow" : "text-on-surface-variant"}`}>
                     <span className="material-symbols-outlined text-[16px] shrink-0">{m === "ocr" ? "text_fields" : "image_search"}</span>
-                    <span className="truncate">{m === "ocr" ? "Text OCR" : "Identify"}</span>
+                    <span className="truncate">{m === "ocr" ? "Text OCR" : "Identify Image"}</span>
                   </button>
                 ))}
               </div>
@@ -345,7 +515,7 @@ export default function CameraTranslator() {
                   </button>
                   <label className="flex flex-col items-center justify-center gap-2 bg-surface-container-lowest border border-outline-variant/40 text-on-surface py-6 rounded-2xl cursor-pointer active:scale-95 transition-all shadow-sm">
                     <span className="material-symbols-outlined text-[30px] text-primary">photo_library</span>
-                    <span className="text-xs font-medium">Upload Image</span>
+                    <span className="text-xs font-medium">Upload Image Text</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                   </label>
                 </div>
@@ -364,8 +534,8 @@ export default function CameraTranslator() {
                 </div>
               )}
 
-              {/* Classification results */}
-              {classifications.length > 0 && (
+              {/* Classification results — only on Identify tab */}
+              {mode === "classify" && classifications.length > 0 && (
                 <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
                   <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2 bg-surface-container/30">
                     <span className="material-symbols-outlined text-primary text-[18px]">image_search</span>
@@ -387,32 +557,10 @@ export default function CameraTranslator() {
                 </div>
               )}
 
-              {/* OCR results */}
-              {regions.length > 0 && (
-                <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container/30">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="material-symbols-outlined text-primary text-[18px] shrink-0">translate</span>
-                      <h3 className="text-sm font-semibold text-on-background truncate">{regions.length} Translation{regions.length > 1 ? "s" : ""}</h3>
-                    </div>
-                    <button onClick={() => setShowOverlay(s => !s)} className="text-xs text-primary font-medium shrink-0 ml-2">
-                      {showOverlay ? "Hide" : "Show"} overlay
-                    </button>
-                  </div>
-                  <div className="px-4 py-3 max-h-60 overflow-y-auto space-y-2">
-                    {regions.map((r, i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm leading-relaxed">
-                        <span className="text-on-surface-variant min-w-0 break-words" style={{ flex: "1 1 0" }}>{r.original}</span>
-                        <span className="text-on-surface-variant/40 shrink-0 pt-0.5">→</span>
-                        <span className="font-semibold text-primary min-w-0 break-words" style={{ flex: "1 1 0" }}>{r.translated}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* OCR results removed — translations shown on canvas image only */}
 
               {/* Empty state */}
-              {!capturedImage && regions.length === 0 && classifications.length === 0 && (
+              {!capturedImage && (mode === "ocr" ? regions.length === 0 : classifications.length === 0) && (
                 <div className="w-full text-center py-6 px-2">
                   <div className="flex justify-center items-center gap-1 mb-3">
                     {(mode === "ocr"

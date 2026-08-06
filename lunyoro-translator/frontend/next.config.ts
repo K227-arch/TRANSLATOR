@@ -4,15 +4,53 @@ const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
+  // Enable in all environments — needed for offline support
+  disable: false,
   runtimeCaching: [
+    // ── Next.js static assets — cache first (they have content hashes) ──────
+    {
+      urlPattern: /\/_next\/static\/.*/,
+      handler: "CacheFirst",
+      options: {
+        cacheName: "next-static",
+        expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
+      },
+    },
+    // ── Next.js image optimisation ──────────────────────────────────────────
+    {
+      urlPattern: /\/_next\/image\?.*/,
+      handler: "CacheFirst",
+      options: {
+        cacheName: "next-images",
+        expiration: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 },
+      },
+    },
+    // ── Translation API — StaleWhileRevalidate so offline still returns cached ──
+    {
+      urlPattern: /\/translate/,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "translation-api",
+        expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
+      },
+    },
+    // ── Dictionary / spellcheck API ─────────────────────────────────────────
+    {
+      urlPattern: /\/(dictionary|spellcheck|lookup)/,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "dictionary-api",
+        expiration: { maxEntries: 1000, maxAgeSeconds: 30 * 24 * 60 * 60 },
+      },
+    },
+    // ── All other network requests — NetworkFirst with offline fallback ──────
     {
       urlPattern: /^https?.*/,
       handler: "NetworkFirst",
       options: {
-        cacheName: "runyoro-api-cache",
+        cacheName: "runyoro-general",
         expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
-        networkTimeoutSeconds: 10,
+        networkTimeoutSeconds: 5,
       },
     },
   ],

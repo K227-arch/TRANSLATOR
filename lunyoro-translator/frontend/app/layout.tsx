@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import OfflineBanner from "@/components/OfflineBanner";
 
 // next/font inlines the font CSS — eliminates FOUT (flash of unstyled text)
 const inter = Inter({
@@ -38,7 +39,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body>{children}</body>
+      <body>
+        <OfflineBanner />
+        {children}
+      </body>
     </html>
   );
 }
