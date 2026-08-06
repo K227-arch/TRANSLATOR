@@ -1087,6 +1087,10 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     except Exception:
         return None
 
+    # Guard: sem_model must be loaded to run semantic search
+    if _sem_model is None:
+        return None
+
     if direction == "en2lun":
         query_sentences = _index["english_sentences"]
         target_sentences = _index["lunyoro_sentences"]
