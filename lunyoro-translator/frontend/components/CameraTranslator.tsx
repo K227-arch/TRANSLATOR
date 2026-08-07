@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 interface TranslatedRegion {
   original: string;
@@ -24,6 +24,8 @@ export default function CameraTranslator() {
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Hidden input used only when getUserMedia is unavailable (plain-HTTP origins).
+  const cameraCaptureRef = useRef<HTMLInputElement>(null);
 
   const [cameraActive, setCameraActive] = useState(false);
   const [regions, setRegions] = useState<TranslatedRegion[]>([]);
@@ -55,10 +57,32 @@ export default function CameraTranslator() {
 
   const startCamera = useCallback(async () => {
     setError("");
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Camera not supported (requires HTTPS or localhost).");
+
+    // Live preview needs getUserMedia, which browsers expose only on secure
+    // origins. The Pi serves this app over plain HTTP on 192.168.4.1, so it is
+    // unavailable there — and testing for it is subtler than it looks:
+    //
+    //   - Chrome/Android drop navigator.mediaDevices entirely on HTTP.
+    //   - Others keep the object and only reject when you call getUserMedia.
+    //
+    // Checking only for the missing API therefore misses the second group. They
+    // land in the catch below, which is too late: the fallback opens a file
+    // input via .click(), and browsers only honour that inside a user gesture —
+    // by then the await has broken the gesture chain and the click is ignored.
+    //
+    // window.isSecureContext answers the real question synchronously, before any
+    // await, so the fallback still runs inside the click handler.
+    const canUseLivePreview =
+      typeof window !== "undefined" &&
+      window.isSecureContext &&
+      !!navigator.mediaDevices?.getUserMedia;
+
+    if (!canUseLivePreview) {
+      // Native camera app: needs no secure context, one photo at a time.
+      cameraCaptureRef.current?.click();
       return;
     }
+
     const tryStart = async (c: MediaStreamConstraints) => {
       const stream = await navigator.mediaDevices.getUserMedia(c);
       streamRef.current = stream;
@@ -71,7 +95,12 @@ export default function CameraTranslator() {
       try { await tryStart({ video: true }); }
       catch (e) {
         const msg = e instanceof Error ? e.message : "Unknown error";
-        setError(msg.includes("denied") ? "Camera permission denied." : `Camera error: ${msg}`);
+        // Offer the native camera as a way out rather than a dead end.
+        setError(
+          msg.includes("denied")
+            ? "Camera permission denied — use Upload Image, or allow camera access."
+            : `Camera unavailable (${msg}). Use Upload Image instead.`
+        );
       }
     }
   }, [facingMode]);
@@ -348,6 +377,10 @@ export default function CameraTranslator() {
                     <span className="text-xs font-medium">Upload Image</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                   </label>
+                  {/* Opens the device's own camera app. Used by "Open Camera" when
+                      getUserMedia is unavailable, i.e. on the Pi's HTTP origin. */}
+                  <input ref={cameraCaptureRef} type="file" accept="image/*" capture="environment"
+                         className="hidden" onChange={handleFileUpload} />
                 </div>
               ) : (
                 <label className="w-full flex flex-col items-center justify-center gap-2 bg-primary text-on-primary py-6 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-all">

@@ -69,7 +69,23 @@
 }
 
 /* ── Material Symbols ──────────────────────────────────────────────── */
+/* Self-hosted so icons render with no internet — the Raspberry Pi serves this
+   app as a captive-portal access point, where the fonts.googleapis.com
+   stylesheet in layout.tsx is unreachable and all 75 icons would otherwise
+   fall back to literal text ("swap_horiz", "thumb_up", ...). */
+@font-face {
+  font-family: 'Material Symbols Local';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url('/fonts/material-symbols.woff2') format('woff2');
+}
+
 .material-symbols-outlined {
+  /* Local file first; the Google-served family is the online-only fallback. */
+  font-family: 'Material Symbols Local', 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   display: inline-block;
   line-height: 1;
