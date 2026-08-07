@@ -289,7 +289,7 @@ export default function Translator() {
         </div>
 
         {/* Output panel */}
-        <div className="flex-1 bg-surface-container-lowest border-2 border-primary-container/50 rounded-2xl premium-shadow p-5 flex flex-col">
+        <div className="flex-1 bg-surface-container-lowest border-2 border-primary-container/50 rounded-2xl premium-shadow p-5 flex flex-col overflow-y-auto">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-primary uppercase tracking-widest font-semibold">{toLabel}</span>
             <div className="flex items-center gap-1">
@@ -313,7 +313,7 @@ export default function Translator() {
               )}
             </div>
           </div>
-          <div className="flex-grow text-lg text-on-surface flex flex-col justify-start">
+          <div className="text-lg text-on-surface flex flex-col justify-start mb-3">
             {loading ? (
               <div className="flex items-center gap-2 text-outline">
                 <div className="flex space-x-1">{[0,1,2].map(i => <div key={i} className="w-2 h-2 bg-primary-container rounded-full animate-bounce" style={{animationDelay:`${i*0.15}s`}} />)}</div>
@@ -328,28 +328,35 @@ export default function Translator() {
             )}
           </div>
 
-          {/* ── Dual model output panel — NLLB vs MarianMT ── */}
-          {result?.method === "neural_mt" && (result?.translation_nllb || result?.translation_marian) && (            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {result.translation_nllb && (
-                <div className={`rounded-xl p-3 border transition-all ${result.translation === result.translation_nllb ? "border-secondary-container bg-secondary-container/20" : "border-outline-variant/30 bg-surface-container/40"}`}>
+          {/* ── Dual model output panel — only shown when outputs meaningfully differ ── */}
+          {(() => {
+            const nllb = result?.translation_nllb;
+            const marian = result?.translation_marian;
+            if (!nllb || !marian) return null;
+            // Normalise for comparison — lowercase, strip punctuation/spaces
+            const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0080-\uFFFF]/g, "").trim();
+            const same = norm(nllb) === norm(marian);
+            if (same) return null; // identical — no need to show both
+            return (
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* NLLB card — primary */}
+                <div className="rounded-xl p-3 border border-secondary-container bg-secondary-container/20 transition-all">
                   <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${result.translation === result.translation_nllb ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container-high text-on-surface-variant"}`}>NLLB</span>
-                    {result.translation === result.translation_nllb && <span className="text-[10px] text-secondary font-semibold">Primary ✓</span>}
+                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">NLLB-200</span>
+                    <span className="text-[10px] text-secondary font-semibold">Primary ✓</span>
                   </div>
-                  <p className="text-sm text-on-surface leading-relaxed break-words">{result.translation_nllb}</p>
+                  <p className="text-sm text-on-surface leading-relaxed break-words">{nllb}</p>
                 </div>
-              )}
-              {result.translation_marian && (
-                <div className={`rounded-xl p-3 border transition-all ${result.translation === result.translation_marian ? "border-primary-fixed bg-primary-fixed/20" : "border-outline-variant/30 bg-surface-container/40"}`}>
+                {/* MarianMT card */}
+                <div className="rounded-xl p-3 border border-outline-variant/30 bg-surface-container/40 transition-all">
                   <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${result.translation === result.translation_marian ? "bg-primary-fixed text-on-primary-fixed" : "bg-surface-container-high text-on-surface-variant"}`}>MarianMT</span>
-                    {result.translation === result.translation_marian && <span className="text-[10px] text-primary font-semibold">Primary ✓</span>}
+                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">MarianMT</span>
                   </div>
-                  <p className="text-sm text-on-surface leading-relaxed break-words">{result.translation_marian}</p>
+                  <p className="text-sm text-on-surface leading-relaxed break-words">{marian}</p>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {/* Model badges */}
           {result && (

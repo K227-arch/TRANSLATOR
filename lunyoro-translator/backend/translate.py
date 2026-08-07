@@ -1228,34 +1228,60 @@ def _mirror_punctuation(source: str, translation: str) -> str:
 
 
 def translate(text: str, top_k: int = 3, context: str = "") -> dict:
-    """English → Lunyoro/Rutooro — uses both MarianMT and NLLB if available."""
+    """English → Lunyoro/Rutooro — always runs both MarianMT and NLLB."""
     text = _normalise(text.strip())
 
     # Longer context window: trim context to last sentence if too long
     if context:
         import re as _re_ctx
-
         ctx_sentences = _re_ctx.split(r"(?<=[.!?])\s+", context.strip())
         context = ctx_sentences[-1] if ctx_sentences else context
         if len(context) > 150:
             context = context[-150:]
 
-    # ── Selective RAG: try retrieval first for high-confidence matches ────────
+    # ── Always run both neural MT models first ────────────────────────────────
+    marian = _mt_translate(text, "en2lun", context=context)
+    nllb   = _nllb_translate(text, "en2lun", context=context)
+
+    def _is_garbage(s: str | None) -> bool:
+        if not s or not s.strip():
+            return True
+        words = s.split()
+        if not words:
+            return True
+        short_count = sum(1 for w in words if 2 <= len(w) <= 3)
+        return short_count / len(words) > 0.5
+
+    # Apply punctuation mirroring to both
+    if nllb:    nllb    = _mirror_punctuation(text, nllb)
+    if marian:  marian  = _mirror_punctuation(text, marian)
+
+    # Primary = NLLB if valid, else MarianMT
+    neural_best = nllb if not _is_garbage(nllb) else marian
+
+    # ── Selective RAG: try retrieval for high-confidence matches ─────────────
     rag_result = _selective_rag(text, direction="en2lun", top_k=top_k)
     if rag_result:
+        rag_result["translation_nllb"]   = nllb
+        rag_result["translation_marian"] = marian
+        # If NLLB is valid, use it as primary translation even for RAG hits
+        if not _is_garbage(nllb):
+            rag_result["translation"] = nllb
         return rag_result
 
-    # ── Corpus exact-match for short inputs (1-3 words) that RAG skips ────────
-    # Catches single words like "food" → "ebyokulya" that are in the training data
+    # ── Corpus exact-match for short inputs ──────────────────────────────────
     if len(text.split()) <= 3:
         try:
             _load_retrieval()
             lower = text.lower()
-            for i, sent in enumerate(_index["english_sentences"]):
+            for i, sent in enumerate(_index.get("english_sentences", [])):
                 if sent.strip().lower() == lower:
                     translation = _postprocess_lunyoro(_index["lunyoro_sentences"][i])
+                    best = nllb if not _is_garbage(nllb) else translation
                     return {
-                        "translation": translation,
+                        "translation":         best,
+                        "translation_nllb":    nllb,
+                        "translation_marian":  marian,
                         "method": "exact_match",
                         "confidence": 1.0,
                         "alternatives": [],
@@ -1263,35 +1289,11 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
         except Exception:
             pass
 
-    marian = _mt_translate(text, "en2lun", context=context)
-    nllb = _nllb_translate(text, "en2lun", context=context)
-
-    # Reject MarianMT output that is clearly garbled (e.g. repeated subword garbage)
-    def _is_garbage(s: str | None) -> bool:
-        if not s or not s.strip():
-            return True
-        words = s.split()
-        if not words:
-            return True
-        # Count very short words (2-3 chars) — garbage tends to have many
-        short_count = sum(1 for w in words if 2 <= len(w) <= 3)
-        return short_count / len(words) > 0.5
-
     if marian or nllb:
-        # NLLB is primary (better quality), fall back to MarianMT if NLLB is null or garbled
-        best = nllb if not _is_garbage(nllb) else marian
-        # Apply punctuation mirroring
-        orig_text = text  # keep original before normalisation stripped it
-        if best:
-            best = _mirror_punctuation(orig_text, best)
-        if nllb:
-            nllb = _mirror_punctuation(orig_text, nllb)
-        if marian:
-            marian = _mirror_punctuation(orig_text, marian)
         return {
-            "translation": best,
-            "translation_nllb": nllb,
-            "translation_marian": marian,
+            "translation":         neural_best,
+            "translation_nllb":    nllb,
+            "translation_marian":  marian,
             "method": "neural_mt",
             "confidence": 1.0,
             "alternatives": [],
@@ -1408,32 +1410,46 @@ def _postprocess_english(text: str) -> str:
 
 
 def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
-    """Lunyoro/Rutooro → English — uses both MarianMT and NLLB if available."""
+    """Lunyoro/Rutooro → English — always runs both MarianMT and NLLB."""
     text = _normalise(text.strip())
 
-    # Longer context window: trim context to last sentence if too long
     if context:
         import re as _re_ctx
-
         ctx_sentences = _re_ctx.split(r"(?<=[.!?])\s+", context.strip())
         context = ctx_sentences[-1] if ctx_sentences else context
         if len(context) > 150:
             context = context[-150:]
 
-    # ── Selective RAG: try retrieval first for high-confidence matches ────────
+    # ── Always run both neural MT models first ────────────────────────────────
+    marian = _mt_translate(text, "lun2en", context=context)
+    nllb   = _nllb_translate(text, "lun2en", context=context)
+
+    if nllb:    nllb    = _postprocess_english(_mirror_punctuation(text, nllb))
+    if marian:  marian  = _postprocess_english(_mirror_punctuation(text, marian))
+
+    neural_best = nllb or marian
+
+    # ── Selective RAG ─────────────────────────────────────────────────────────
     rag_result = _selective_rag(text, direction="lun2en", top_k=top_k)
     if rag_result:
+        rag_result["translation_nllb"]   = nllb
+        rag_result["translation_marian"] = marian
+        if nllb:
+            rag_result["translation"] = nllb
         return rag_result
 
-    # ── Corpus exact-match for short lun inputs (1-3 words) that RAG skips ───
+    # ── Corpus exact-match ────────────────────────────────────────────────────
     if len(text.split()) <= 3:
         try:
             _load_retrieval()
             lower = text.lower()
-            for i, sent in enumerate(_index["lunyoro_sentences"]):
+            for i, sent in enumerate(_index.get("lunyoro_sentences", [])):
                 if sent.strip().lower() == lower:
+                    best = nllb if nllb else _postprocess_english(_index["english_sentences"][i])
                     return {
-                        "translation": _postprocess_english(_index["english_sentences"][i]),
+                        "translation":         best,
+                        "translation_nllb":    nllb,
+                        "translation_marian":  marian,
                         "method": "exact_match",
                         "confidence": 1.0,
                         "alternatives": [],
@@ -1441,27 +1457,11 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
         except Exception:
             pass
 
-    marian = _mt_translate(text, "lun2en", context=context)
-    nllb = _nllb_translate(text, "lun2en", context=context)
-
-    # Apply English post-processing to both outputs
-    if nllb:
-        nllb = _postprocess_english(nllb)
-    if marian:
-        marian = _postprocess_english(marian)
-
     if marian or nllb:
-        orig_text = text  # save before normalisation
-        # Apply punctuation mirroring based on source input
-        if nllb:
-            nllb = _mirror_punctuation(orig_text, nllb)
-        if marian:
-            marian = _mirror_punctuation(orig_text, marian)
-        best = nllb or marian
         return {
-            "translation": best,  # NLLB is primary
-            "translation_nllb": nllb,
-            "translation_marian": marian,
+            "translation":         neural_best,
+            "translation_nllb":    nllb,
+            "translation_marian":  marian,
             "method": "neural_mt",
             "confidence": 1.0,
             "alternatives": [],

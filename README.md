@@ -62,15 +62,15 @@ Preprocessing (normalisation, tokenisation)
     ↓
 Grammar Rule Engine (noun classes, R/L, suffix mutations, tense)
     ↓
-Selective RAG (score >= 0.92 → direct retrieval, 0.70-0.91 → hint)
+Neural MT (NLLB-200 + MarianMT — always run first; NLLB is primary when valid)
     ↓
-Corpus Exact-Match (short inputs ≤3 words — full corpus scan, case-insensitive)
+Selective RAG (score >= 0.92 → corpus retrieval with NLLB output injected)
     ↓
-Neural MT (MarianMT + NLLB-200, ensemble)
+Corpus Exact-Match (short inputs ≤3 words; NLLB output used as primary when valid)
     ↓
 Post-Processing (gr4 + gr5 grammar rules, dialect normalisation)
     ↓
-Final Translation
+Final Translation  (translation_nllb + translation_marian always present in response)
 ```
 
 ## Knowledge Graph API
