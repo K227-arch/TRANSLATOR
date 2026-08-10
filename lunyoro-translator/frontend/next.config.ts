@@ -4,8 +4,9 @@ const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
-  // Enable in all environments — needed for offline support
-  disable: false,
+  // Only enable PWA in production — in dev it causes repeated sw.js regeneration
+  // which triggers full page reloads on every HMR update
+  disable: process.env.NODE_ENV === "development",
   runtimeCaching: [
     // ── Next.js static assets — cache first (they have content hashes) ──────
     {
