@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useCallback } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 type Direction = "en->lun" | "lun->en";
 type DimKey = "score_mng"|"score_grm"|"score_tns"|"score_vcb"|"score_ort"|"score_ctx"|"score_flu"|"score_cul";
 interface Misspelled { word: string; suggestions: string[]; }

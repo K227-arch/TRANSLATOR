@@ -30,14 +30,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="icon" href="/icon-192.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        {/* Material Symbols — kept as external link, font-display:block prevents icon text flash */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
-          rel="stylesheet"
-        />
-        {/* Preconnect for faster Material Symbols load */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Material Symbols is self-hosted via @font-face in globals.css — no
+            fonts.googleapis.com link. The Pi serves this app as a captive-portal
+            access point where clients have no internet route, and an external
+            stylesheet also *overrode* the local @font-face (it loads after Next's
+            CSS), so all 75 icons fell back to the CDN and broke offline. */}
       </head>
       <body>
         <OfflineBanner />
