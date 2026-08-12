@@ -28,7 +28,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/icon-192.png" type="image/png" />
+        <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+        <link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         {/* Material Symbols is self-hosted via @font-face in globals.css — no
             fonts.googleapis.com link. The Pi serves this app as a captive-portal

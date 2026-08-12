@@ -27,11 +27,14 @@ export default function TopBar({ processing = false, section, onBack, onHelp }: 
             <span className="text-lg font-semibold text-on-background">{section}</span>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="material-symbols-outlined text-on-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  translate
-                </span>
-              </div>
+              <img
+                src="/icon-192.png"
+                alt="AI Stick logo"
+                width={32}
+                height={32}
+                className="rounded-lg"
+                style={{ objectFit: "contain" }}
+              />
               <span className="font-bold text-on-background text-base tracking-tight">AI Stick</span>
             </div>
           )}
