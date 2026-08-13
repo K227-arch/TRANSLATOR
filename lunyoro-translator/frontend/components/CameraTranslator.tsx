@@ -241,19 +241,26 @@ export default function CameraTranslator() {
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     canvas.getContext("2d")?.drawImage(video, 0, 0);
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
     try {
       const res = await fetch(`${API}/ocr-translate-base64`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: canvas.toDataURL("image/jpeg", 0.92), direction }),
+        body: JSON.stringify({ image: canvas.toDataURL("image/jpeg", 0.85), direction }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (data.error) setError(data.error);
       else { setRegions(data.regions || []); setScanCount(c => c + 1); setError(""); }
-    } catch { setError("Could not connect to translation server."); }
-    finally { setLoading(false); }  }, [direction, loading]);
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "AbortError") setError("Scan timed out — try again");
+      else setError("Could not connect to translation server.");
+    }
+    finally { clearTimeout(timeoutId); setLoading(false); }
+  }, [direction, loading]);
 
   useEffect(() => {
-    if (cameraActive && !paused) intervalRef.current = setInterval(captureAndTranslate, 3000);
+    if (cameraActive && !paused) intervalRef.current = setInterval(captureAndTranslate, 5000);
     else { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [cameraActive, paused, captureAndTranslate]);
