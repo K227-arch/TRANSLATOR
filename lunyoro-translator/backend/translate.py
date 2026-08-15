@@ -1264,9 +1264,8 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     if rag_result:
         rag_result["translation_nllb"]   = nllb
         rag_result["translation_marian"] = marian
-        # If NLLB is valid, use it as primary translation even for RAG hits
-        if not _is_garbage(nllb):
-            rag_result["translation"] = nllb
+        # Keep the verified corpus translation as primary — don't override with NLLB
+        # NLLB output may differ but the corpus hit is human-verified
         return rag_result
 
     # ── Corpus exact-match for short inputs ──────────────────────────────────
@@ -1277,9 +1276,10 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
             for i, sent in enumerate(_index.get("english_sentences", [])):
                 if sent.strip().lower() == lower:
                     translation = _postprocess_lunyoro(_index["lunyoro_sentences"][i])
-                    best = nllb if not _is_garbage(nllb) else translation
+                    # Use corpus translation as primary for exact matches — it's verified
+                    # NLLB output for single words is often wrong (hallucination)
                     return {
-                        "translation":         best,
+                        "translation":         translation,
                         "translation_nllb":    nllb,
                         "translation_marian":  marian,
                         "method": "exact_match",
