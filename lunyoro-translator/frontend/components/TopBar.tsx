@@ -28,14 +28,13 @@ export default function TopBar({ processing = false, section, onBack, onHelp }: 
           ) : (
             <div className="flex items-center gap-2">
               <img
-                src="/icon-192.png"
-                alt="AI Stick logo"
-                width={32}
-                height={32}
+                src="/logo.png"
+                alt="Runyoro Translator"
+                width={36}
+                height={36}
                 className="rounded-lg"
                 style={{ objectFit: "contain" }}
               />
-              <span className="font-bold text-on-background text-base tracking-tight">AI Stick</span>
             </div>
           )}
         </div>

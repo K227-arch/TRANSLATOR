@@ -1,0 +1,21 @@
+[Unit]
+Description=Lunyoro Translator Pi Sidecar (Python)
+After=network.target lunyoro-translator.service
+Wants=lunyoro-translator.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/lunyoro-sidecar
+ExecStart=/home/pi/lunyoro-sidecar/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8001
+Restart=on-failure
+RestartSec=5
+Environment=CPP_BACKEND_URL=http://127.0.0.1:8080
+Environment=TRANSFORMERS_OFFLINE=1
+
+# Resource limits — keep the sidecar from eating too much RAM
+MemoryMax=512M
+MemoryHigh=400M
+
+[Install]
+WantedBy=multi-user.target

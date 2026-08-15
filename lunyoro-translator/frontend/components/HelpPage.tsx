@@ -12,7 +12,7 @@ const FEATURES: { id: Tab; icon: string; title: string; desc: string; howTo: str
   {
     id: "camera",
     icon: "photo_camera",
-    title: "AI Stick Lens",
+    title: "Lens",
     desc: "Point your phone camera or webcam at signs, menus, or documents to detect and translate text in real-time with overlays.",
     howTo: "Tap 'Open Camera' to start scanning. The app auto-detects text every 3 seconds and overlays translations. You can also upload a photo of text.",
   },
@@ -99,7 +99,7 @@ export default function HelpPage({ onNavigate }: { onNavigate: (t: Tab) => void 
           </li>
           <li className="flex items-start gap-2">
             <span className="text-primary font-bold">•</span>
-            AI Stick Lens is perfect for translating signs, menus, or printed text using your camera.
+            Lens is perfect for translating signs, menus, or printed text using your camera.
           </li>
           <li className="flex items-start gap-2">
             <span className="text-primary font-bold">•</span>

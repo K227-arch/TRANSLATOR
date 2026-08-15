@@ -12,10 +12,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AI Stick — Runyoro / Rutooro Translator",
+  title: "Runyoro-Rutooro Translator",
   description: "Professional English to Runyoro-Rutooro translation powered by AI",
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "AI Stick" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Runyoro Translator" },
 };
 
 export const viewport: Viewport = {
@@ -28,9 +28,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
-        <link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
         {/* Material Symbols is self-hosted via @font-face in globals.css — no
             fonts.googleapis.com link. The Pi serves this app as a captive-portal
             access point where clients have no internet route, and an external

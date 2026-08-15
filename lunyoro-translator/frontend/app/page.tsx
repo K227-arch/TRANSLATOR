@@ -26,7 +26,7 @@ export default function Home() {
     history: "History",
     voice: "Voice",
     editor: "Editor",
-    camera: "AI Stick Lens",
+    camera: "Lens",
   };
 
   const handleHelpNavigate = (t: Tab) => {

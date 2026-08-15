@@ -57,7 +57,7 @@ export default function ChatPage() {
             <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-primary-fixed/50 flex items-center justify-center">
               <span className="material-symbols-outlined text-[28px] text-primary">translate</span>
             </div>
-            <h3 className="text-lg font-bold text-on-background">AI Stick Translation</h3>
+            <h3 className="text-lg font-bold text-on-background">Runyoro-Rutooro Translator</h3>
             <p className="text-sm text-on-surface-variant mt-1 max-w-[280px] mx-auto">
               Your local language assistant is ready. Speak or type to begin translating.
             </p>
