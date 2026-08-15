@@ -58,11 +58,10 @@ class ImageClassifier:
 
     def load_model(self) -> None:
         """
-        Load MobileNetV2 from HuggingFace Hub.
-        Called in background thread during startup.
-        Model: google/mobilenet_v2_1.0_224
+        Load MobileNetV2 from local cache or HuggingFace Hub.
+        Falls back gracefully if model is not available (offline mode).
         """
-        import time
+        import time, os
 
         if self._loaded or self._loading:
             return
@@ -74,10 +73,31 @@ class ImageClassifier:
             from transformers import MobileNetV2ForImageClassification, MobileNetV2ImageProcessor
 
             model_name = "google/mobilenet_v2_1.0_224"
-            print(f"[image_classifier] Loading {model_name}...")
 
-            self._processor = MobileNetV2ImageProcessor.from_pretrained(model_name)
-            self._model = MobileNetV2ForImageClassification.from_pretrained(model_name)
+            # Try local model directory first
+            local_path = os.path.join(os.path.dirname(__file__), "model", "mobilenet_v2")
+
+            if os.path.isdir(local_path) and any(
+                f.endswith((".safetensors", ".bin", ".json")) for f in os.listdir(local_path)
+            ):
+                load_path = local_path
+                print(f"[image_classifier] Loading {model_name} from local cache...")
+            else:
+                # Check if we're in offline mode
+                offline = os.getenv("TRANSFORMERS_OFFLINE", "0").strip() in ("1", "true")
+                if offline:
+                    self._loading = False
+                    self._load_error = (
+                        f"Offline mode is enabled and no local cache found at {local_path}. "
+                        f"Run: python download_mobilenet.py to cache the model."
+                    )
+                    print(f"[image_classifier] Skipping — offline mode, no local model")
+                    return
+                load_path = model_name
+                print(f"[image_classifier] Loading {model_name} from HuggingFace Hub...")
+
+            self._processor = MobileNetV2ImageProcessor.from_pretrained(load_path)
+            self._model = MobileNetV2ForImageClassification.from_pretrained(load_path)
             self._model.eval()
 
             self._loaded = True
