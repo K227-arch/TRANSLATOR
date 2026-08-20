@@ -3,10 +3,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 import json
+import logging
 import os
 import io
 import time
+import threading
 from collections import defaultdict
+
+# ── Structured logging ────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.getLevelName(os.getenv("LOG_LEVEL", "INFO").upper()),
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger("main")
 
 # Load .env file if present (development convenience)
 try:
@@ -108,17 +118,16 @@ def preload_model():
         from feedback_store import restore_from_github
         restore_from_github()
     except Exception as _e:
-        print(f"[startup] feedback restore skipped: {_e}")
+        logger.warning("feedback restore skipped: %s", _e)
 
     # Load ALL models in a background thread so uvicorn responds immediately
-    import threading
     def _bg_load():
         global _GRAMMAR_CONTEXT_CACHE
         try:
             get_index_and_model()
-            print("[startup/bg] Retrieval index loaded")
+            logger.info("Retrieval index loaded")
         except Exception as _e:
-            print(f"[startup/bg] Retrieval index failed: {_e}")
+            logger.warning("Retrieval index failed: %s", _e)
 
         from translate import _load_mt, _load_nllb
         if os.getenv("DISABLE_MARIAN", "0").strip() not in ("1", "true", "yes"):
@@ -129,7 +138,7 @@ def preload_model():
             try:
                 _load_nllb(d)
             except Exception as _e:
-                print(f"[startup/bg] NLLB {d} failed: {_e}")
+                logger.warning("NLLB %s failed: %s", d, _e)
 
         try:
             from language_rules import get_full_grammar_context
@@ -139,35 +148,41 @@ def preload_model():
             gr4_ctx = get_gr4_grammar_context()[:1800]
             gr5_ctx = get_gr5_grammar_context()[:2200]
             _GRAMMAR_CONTEXT_CACHE = core_ctx + gr4_ctx + gr5_ctx
-            print(f"[startup/bg] Grammar context: {len(_GRAMMAR_CONTEXT_CACHE)} chars")
+            logger.info("Grammar context loaded: %d chars", len(_GRAMMAR_CONTEXT_CACHE))
         except Exception as _e:
-            print(f"[startup/bg] Grammar context failed: {_e}")
+            logger.warning("Grammar context failed: %s", _e)
 
         # Load image classifier (MobileNetV2) — lightweight, ~14MB
         try:
             from image_classifier import image_classifier
             image_classifier.load_model()
         except Exception as _e:
-            print(f"[startup/bg] Image classifier failed: {_e}")
+            logger.warning("Image classifier failed: %s", _e)
 
-        print("[startup/bg] All models loaded successfully")
+        logger.info("All models loaded successfully")
 
     threading.Thread(target=_bg_load, daemon=True).start()
-    print("[startup] App ready — models loading in background")
+    logger.info("App ready — models loading in background")
 
 # History file — configurable via HISTORY_FILE env var
 HISTORY_FILE = os.getenv("HISTORY_FILE") or os.path.join(os.path.dirname(__file__), "history.json")
+_history_lock = threading.Lock()
 
 
 def save_history(entry: dict):
-    history = []
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r") as f:
-            history = json.load(f)
-    history.insert(0, entry)
-    history = history[:500]
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f, indent=2)
+    """Append a translation entry to history.json — thread-safe."""
+    with _history_lock:
+        history = []
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                    history = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                history = []
+        history.insert(0, entry)
+        history = history[:500]
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
 
 
 class TranslateRequest(BaseModel):
@@ -272,19 +287,22 @@ def translate_reverse(req: TranslateRequest):
         result["translation"] = _ppenglish(result["translation"])
 
     # ── LLM refinement pass — always on for lun→en (opt out with refine=False) ──
-    # Qwen improves fluency, resolves double-subjects, and naturalises English.
-    # Falls back silently so translation still returns if the API is down.
-    should_refine = req.refine is not False  # True by default, opt-out with refine=False
+    # Runs in a separate thread with a 10s hard timeout so the worker is never
+    # blocked beyond that even if the HF Router is slow or unavailable.
+    should_refine = req.refine is not False
     if should_refine and result.get("translation"):
-        try:
-            hf_token = os.getenv("HF_TOKEN", "")
-            hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
-            if hf_token:
+        import concurrent.futures as _cf
+        def _do_refine():
+            try:
+                hf_token = os.getenv("HF_TOKEN", "")
+                hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+                if not hf_token:
+                    return None
                 from openai import OpenAI as _OAI
                 client = _OAI(
                     base_url="https://router.huggingface.co/v1",
                     api_key=hf_token,
-                    timeout=12.0,  # hard cap — don't block the response beyond 12s
+                    timeout=8.0,  # tight per-request timeout inside the thread
                 )
                 resp = client.chat.completions.create(
                     model=hf_model,
@@ -307,14 +325,20 @@ def translate_reverse(req: TranslateRequest):
                     max_tokens=256,
                     temperature=0.15,
                 )
-                refined = resp.choices[0].message.content.strip()
-                # Only use the refined version if it's substantively different and non-empty
-                if refined and len(refined) > 3 and refined.lower() != result["translation"].lower():
-                    result["translation_draft"] = result["translation"]
-                    result["translation"] = refined
-                    result["refined"] = True
-        except Exception:
-            pass  # refinement is best-effort — raw MT is still returned
+                return resp.choices[0].message.content.strip()
+            except Exception:
+                return None
+
+        try:
+            with _cf.ThreadPoolExecutor(max_workers=1) as _pool:
+                _future = _pool.submit(_do_refine)
+                refined = _future.result(timeout=10.0)  # hard cap: 10s total
+            if refined and len(refined) > 3 and refined.lower() != result["translation"].lower():
+                result["translation_draft"] = result["translation"]
+                result["translation"] = refined
+                result["refined"] = True
+        except (_cf.TimeoutError, Exception):
+            logger.debug("lun->en LLM refinement timed out or failed — using raw MT")
 
     save_history({
         "input": req.text,
@@ -336,33 +360,65 @@ class BatchTranslateRequest(BaseModel):
 
 @app.post("/translate-batch")
 def translate_batch(req: BatchTranslateRequest):
-    """Translate a list of sentences in bulk. Max 100 sentences per request."""
+    """Translate a list of sentences in bulk. Max 100 sentences per request.
+
+    Uses a thread-pool to run translations concurrently (up to 4 workers).
+    Each sentence has a 30s individual timeout — timed-out sentences return
+    an error entry rather than blocking the whole batch.
+    """
     if not req.sentences:
         raise HTTPException(status_code=400, detail="No sentences provided")
     if len(req.sentences) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 sentences per batch")
 
-    results = []
-    for sentence in req.sentences:
+    import concurrent.futures as _cf
+
+    _SENTENCE_TIMEOUT = 30  # seconds per sentence
+    _MAX_WORKERS = 4        # concurrent translation threads
+
+    def _translate_one(sentence: str) -> dict:
         text = sentence.strip()
         if not text:
-            results.append({"source": sentence, "translation": "", "method": "skipped"})
-            continue
+            return {"source": sentence, "translation": "", "method": "skipped"}
         if len(text) > 1000:
-            results.append({"source": sentence, "translation": "", "method": "error", "error": "Too long (max 1000 chars)"})
-            continue
-
+            return {"source": sentence, "translation": "", "method": "error",
+                    "error": "Too long (max 1000 chars)"}
         if req.direction == "lun->en":
             result = translate_to_english(text)
         else:
             result = translate(text)
-
-        results.append({
+        return {
             "source": text,
             "translation": result.get("translation", ""),
             "method": result.get("method", "unknown"),
             "confidence": result.get("confidence"),
-        })
+        }
+
+    results: list[dict] = [{}] * len(req.sentences)
+    with _cf.ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
+        future_to_idx = {
+            pool.submit(_translate_one, s): i
+            for i, s in enumerate(req.sentences)
+        }
+        for future in _cf.as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            try:
+                results[idx] = future.result(timeout=_SENTENCE_TIMEOUT)
+            except _cf.TimeoutError:
+                results[idx] = {
+                    "source": req.sentences[idx],
+                    "translation": "",
+                    "method": "error",
+                    "error": "Translation timed out",
+                }
+            except Exception as exc:
+                logger.warning("Batch translation error for sentence %d: %s", idx, exc)
+                results[idx] = {
+                    "source": req.sentences[idx],
+                    "translation": "",
+                    "method": "error",
+                    "error": str(exc),
+                }
 
     return {
         "results": results,

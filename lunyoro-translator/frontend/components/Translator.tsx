@@ -197,7 +197,7 @@ export default function Translator() {
     try {
       const res = await fetch(`${API}${endpoint}`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({text, context:""}),
+        body: JSON.stringify({text, context:"", direction}),
       });
       if (!res.ok) throw new Error();
       const data = await res.json();

@@ -1,10 +1,11 @@
-"""
+﻿"""
 Translation logic:
-  Primary  — fine-tuned NLLB-200 models (nllb_en2lun / nllb_lun2en) trained locally
-  Secondary — fine-tuned MarianMT models (en2lun / lun2en) as fallback
-  Fallback — semantic similarity retrieval + dictionary lookup
+  Primary  â€” fine-tuned NLLB-200 models (nllb_en2lun / nllb_lun2en) trained locally
+  Secondary â€” fine-tuned MarianMT models (en2lun / lun2en) as fallback
+  Fallback â€” semantic similarity retrieval + dictionary lookup
 """
 
+import logging
 import os
 import pickle
 import re
@@ -12,6 +13,8 @@ import unicodedata
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from rapidfuzz import fuzz, process
+
+logger = logging.getLogger("translate")
 
 INDEX_PATH = os.path.join(os.path.dirname(__file__), "model", "translation_index.pkl")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
@@ -54,7 +57,7 @@ def _normalise(text: str) -> str:
     return text.translate(_APOSTROPHE_MAP)
 
 
-# ── Language rule integration ─────────────────────────────────────────────────
+# â”€â”€ Language rule integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Lazy-import so the module loads even if language_rules has a syntax error.
 _rules_loaded = False
 _apply_rl = None
@@ -66,7 +69,7 @@ _apply_cons_suffix = None
 _apply_reflexive = None
 _apply_init_vowel = None
 
-# ── Grammar Pipeline / Rule Engine (optional enhancements) ──
+# â”€â”€ Grammar Pipeline / Rule Engine (optional enhancements) â”€â”€
 # These provide rule orchestration, statistics, and selective application
 # Usage: from language_rules import GrammarPipeline, RuleEngine
 #        pipeline = GrammarPipeline(strictness="high")
@@ -108,7 +111,7 @@ def _load_rules():
         _apply_reflexive = apply_reflexive_imperative_correction
         _apply_init_vowel = apply_initial_vowel_rule
     except Exception as e:
-        print(f"[translate] language_rules not available: {e}")
+        logger.warning("language_rules not available: %s", e)
     _rules_loaded = True
     # Optional: Load GrammarPipeline for statistics-enabled processing
     # try:
@@ -120,17 +123,17 @@ def _load_rules():
 
 def _postprocess_lunyoro(text: str) -> str:
     """
-    Apply Runyoro-Rutooro orthographic rules to en→lun MT output.
+    Apply Runyoro-Rutooro orthographic rules to enâ†’lun MT output.
 
     Order matters:
-      1. Nasal assimilation       (nb→mb, np→mp, nr→nd, nl→nd)
-      2. ni→nu prefix change      (nimugenda→numugenda before u-class concords)
+      1. Nasal assimilation       (nbâ†’mb, npâ†’mp, nrâ†’nd, nlâ†’nd)
+      2. niâ†’nu prefix change      (nimugendaâ†’numugenda before u-class concords)
       3. Consonant+suffix changes (r/t/j/nd/nt + -ire/-i/-ya mutations)
-      4. Reflexive imperative fix (okwesereka → weesereke)
+      4. Reflexive imperative fix (okwesereka â†’ weesereke)
       5. Initial vowel rule       (prefix-based initial vowel correction)
-      6. Semi-vowel substitution  (i→y, u→w at prefix boundaries)
-      7. Particle elision         (na ente→n'ente, habwa okugonza→habw'okugonza)
-      8. R/L rule                 (L→R except adjacent to e/i)
+      6. Semi-vowel substitution  (iâ†’y, uâ†’w at prefix boundaries)
+      7. Particle elision         (na enteâ†’n'ente, habwa okugonzaâ†’habw'okugonza)
+      8. R/L rule                 (Lâ†’R except adjacent to e/i)
       9. Grammar Rules 4          (copula, kinship, enumeratives, ka particle)
     """
     if not text:
@@ -166,12 +169,12 @@ def _postprocess_lunyoro(text: str) -> str:
         text = apply_gr5_rules(text, direction="en->lun")
     except Exception:
         pass
-    # Dialect normalisation: Rutooro → Runyoro standard forms
+    # Dialect normalisation: Rutooro â†’ Runyoro standard forms
     text = _normalise_dialect(text)
     return text
 
 
-# Rutooro → Runyoro dialect mappings (case-insensitive word substitutions)
+# Rutooro â†’ Runyoro dialect mappings (case-insensitive word substitutions)
 _DIALECT_MAP = [
     # Days of the week
     (r"\bkiro\s+kinu\b", "leero"),  # today
@@ -184,7 +187,7 @@ _DIALECT_MAP = [
     (r"\bkya\s+mukaaga\b", "n'Orwomukaaga"),  # Saturday
     (r"\bkya\s+sande\b", "n'Orwosande"),  # Sunday
     (r"\bkya\s+banza\b", "n'Orwobanza"),  # Monday
-    # Common Rutooro→Runyoro word swaps
+    # Common Rutooroâ†’Runyoro word swaps
     (r"\bkiro\b", "leero"),  # today (standalone)
     (r"\bkinu\s+kizi\b", "kinu"),  # this (demonstrative cleanup)
 ]
@@ -202,11 +205,11 @@ def _normalise_dialect(text: str) -> str:
 
 def _preprocess_lunyoro_input(text: str) -> str:
     """
-    Normalise lun→en input before feeding to the model.
+    Normalise lunâ†’en input before feeding to the model.
     - Nasal assimilation (canonical consonant clusters)
-    - Apostrophe elision expansion (n'ente → na ente)
-    - Dialect variant normalisation (kiro → leero, etc.)
-    Does NOT apply R/L rule on input — the model was trained on real text.
+    - Apostrophe elision expansion (n'ente â†’ na ente)
+    - Dialect variant normalisation (kiro â†’ leero, etc.)
+    Does NOT apply R/L rule on input â€” the model was trained on real text.
     """
     if not text:
         return text
@@ -215,16 +218,16 @@ def _preprocess_lunyoro_input(text: str) -> str:
     if _apply_nasal:
         text = _apply_nasal(text)
     # 2. Expand apostrophe elisions so model sees canonical forms
-    # e.g. n'ente → na ente, habw'okugonza → habwa okugonza
+    # e.g. n'ente â†’ na ente, habw'okugonza â†’ habwa okugonza
     import re as _re_pre
     text = _re_pre.sub(r"\bn'([aeiouAEIOU])", r"na \1", text)
     text = _re_pre.sub(r"\bw'([aeiouAEIOU])", r"wa \1", text)
     text = _re_pre.sub(r"\by'([aeiouAEIOU])", r"ya \1", text)
     text = _re_pre.sub(r"\bk'([aeiouAEIOU])", r"ka \1", text)
-    # 3. Common spelling variants → canonical forms
+    # 3. Common spelling variants â†’ canonical forms
     _VARIANT_MAP = [
-        (r"\bkiro\b", "leero"),       # today (Rutooro → Runyoro)
-        (r"\beky([aeiou])", r"eki\1"),  # eky- → eki- prefix variant
+        (r"\bkiro\b", "leero"),       # today (Rutooro â†’ Runyoro)
+        (r"\beky([aeiou])", r"eki\1"),  # eky- â†’ eki- prefix variant
         (r"\boky([aeiou])", r"oki\1"),  # oky- prefix
         (r"\baky([aeiou])", r"aki\1"),  # aky- prefix
     ]
@@ -233,22 +236,28 @@ def _preprocess_lunyoro_input(text: str) -> str:
     return text
 
 
-# ── cached singletons ────────────────────────────────────────────────────────
+# â”€â”€ cached singletons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _index = None
 _sem_model = None
 _dictionary = None
 _corpus_vocab = None
-_dict_word_map: dict = {}  # lowercase word → entry, for O(1) lookup
+_dict_word_map: dict = {}  # lowercase word â†’ entry, for O(1) lookup
 
 _mt_models = {}  # {"en2lun": (tokenizer, model), "lun2en": (tokenizer, model)}
 _mt_available = {}  # {"en2lun": bool, "lun2en": bool}
-_mt_onnx = {}  # {"en2lun": bool, "lun2en": bool} — True if using ONNX
+_mt_onnx = {}  # {"en2lun": bool, "lun2en": bool} â€” True if using ONNX
 _nllb_models = {}  # {"en2lun": (tokenizer, model, device), "lun2en": ...}
 _nllb_available = {}  # {"en2lun": bool, "lun2en": bool}
 _nllb_whitelist: list | None = None  # token ID whitelist loaded once
 
+# â”€â”€ NLLB API circuit-breaker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+_CB_FAIL_THRESHOLD = 3    # open breaker after this many consecutive failures
+_CB_OPEN_SECONDS   = 120  # keep breaker open for this long before retrying
+_cb_failures:    int   = 0
+_cb_open_until:  float = 0.0
+
 NLLB_LANG_EN = "eng_Latn"
-NLLB_LANG_LUN = "run_Latn"  # Rundi — proxy Bantu language for Runyoro-Rutooro
+NLLB_LANG_LUN = "run_Latn"  # Rundi â€” proxy Bantu language for Runyoro-Rutooro
 
 
 def _load_nllb_whitelist() -> list | None:
@@ -267,13 +276,13 @@ def _load_nllb_whitelist() -> list | None:
         )
     else:
         print(
-            "[translate] Token whitelist not found — run build_lunyoro_vocab.py to generate it"
+            "[translate] Token whitelist not found â€” run build_lunyoro_vocab.py to generate it"
         )
         _nllb_whitelist = []
     return _nllb_whitelist
 
 
-# ── loaders ──────────────────────────────────────────────────────────────────
+# â”€â”€ loaders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def _load_retrieval():
@@ -303,7 +312,7 @@ def _load_retrieval():
                     if first_char in ("{", "["):
                         local_sem_ok = True
                     else:
-                        print(f"[translate] tokenizer.json appears to be an LFS pointer, skipping local")
+                        logger.warning("tokenizer.json appears to be an LFS pointer, skipping local")
             except Exception:
                 pass
         else:
@@ -311,18 +320,18 @@ def _load_retrieval():
 
     if local_sem_ok:
         sem_path = SEM_MODEL_DIR
-        print(f"[translate] Loading sem_model from local path: {SEM_MODEL_DIR}")
+        logger.info("Loading sem_model from local path: %s", SEM_MODEL_DIR)
     else:
         # Fall back to HuggingFace Hub
         hf_sem = HF_MODELS.get("sem_model", "keithtwesigye/lunyoro-sentence-embeddings")
         sem_path = hf_sem
-        print(f"[translate] Loading sem_model from HF Hub: {sem_path}")
+        logger.info("Loading sem_model from HF Hub: %s", sem_path)
 
     _sem_model = SentenceTransformer(sem_path)
     _dictionary = _index["dictionary"]
     # build O(1) lookup map
     _dict_word_map = {d["word"].lower(): d for d in _dictionary}
-    # also map by lowercased definitionEnglish for en→lun searches
+    # also map by lowercased definitionEnglish for enâ†’lun searches
     _dict_def_map: dict = {}
     for d in _dictionary:
         key = (d.get("definitionEnglish") or "").lower()
@@ -336,7 +345,7 @@ def _load_mt(direction: str):
     if direction in _mt_available:
         return _mt_available[direction]
 
-    # Respect DISABLE_MARIAN flag — used on NLLB-only deployments
+    # Respect DISABLE_MARIAN flag â€” used on NLLB-only deployments
     if os.getenv("DISABLE_MARIAN", "0").strip() in ("1", "true", "yes"):
         _mt_available[direction] = False
         return False
@@ -344,7 +353,7 @@ def _load_mt(direction: str):
     path = os.path.join(MODEL_DIR, direction)
     onnx_path = os.path.join(MODEL_DIR, f"{direction}_onnx")
 
-    # ── Try ONNX first (faster inference) ────────────────────────────────────
+    # â”€â”€ Try ONNX first (faster inference) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if os.path.isdir(onnx_path) and any(
         f.endswith(".onnx") for f in os.listdir(onnx_path)
     ):
@@ -353,10 +362,10 @@ def _load_mt(direction: str):
             from transformers import MarianTokenizer
             import torch
 
-            print(f"[translate] Loading ONNX model: {direction}")
+            logger.info("Loading ONNX model: %s", direction)
             tokenizer = MarianTokenizer.from_pretrained(onnx_path)
 
-            # Determine available ONNX providers — prefer CPU (no onnxruntime-gpu needed)
+            # Determine available ONNX providers â€” prefer CPU (no onnxruntime-gpu needed)
             import onnxruntime as _ort
 
             available_providers = _ort.get_available_providers()
@@ -385,12 +394,12 @@ def _load_mt(direction: str):
             _mt_models[direction] = (tokenizer, model, device)
             _mt_available[direction] = True
             _mt_onnx[direction] = True
-            print(f"[translate] Loaded ONNX model: {direction} on {provider}")
+            logger.info("Loaded ONNX model: %s on %s", direction, provider)
             return True
         except Exception as e:
-            print(f"[translate] ONNX load failed ({e}), falling back to PyTorch")
+            logger.warning("ONNX load failed (%s), falling back to PyTorch", e)
 
-    # ── PyTorch fallback ──────────────────────────────────────────────────────
+    # â”€â”€ PyTorch fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Auto-download from HuggingFace if not present locally
     if not os.path.isdir(path) or not any(
         f.endswith((".safetensors", ".bin"))
@@ -404,7 +413,7 @@ def _load_mt(direction: str):
         repo_id = hf_repos.get(direction)
         if repo_id:
             try:
-                print(f"[translate] Downloading {repo_id} from HuggingFace...")
+                logger.info("Downloading %s from HuggingFace...", repo_id)
                 from huggingface_hub import snapshot_download
 
                 snapshot_download(
@@ -412,7 +421,7 @@ def _load_mt(direction: str):
                     local_dir=path,
                     ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
                 )
-                print(f"[translate] Downloaded {direction} model.")
+                logger.info("Downloaded %s model.", direction)
             except Exception as e:
                 print(
                     f"[translate] Could not download {direction} from HuggingFace: {e}"
@@ -432,10 +441,10 @@ def _load_mt(direction: str):
         _mt_models[direction] = (tokenizer, model, device)
         _mt_available[direction] = True
         _mt_onnx[direction] = False
-        print(f"[translate] Loaded PyTorch model: {direction}")
+        logger.info("Loaded PyTorch model: %s", direction)
         return True
     except Exception as e:
-        print(f"[translate] Could not load {direction} model: {e}")
+        logger.error("Could not load %s model: %s", direction, e)
         _mt_available[direction] = False
         return False
 
@@ -448,7 +457,7 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
 
     tokenizer, model, device = _mt_models[direction]
 
-    # Pre-process lun→en input: normalise nasal clusters
+    # Pre-process lunâ†’en input: normalise nasal clusters
     if direction == "lun2en":
         text = _preprocess_lunyoro_input(text)
 
@@ -456,7 +465,7 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
     inputs = tokenizer(
         input_text, return_tensors="pt", truncation=True, max_length=256
     )
-    # ONNX models (ORTModelForSeq2SeqLM) handle device internally — don't call .to()
+    # ONNX models (ORTModelForSeq2SeqLM) handle device internally â€” don't call .to()
     if not _mt_onnx.get(direction, False):
         inputs = inputs.to(device)
     with torch.no_grad():
@@ -486,7 +495,7 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
         # Also strip trailing English sentences
         result = _re2.sub(r"\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$", "", result).strip()
 
-    # Post-process en→lun output: apply orthographic rules
+    # Post-process enâ†’lun output: apply orthographic rules
     if direction == "en2lun" and result:
         result = _postprocess_lunyoro(result)
 
@@ -500,14 +509,14 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
             freq = _Counter(w.lower() for w in words)
             most_common_word, most_common_count = freq.most_common(1)[0]
             if most_common_count / len(words) > 0.4:
-                return None  # garbage — too repetitive
+                return None  # garbage â€” too repetitive
             # Check for repeated bigrams (e.g. "Bi Bi Bi Bi")
             bigrams = [f"{words[i]} {words[i+1]}" for i in range(len(words)-1)]
             if bigrams:
                 bg_freq = _Counter(bigrams)
                 top_bg, top_bg_count = bg_freq.most_common(1)[0]
                 if top_bg_count / len(bigrams) > 0.35:
-                    return None  # garbage — repeated bigrams
+                    return None  # garbage â€” repeated bigrams
 
     return result
 
@@ -515,13 +524,13 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
 def _load_nllb(direction: str) -> bool:
     """Lazy-load a fine-tuned NLLB model.
     On HF Space cpu-basic: downloads to HF Hub cache (/root/.cache), not /app/model.
-    This bypasses the 1GB Space repo storage limit — HF Hub cache is unlimited."""
+    This bypasses the 1GB Space repo storage limit â€” HF Hub cache is unlimited."""
     if direction in _nllb_available:
         return _nllb_available[direction]
 
-    # Hard disable flag — only use when RAM is critically low
+    # Hard disable flag â€” only use when RAM is critically low
     if os.getenv("DISABLE_NLLB", "0").strip() in ("1", "true", "yes"):
-        print(f"[translate] NLLB disabled via DISABLE_NLLB env flag — skipping {direction}")
+        logger.info("NLLB disabled via DISABLE_NLLB env flag -- skipping %s", direction)
         _nllb_available[direction] = False
         return False
 
@@ -539,14 +548,14 @@ def _load_nllb(direction: str) -> bool:
 
     if _dir_has_weights(path_primary):
         path = path_primary
-        print(f"[translate] Using trained NLLB model: {path_primary}")
+        logger.info("Using trained NLLB model: %s", path_primary)
     elif _dir_has_weights(path_legacy):
         path = path_legacy
-        print(f"[translate] Falling back to legacy NLLB model: {path_legacy}")
+        logger.warning("Falling back to legacy NLLB model: %s", path_legacy)
     else:
         path = path_primary  # will trigger HF download below
 
-    # ── Try ONNX INT8 first (fastest), then ONNX FP32, then PyTorch ────────────
+    # â”€â”€ Try ONNX INT8 first (fastest), then ONNX FP32, then PyTorch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     int8_path = os.path.join(MODEL_DIR, f"nllb_{direction}_int8")
     onnx_path = os.path.join(MODEL_DIR, f"nllb_{direction}_onnx")
 
@@ -563,15 +572,15 @@ def _load_nllb(direction: str) -> bool:
             from transformers import AutoTokenizer
             import onnxruntime as _ort
 
-            print(f"[translate] Loading NLLB {label}: {direction} from {load_path}")
-            # Suppress the spurious Mistral regex warning — only relevant for Mistral models
+            logger.info("Loading NLLB %s: %s from %s", label, direction, load_path)
+            # Suppress the spurious Mistral regex warning â€” only relevant for Mistral models
             import warnings as _warn
             with _warn.catch_warnings():
                 _warn.simplefilter("ignore")
                 tokenizer = AutoTokenizer.from_pretrained(load_path)
             providers = _ort.get_available_providers()
             provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
-            # ONNX models run on CPU via ORT — device label is "cpu" regardless of provider
+            # ONNX models run on CPU via ORT â€” device label is "cpu" regardless of provider
             device = "cpu"
 
             onnx_files = os.listdir(load_path)
@@ -592,10 +601,10 @@ def _load_nllb(direction: str) -> bool:
             )
             _nllb_models[direction] = (tokenizer, model, device)
             _nllb_available[direction] = True
-            print(f"[translate] Loaded NLLB {label}: {direction} on {provider}")
+            logger.info("Loaded NLLB %s: %s on %s", label, direction, provider)
             return True
         except Exception as e:
-            print(f"[translate] NLLB {label} load failed ({e}), trying next option")
+            logger.warning("NLLB %s load failed (%s), trying next option", label, e)
             return False
 
     # Priority: INT8 > FP32 ONNX > PyTorch
@@ -622,25 +631,25 @@ def _load_nllb(direction: str) -> bool:
                 from huggingface_hub import snapshot_download
                 if is_cpu_only:
                     # On cpu-basic: use HF Hub cache (don't write to /app/model)
-                    print(f"[translate] CPU-only: caching {repo_id} to HF Hub cache...")
+                    logger.info("CPU-only: caching %s to HF Hub cache...", repo_id)
                     local_path = snapshot_download(
                         repo_id=repo_id,
                         ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
                     )
                     path = local_path
-                    print(f"[translate] Cached NLLB {direction} at {path}")
+                    logger.info("Cached NLLB %s at %s", direction, path)
                 else:
                     # GPU machine: download to /app/model as before
-                    print(f"[translate] Downloading {repo_id} -> {path}")
+                    logger.info("Downloading %s -> %s", repo_id, path)
                     os.makedirs(path, exist_ok=True)
                     snapshot_download(
                         repo_id=repo_id,
                         local_dir=path,
                         ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
                     )
-                    print(f"[translate] Downloaded nllb_{direction} model.")
+                    logger.info("Downloaded nllb_%s model.", direction)
             except Exception as e:
-                print(f"[translate] Could not download nllb_{direction}: {e}")
+                logger.error("Could not download nllb_%s: %s", direction, e)
                 _nllb_available[direction] = False
                 return False
 
@@ -652,7 +661,7 @@ def _load_nllb(direction: str) -> bool:
         with _warn.catch_warnings():
             _warn.simplefilter("ignore")
             tokenizer = AutoTokenizer.from_pretrained(path, fix_mistral_regex=True)
-        # Load in float16 on CPU to halve memory usage (2.3GB → ~1.2GB)
+        # Load in float16 on CPU to halve memory usage (2.3GB â†’ ~1.2GB)
         # On GPU, float16 is natively fast; on CPU it's slower but avoids OOM
         import torch
         load_dtype = torch.float16 if not torch.cuda.is_available() else torch.float32
@@ -667,10 +676,10 @@ def _load_nllb(direction: str) -> bool:
         model.to(device)
         _nllb_models[direction] = (tokenizer, model, device)
         _nllb_available[direction] = True
-        print(f"[translate] Loaded NLLB model: {direction} on {device}")
+        logger.info("Loaded NLLB model: %s on %s", direction, device)
         return True
     except Exception as e:
-        print(f"[translate] Could not load NLLB {direction}: {e}")
+        logger.error("Could not load NLLB %s: %s", direction, e)
         _nllb_available[direction] = False
         return False
 
@@ -678,13 +687,24 @@ def _load_nllb(direction: str) -> bool:
 def _nllb_translate_via_api(text: str, direction: str) -> str | None:
     """
     Call HF Inference API using kathay's NLLB model repos.
-    Used when DISABLE_NLLB=1 (cpu-basic Space) — zero local RAM needed.
+    Used when DISABLE_NLLB=1 (cpu-basic Space) â€” zero local RAM needed.
     Tries router.huggingface.co first (works inside HF infra), then
     api-inference.huggingface.co as fallback.
-    Falls back silently on any error.
+
+    Circuit-breaker: after _CB_FAIL_THRESHOLD consecutive failures the
+    breaker opens for _CB_OPEN_SECONDS seconds so we fail fast instead
+    of burning 15â€“35s on every translation request.
     """
     import requests as _req
     import re as _re
+    import time as _t
+
+    # â”€â”€ Circuit breaker state (module-level) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    global _cb_failures, _cb_open_until
+    now = _t.monotonic()
+    if now < _cb_open_until:
+        logger.debug("NLLB API circuit open â€” failing fast")
+        return None
 
     # Use kathay read token for kathay's model repos; fall back to main HF_TOKEN
     hf_token = os.getenv("HF_KATHAY_TOKEN", os.getenv("HF_TOKEN", ""))
@@ -700,7 +720,7 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
     if not repo_id:
         return None
 
-    # Pre-process lun→en input
+    # Pre-process lunâ†’en input
     if direction == "lun2en":
         text = _preprocess_lunyoro_input(text)
 
@@ -722,7 +742,7 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
         "Content-Type": "application/json",
     }
 
-    # Try both endpoints — router.huggingface.co works inside HF Space infra
+    # Try both endpoints â€” router.huggingface.co works inside HF Space infra
     endpoints = [
         f"https://router.huggingface.co/hf-inference/models/{repo_id}",
         f"https://api-inference.huggingface.co/models/{repo_id}",
@@ -730,16 +750,13 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
 
     for url in endpoints:
         try:
-            resp = _req.post(url, headers=auth_headers, json=payload, timeout=35)
+            resp = _req.post(url, headers=auth_headers, json=payload, timeout=15)
             if resp.status_code == 503:
-                # Model cold-starting — wait and retry once
+                # Model cold-starting â€” short backoff then one retry (don't block worker)
                 import time as _t
-
-                print(
-                    f"[translate] NLLB API model loading ({url[:50]}...), retrying in 20s"
-                )
-                _t.sleep(20)
-                resp = _req.post(url, headers=auth_headers, json=payload, timeout=45)
+                logger.warning("NLLB API cold-start (%s), retrying in 3s", url[:50])
+                _t.sleep(3)
+                resp = _req.post(url, headers=auth_headers, json=payload, timeout=20)
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list) and data:
@@ -761,7 +778,7 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
                 _out_n = _re.sub(r"\s+", " ", result.strip().lower())
                 if _out_n == _src_n:
                     continue
-                # English passthrough check for en→lun
+                # English passthrough check for enâ†’lun
                 if direction == "en2lun" and result:
                     common_en = {
                         "the",
@@ -818,36 +835,44 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
                     ):
                         continue
                     result = _postprocess_lunyoro(result)
-                print(
-                    f"[translate] NLLB API ({direction}) via {url[:40]}: {result[:60]}"
-                )
+                logger.info("NLLB API (%s) via %s: %s", direction, url[:40], result[:60])
+                _cb_failures = 0  # reset circuit-breaker on success
                 return result
             else:
-                print(
-                    f"[translate] NLLB API {resp.status_code} from {url[:50]}: {resp.text[:100]}"
+                logger.warning(
+                    "NLLB API %s from %s: %s",
+                    resp.status_code, url[:50], resp.text[:100],
                 )
         except Exception as e:
-            print(f"[translate] NLLB API failed ({url[:40]}): {e}")
+            logger.warning("NLLB API failed (%s): %s", url[:40], e)
             continue
 
+    # All endpoints failed â€” update circuit breaker
+    _cb_failures += 1
+    if _cb_failures >= _CB_FAIL_THRESHOLD:
+        _cb_open_until = _t.monotonic() + _CB_OPEN_SECONDS
+        logger.warning(
+            "NLLB API circuit opened after %d failures â€” pausing for %ds",
+            _cb_failures, _CB_OPEN_SECONDS,
+        )
     return None
 
 
 def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     """Run inference with a fine-tuned NLLB model.
     Falls back to HF Inference API when local model is unavailable."""
-    # ── Remote API path (explicitly requested or local model unavailable) ────
+    # â”€â”€ Remote API path (explicitly requested or local model unavailable) â”€â”€â”€â”€
     if os.getenv("DISABLE_NLLB", "").strip() in ("1", "true", "yes"):
         return _nllb_translate_via_api(text, direction)
 
-    # ── Local inference path ─────────────────────────────────────────────────
+    # â”€â”€ Local inference path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if not _load_nllb(direction):
         return _nllb_translate_via_api(text, direction)
     import torch
 
     tokenizer, model, device = _nllb_models[direction]
 
-    # Pre-process lun→en input: normalise nasal clusters
+    # Pre-process lunâ†’en input: normalise nasal clusters
     if direction == "lun2en":
         text = _preprocess_lunyoro_input(text)
 
@@ -858,7 +883,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     inputs = tokenizer(
         input_text, return_tensors="pt", truncation=True, max_length=256
     )
-    # ONNX models expect CPU tensors — only move to device for PyTorch models
+    # ONNX models expect CPU tensors â€” only move to device for PyTorch models
     from optimum.onnxruntime import ORTModelForSeq2SeqLM as _ORT_cls
     if not isinstance(model, _ORT_cls):
         inputs = inputs.to(device)
@@ -873,7 +898,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     )
     generate_kwargs["forced_bos_token_id"] = tokenizer.convert_tokens_to_ids(tgt_lang)
 
-    # Whitelist disabled — it suppresses valid Bantu tokens and hurts quality
+    # Whitelist disabled â€” it suppresses valid Bantu tokens and hurts quality
     # if direction == "en2lun":
     #     whitelist = _load_nllb_whitelist()
     #     if whitelist:
@@ -888,11 +913,11 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     nllb_result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
     # Clean SentencePiece/NLLB decode artifacts immediately after decode
-    # 1. Strip ▁ (U+2581) SentencePiece boundary markers that sometimes leak through
+    # 1. Strip â– (U+2581) SentencePiece boundary markers that sometimes leak through
     nllb_result = nllb_result.replace("\u2581", " ").strip()
-    # 2. Collapse multiple spaces left by ▁ stripping
+    # 2. Collapse multiple spaces left by â– stripping
     nllb_result = re.sub(r"  +", " ", nllb_result)
-    # 3. Fix L→I: NLLB run_Latn proxy confuses capital I with L in lun→en output
+    # 3. Fix Lâ†’I: NLLB run_Latn proxy confuses capital I with L in lunâ†’en output
     if direction == "lun2en":
         nllb_result = re.sub(r"(?<![A-Za-z])L(?![A-Za-z])", "I", nllb_result)
 
@@ -929,9 +954,9 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         r"\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$", "", nllb_result
     ).strip()
 
-    # Post-process en→lun output: apply orthographic rules
+    # Post-process enâ†’lun output: apply orthographic rules
     if direction == "en2lun" and nllb_result:
-        # Detect if NLLB output is English (passthrough) — reject it
+        # Detect if NLLB output is English (passthrough) â€” reject it
         # Heuristic: if output has >60% common English words, it's a passthrough
         import re as _re3
 
@@ -991,7 +1016,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         if words:
             en_ratio = sum(1 for w in words if w in common_en) / len(words)
             if en_ratio > 0.5:
-                return None  # NLLB returned English — discard, fall back to MarianMT
+                return None  # NLLB returned English â€” discard, fall back to MarianMT
         nllb_result = _postprocess_lunyoro(nllb_result)
 
     return nllb_result
@@ -1019,17 +1044,17 @@ def _is_notation_garbage(text: str) -> bool:
     # Reject if output is just punctuation/numbers with no letters at all
     if not re.search(r"[a-zA-Z]", t):
         return True
-    # Reject if output is extremely short (1-2 chars) — likely a tokenizer artifact
+    # Reject if output is extremely short (1-2 chars) â€” likely a tokenizer artifact
     if len(t.strip()) < 3:
         return True
     return False
 
 
-# ── Selective RAG ────────────────────────────────────────────────────────────
+# â”€â”€ Selective RAG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Thresholds:
-#   >= 0.92  → use retrieved translation directly (very high confidence)
-#   0.70-0.91 → inject as context hint to MT model
-#   < 0.70   → pure neural MT, no retrieval
+#   >= 0.92  â†’ use retrieved translation directly (very high confidence)
+#   0.70-0.91 â†’ inject as context hint to MT model
+#   < 0.70   â†’ pure neural MT, no retrieval
 _RAG_DIRECT_THRESHOLD = 0.92  # use retrieved translation as-is
 _RAG_HINT_THRESHOLD = 0.70  # inject as context hint
 _RAG_LENGTH_TOLERANCE = 0.25  # max 25% length difference to use direct retrieval
@@ -1045,14 +1070,14 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     - Score < 0.70: return None (pure neural MT)
 
     Skips retrieval for:
-    - Very short inputs (< 4 words) — poor semantic matches
-    - Single words — handled by dictionary lookup
+    - Very short inputs (< 4 words) â€” poor semantic matches
+    - Single words â€” handled by dictionary lookup
     """
     # For very short inputs (< 4 words), only allow exact matches from the index
-    # — semantic similarity is unreliable for short phrases but exact matches are valid
+    # â€” semantic similarity is unreliable for short phrases but exact matches are valid
     word_count = len(text.split())
     if word_count < 4:
-        # Still do exact-match lookup for 1–3 word inputs
+        # Still do exact-match lookup for 1â€“3 word inputs
         try:
             _load_retrieval()
         except Exception:
@@ -1080,7 +1105,7 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
                     "matched_source": sent,
                     "alternatives": [],
                 }
-        return None  # no exact match — fall through to neural MT
+        return None  # no exact match â€” fall through to neural MT
 
     try:
         _load_retrieval()
@@ -1114,7 +1139,7 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     best_score = float(scores[best_idx])
 
     if best_score < _RAG_HINT_THRESHOLD:
-        return None  # too low — pure neural MT
+        return None  # too low â€” pure neural MT
 
     matched_src = query_sentences[best_idx]
     matched_tgt = target_sentences[best_idx]
@@ -1125,7 +1150,7 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     length_ratio = abs(input_len - retrieved_len) / max(input_len, retrieved_len)
 
     if best_score >= _RAG_DIRECT_THRESHOLD and length_ratio <= _RAG_LENGTH_TOLERANCE:
-        # High confidence + similar length → use retrieved translation directly
+        # High confidence + similar length â†’ use retrieved translation directly
         translation = matched_tgt
         if direction == "en2lun":
             translation = _postprocess_lunyoro(translation)
@@ -1155,7 +1180,7 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     return None
 
 
-# ── public API ───────────────────────────────────────────────────────────────
+# â”€â”€ public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def _mirror_punctuation(source: str, translation: str) -> str:
@@ -1166,10 +1191,10 @@ def _mirror_punctuation(source: str, translation: str) -> str:
     3. Whether the translation is a complete sentence or a phrase/fragment
 
     Rules:
-    - Source has '?' → translation ends with '?' (always — it's a question)
-    - Source has '!' → translation ends with '!' (always — it's an exclamation)
-    - Source has '.' → add '.' only if translation looks like a full sentence
-    - Source has no terminal punct → don't add any (user typed a fragment/phrase)
+    - Source has '?' â†’ translation ends with '?' (always â€” it's a question)
+    - Source has '!' â†’ translation ends with '!' (always â€” it's an exclamation)
+    - Source has '.' â†’ add '.' only if translation looks like a full sentence
+    - Source has no terminal punct â†’ don't add any (user typed a fragment/phrase)
     - Never double-punctuate (if translation already ends with correct punct, leave it)
     - Single words or very short phrases don't get periods
     """
@@ -1186,7 +1211,7 @@ def _mirror_punctuation(source: str, translation: str) -> str:
     src_end = src[-1]
     tgt_end = tgt[-1]
 
-    # Already has correct punctuation — don't touch it
+    # Already has correct punctuation â€” don't touch it
     if tgt_end in ".?!":
         # But fix wrong type: if source is ? and translation ends with . swap it
         if src_end == "?" and tgt_end != "?":
@@ -1195,19 +1220,19 @@ def _mirror_punctuation(source: str, translation: str) -> str:
             return tgt.rstrip(".?") + "!"
         return tgt  # already punctuated correctly
 
-    # Translation has no terminal punctuation yet — decide whether to add
+    # Translation has no terminal punctuation yet â€” decide whether to add
     tgt_words = tgt.split()
     tgt_word_count = len(tgt_words)
 
-    # Question mark — always if source is a question
+    # Question mark â€” always if source is a question
     if src_end == "?":
         return tgt + "?"
 
-    # Exclamation — always if source is exclamatory
+    # Exclamation â€” always if source is exclamatory
     if src_end == "!":
         return tgt + "!"
 
-    # Period — only if source has one AND translation looks like a full sentence
+    # Period â€” only if source has one AND translation looks like a full sentence
     # (more than 2 words and doesn't end mid-construction)
     if src_end == ".":
         if tgt_word_count >= 3:
@@ -1220,37 +1245,54 @@ def _mirror_punctuation(source: str, translation: str) -> str:
             last_word = tgt_words[-1].lower().rstrip(".,;:")
             if last_word not in _incomplete_endings:
                 return tgt + "."
-        return tgt  # short or incomplete — no period
+        return tgt  # short or incomplete â€” no period
 
     # Source has no terminal punctuation (user typed a word/phrase)
-    # Don't add anything — respect that it's a fragment
+    # Don't add anything â€” respect that it's a fragment
     return tgt
 
 
 def translate(text: str, top_k: int = 3, context: str = "") -> dict:
-    """English → Lunyoro/Rutooro — always runs both MarianMT and NLLB."""
+    """English â†’ Lunyoro/Rutooro â€” always runs both MarianMT and NLLB."""
     text = _normalise(text.strip())
 
-    # Longer context window: trim context to last sentence if too long
+    # Context window: keep up to 3 most recent sentences, max 400 chars total.
+    # Single-sentence cap was too aggressive for paragraph-level translation.
     if context:
         import re as _re_ctx
         ctx_sentences = _re_ctx.split(r"(?<=[.!?])\s+", context.strip())
-        context = ctx_sentences[-1] if ctx_sentences else context
-        if len(context) > 150:
-            context = context[-150:]
+        context = " ".join(ctx_sentences[-3:])  # last 3 sentences
+        if len(context) > 400:
+            context = context[-400:]
 
-    # ── Always run both neural MT models first ────────────────────────────────
+    # â”€â”€ Always run both neural MT models first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     marian = _mt_translate(text, "en2lun", context=context)
     nllb   = _nllb_translate(text, "en2lun", context=context)
 
     def _is_garbage(s: str | None) -> bool:
+        """Detect degenerate model output.
+
+        Previous version rejected any output where >50% of words were 2â€“3 chars,
+        which incorrectly discarded valid short Runyoro sentences that are full of
+        particles and short verb forms (ni, na, ha, ku, mu, ne, â€¦).
+
+        Fixed: only flag as garbage if the output is entirely single-character
+        tokens or known placeholder noise. Leave length-based filtering to the
+        per-model hallucination checks inside _mt_translate / _nllb_translate.
+        """
         if not s or not s.strip():
             return True
         words = s.split()
         if not words:
             return True
-        short_count = sum(1 for w in words if 2 <= len(w) <= 3)
-        return short_count / len(words) > 0.5
+        # Reject if every word is a single character (tokeniser artifact)
+        if all(len(w) == 1 for w in words):
+            return True
+        # Reject if output is a run of identical tokens (caught upstream too, but
+        # defensive: e.g. "the the the the" or "Bi Bi Bi Bi")
+        if len(set(w.lower() for w in words)) == 1 and len(words) > 2:
+            return True
+        return False
 
     # Apply punctuation mirroring to both
     if nllb:    nllb    = _mirror_punctuation(text, nllb)
@@ -1259,16 +1301,16 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     # Primary = NLLB if valid, else MarianMT
     neural_best = nllb if not _is_garbage(nllb) else marian
 
-    # ── Selective RAG: try retrieval for high-confidence matches ─────────────
+    # â”€â”€ Selective RAG: try retrieval for high-confidence matches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     rag_result = _selective_rag(text, direction="en2lun", top_k=top_k)
     if rag_result:
         rag_result["translation_nllb"]   = nllb
         rag_result["translation_marian"] = marian
-        # Keep the verified corpus translation as primary — don't override with NLLB
+        # Keep the verified corpus translation as primary â€” don't override with NLLB
         # NLLB output may differ but the corpus hit is human-verified
         return rag_result
 
-    # ── Corpus exact-match for short inputs ──────────────────────────────────
+    # â”€â”€ Corpus exact-match for short inputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if len(text.split()) <= 3:
         try:
             _load_retrieval()
@@ -1276,8 +1318,6 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
             for i, sent in enumerate(_index.get("english_sentences", [])):
                 if sent.strip().lower() == lower:
                     translation = _postprocess_lunyoro(_index["lunyoro_sentences"][i])
-                    # Use corpus translation as primary for exact matches — it's verified
-                    # NLLB output for single words is often wrong (hallucination)
                     return {
                         "translation":         translation,
                         "translation_nllb":    nllb,
@@ -1299,8 +1339,17 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
             "alternatives": [],
         }
 
-    # 2. Retrieval fallback
-    _load_retrieval()
+    # â”€â”€ Retrieval + dictionary fallback (only reached when both MT models fail) â”€â”€
+    try:
+        _load_retrieval()
+    except Exception:
+        return {
+            "translation": None,
+            "method": "failed",
+            "confidence": 0.0,
+            "alternatives": [],
+        }
+
     english_sentences = _index["english_sentences"]
     lunyoro_sentences = _index["lunyoro_sentences"]
 
@@ -1338,18 +1387,18 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
         }
 
     return _dict_fallback(
-        text, best_score, english_sentences[best], alternatives, "en→lun"
+        text, best_score, english_sentences[best], alternatives, "enâ†’lun"
     )
 
 
 def _postprocess_english(text: str) -> str:
     """
-    Post-process lun→en NLLB/Marian output for natural English.
+    Post-process lunâ†’en NLLB/Marian output for natural English.
 
     Fixes:
     1. Strip NLLB language-code prefix artifacts (run_Latn: ...)
-    2. Double-subject removal ("The man he went" → "The man went")
-    3. Redundant pronoun after noun ("My father he said" → "My father said")
+    2. Double-subject removal ("The man he went" â†’ "The man went")
+    3. Redundant pronoun after noun ("My father he said" â†’ "My father said")
     4. Over-capitalisation of common words mid-sentence
     5. Sentence capitalisation + punctuation cleanup
     6. Strip leading/trailing whitespace and repeated spaces
@@ -1377,7 +1426,7 @@ def _postprocess_english(text: str) -> str:
         flags=_re.IGNORECASE,
     )
 
-    # 3. Proper name + pronoun ("John he said" → "John said")
+    # 3. Proper name + pronoun ("John he said" â†’ "John said")
     text = _re.sub(
         r"\b([A-Z][a-z]+)\s+(he|she|they)\s+",
         r"\1 ",
@@ -1388,7 +1437,7 @@ def _postprocess_english(text: str) -> str:
     # "is is" / "are are" deduplication
     text = _re.sub(r"\b(is|are|was|were|has|have|had)\s+\1\b", r"\1", text, flags=_re.IGNORECASE)
 
-    # 5. Strip NLLB hallucination artifacts — repeated short fragments at end
+    # 5. Strip NLLB hallucination artifacts â€” repeated short fragments at end
     # e.g. "I went to the market. I went to the market."
     sentences = _re.split(r"(?<=[.!?])\s+", text.strip())
     if len(sentences) > 1 and sentences[-1].strip().lower() == sentences[-2].strip().lower():
@@ -1396,10 +1445,10 @@ def _postprocess_english(text: str) -> str:
     text = " ".join(sentences)
 
     # 6. Capitalise first letter of each sentence
-    # Only capitalise a–z at sentence start, not mid-word
+    # Only capitalise aâ€“z at sentence start, not mid-word
     text = _re.sub(r"((?:^|(?<=[.!?]\s))([a-z]))", lambda m: m.group(0).upper(), text)
 
-    # 7. Preserve existing terminal punctuation — don't add period blindly
+    # 7. Preserve existing terminal punctuation â€” don't add period blindly
     # (_mirror_punctuation handles this based on source input)
     text = text.strip()
 
@@ -1410,17 +1459,18 @@ def _postprocess_english(text: str) -> str:
 
 
 def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
-    """Lunyoro/Rutooro → English — always runs both MarianMT and NLLB."""
+    """Lunyoro/Rutooro â†’ English â€” always runs both MarianMT and NLLB."""
     text = _normalise(text.strip())
 
+    # Context window: keep up to 3 most recent sentences, max 400 chars total.
     if context:
         import re as _re_ctx
         ctx_sentences = _re_ctx.split(r"(?<=[.!?])\s+", context.strip())
-        context = ctx_sentences[-1] if ctx_sentences else context
-        if len(context) > 150:
-            context = context[-150:]
+        context = " ".join(ctx_sentences[-3:])
+        if len(context) > 400:
+            context = context[-400:]
 
-    # ── Always run both neural MT models first ────────────────────────────────
+    # â”€â”€ Always run both neural MT models first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     marian = _mt_translate(text, "lun2en", context=context)
     nllb   = _nllb_translate(text, "lun2en", context=context)
 
@@ -1429,16 +1479,17 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
 
     neural_best = nllb or marian
 
-    # ── Selective RAG ─────────────────────────────────────────────────────────
+    # â”€â”€ Selective RAG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     rag_result = _selective_rag(text, direction="lun2en", top_k=top_k)
     if rag_result:
         rag_result["translation_nllb"]   = nllb
         rag_result["translation_marian"] = marian
-        if nllb:
-            rag_result["translation"] = nllb
+        # FIX: preserve the high-confidence corpus translation as primary.
+        # Do NOT override it with NLLB here â€” that defeated the whole purpose of RAG.
+        # NLLB is already in translation_nllb for the frontend to display.
         return rag_result
 
-    # ── Corpus exact-match ────────────────────────────────────────────────────
+    # â”€â”€ Corpus exact-match â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if len(text.split()) <= 3:
         try:
             _load_retrieval()
@@ -1526,7 +1577,7 @@ def _dict_fallback(text, best_score, matched_english, alternatives, direction):
         # Check static web entries first
         from web_fallback import lookup_static
 
-        static = lookup_static(word, "en→lun")
+        static = lookup_static(word, "enâ†’lun")
         if static:
             found.append(
                 {"english_word": word, "lunyoro_word": static, "definition": ""}
@@ -1548,7 +1599,7 @@ def _dict_fallback(text, best_score, matched_english, alternatives, direction):
     if not found:
         from web_fallback import web_search_fallback
 
-        web_result = web_search_fallback(text, "en→lun")
+        web_result = web_search_fallback(text, "enâ†’lun")
         if web_result:
             return {
                 "translation": _postprocess_lunyoro(web_result),
@@ -1630,9 +1681,9 @@ def _infer_pos(word: str) -> str | None:
     return None
 
 
-def lookup_word(word: str, direction: str = "en→lun") -> list:
+def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
     """
-    Dictionary lookup: exact match → fuzzy dictionary → neural MT → corpus.
+    Dictionary lookup: exact match â†’ fuzzy dictionary â†’ neural MT â†’ corpus.
     """
     _load_retrieval()
     word = _normalise(word.strip())
@@ -1663,12 +1714,12 @@ def lookup_word(word: str, direction: str = "en→lun") -> list:
             return None
         return t
 
-    mt_direction = "en2lun" if direction == "en→lun" else "lun2en"
+    mt_direction = "en2lun" if direction == "enâ†’lun" else "lun2en"
     raw_mt = _mt_translate(word, mt_direction)
     mt_translation = clean_mt(raw_mt)
 
-    # ── 1. Exact dictionary match (highest priority) ──────────────────────
-    if direction == "en→lun":
+    # â”€â”€ 1. Exact dictionary match (highest priority) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if direction == "enâ†’lun":
         exact = [
             d
             for d in _dictionary
@@ -1689,8 +1740,8 @@ def lookup_word(word: str, direction: str = "en→lun") -> list:
                 {**d, "source": "dictionary", "confidence": 1.0, "pos_matched": False}
             )
 
-    # ── 2. Fuzzy dictionary match ─────────────────────────────────────────
-    if direction == "en→lun":
+    # â”€â”€ 2. Fuzzy dictionary match â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if direction == "enâ†’lun":
         fuzzy_raw = process.extract(
             word_lower,
             [(d.get("definitionEnglish") or "").lower() for d in _dictionary],
@@ -1717,7 +1768,7 @@ def lookup_word(word: str, direction: str = "en→lun") -> list:
             dict_words_lower,
             scorer=fuzz.ratio,  # stricter scorer for Lunyoro words
             limit=10,
-            score_cutoff=80,  # higher threshold — Lunyoro words are similar-looking
+            score_cutoff=80,  # higher threshold â€” Lunyoro words are similar-looking
         )
         for match_text, score, _ in fuzzy_raw:
             entry = _dict_word_map.get(match_text)
@@ -1732,15 +1783,15 @@ def lookup_word(word: str, direction: str = "en→lun") -> list:
                     }
                 )
 
-    # ── 3. Neural MT result ───────────────────────────────────────────────
+    # â”€â”€ 3. Neural MT result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if mt_translation and mt_translation.lower() not in seen_words:
         seen_words.add(mt_translation.lower())
         # Try to enrich with dictionary entry for the MT word
         mt_dict = _dict_word_map.get(mt_translation.lower())
         results.append(
             {
-                "word": mt_translation if direction == "en→lun" else word,
-                "definitionEnglish": word if direction == "en→lun" else mt_translation,
+                "word": mt_translation if direction == "enâ†’lun" else word,
+                "definitionEnglish": word if direction == "enâ†’lun" else mt_translation,
                 "definitionNative": mt_dict.get("definitionNative", "")
                 if mt_dict
                 else "",
@@ -1758,12 +1809,12 @@ def lookup_word(word: str, direction: str = "en→lun") -> list:
             }
         )
 
-    # ── 4. Corpus semantic search (only for multi-word queries) ──────────────
-    # Single words get poor corpus matches — skip unless query is a phrase
+    # â”€â”€ 4. Corpus semantic search (only for multi-word queries) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Single words get poor corpus matches â€” skip unless query is a phrase
     is_phrase = len(word.split()) > 1
     if is_phrase:
         q_emb = _sem_model.encode(word, convert_to_numpy=True)
-        if direction == "en→lun":
+        if direction == "enâ†’lun":
             scores = util.cos_sim(q_emb, _index["embeddings"])[0].numpy()
         else:
             if "lunyoro_embeddings" not in _index:
@@ -1784,13 +1835,13 @@ def lookup_word(word: str, direction: str = "en→lun") -> list:
             en = _index["english_sentences"][i]
             if _is_notation_garbage(lun) or _is_notation_garbage(en):
                 continue
-            display_word = lun if direction == "en→lun" else en
+            display_word = lun if direction == "enâ†’lun" else en
             if display_word not in seen_words:
                 seen_words.add(display_word)
                 results.append(
                     {
                         "word": display_word,
-                        "definitionEnglish": en if direction == "en→lun" else lun,
+                        "definitionEnglish": en if direction == "enâ†’lun" else lun,
                         "definitionNative": "",
                         "exampleSentence1": lun,
                         "exampleSentence1English": en,
@@ -1845,14 +1896,14 @@ def _build_corpus_vocab() -> set:
                              "or", "en", "em", "ni", "ba", "ka", "ku", "mu",
                              "bu", "tu", "bi", "ki", "ga", "rw", "nt", "mb")
             for token in tok.get_vocab().keys():
-                clean = token.lstrip("▁").lower()
+                clean = token.lstrip("â–").lower()
                 if (clean.isalpha() and len(clean) >= 3
                         and any(clean.startswith(p) for p in _BANTU_STARTS)):
                     known.add(clean)
         except Exception:
             pass
 
-    # Common English words that leak into the dictionary — exclude them from known vocab
+    # Common English words that leak into the dictionary â€” exclude them from known vocab
     _EN_STOPLIST = frozenset({
         "agonizing", "ago", "age", "able", "about", "above", "after", "again",
         "against", "all", "also", "although", "always", "among", "another",
@@ -1907,7 +1958,7 @@ def spellcheck(text: str) -> list:
     tokens = re.findall(r"[a-zA-Z']+", text)
     misspelled = []
 
-    # Common English words that appear in code-switched Runyoro text — never flag
+    # Common English words that appear in code-switched Runyoro text â€” never flag
     _SKIP_ENGLISH = frozenset({
         "the", "a", "an", "is", "are", "was", "were", "and", "or", "of",
         "in", "to", "it", "he", "she", "we", "you", "i", "my", "his", "her",
@@ -1924,11 +1975,11 @@ def spellcheck(text: str) -> list:
         if len(lower) < 3:
             continue
 
-        # Already known — no issue
+        # Already known â€” no issue
         if lower in _corpus_vocab:
             continue
 
-        # ── Bantu prefix check: skip words that look like valid formed Runyoro words
+        # â”€â”€ Bantu prefix check: skip words that look like valid formed Runyoro words
         # BUT always check words with suspicious double vowels (aa, ee, oo, ii, uu)
         # since doubled vowels are almost always a typo in Runyoro
         import re as _re_dbl
@@ -1946,7 +1997,7 @@ def spellcheck(text: str) -> list:
             if any(lower.startswith(p) for p in _SHORT_PREFIXES) and len(lower) >= 9:
                 continue
 
-        # ── Tokenizer check: does the MarianMT model know this word as a single token?
+        # â”€â”€ Tokenizer check: does the MarianMT model know this word as a single token?
         lun2en_path = os.path.join(MODEL_DIR, "lun2en")
         model_knows = False
         if os.path.isdir(lun2en_path) and _load_mt("lun2en"):
@@ -1961,7 +2012,7 @@ def spellcheck(text: str) -> list:
         if model_knows:
             continue
 
-        # ── Fuzzy suggestion search ──
+        # â”€â”€ Fuzzy suggestion search â”€â”€
         # Use both fuzz.ratio AND fuzz.partial_ratio for better Bantu stem matching
         prefix = lower[:4]  # 4-char prefix for better pool narrowing
         prefix_words = [w for w in vocab_list if w.startswith(prefix[:3])]
@@ -1976,7 +2027,7 @@ def spellcheck(text: str) -> list:
             lower, candidate_pool, scorer=fuzz.token_sort_ratio, limit=5, score_cutoff=72,
         )
 
-        # Merge, dedupe, sort by score — filter out English-looking words
+        # Merge, dedupe, sort by score â€” filter out English-looking words
         all_suggestions = {s[0]: s[1] for s in suggestions_ratio}
         for s in suggestions_sort:
             if s[0] not in all_suggestions or s[1] > all_suggestions[s[0]]:
@@ -2002,3 +2053,4 @@ def spellcheck(text: str) -> list:
         misspelled.append({"word": token, "suggestions": top})
 
     return misspelled
+

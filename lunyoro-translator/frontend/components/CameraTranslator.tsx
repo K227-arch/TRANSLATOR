@@ -571,7 +571,29 @@ export default function CameraTranslator() {
                 </div>
               )}
 
-              {/* OCR results removed — translations shown on canvas image only */}
+              {/* OCR translation list — shown below the action bar after upload */}
+              {mode === "ocr" && regions.length > 0 && (
+                <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2 bg-surface-container/30">
+                    <span className="material-symbols-outlined text-primary text-[18px]">translate</span>
+                    <h3 className="text-sm font-semibold text-on-background">
+                      {regions.length} Translation{regions.length !== 1 ? "s" : ""} Found
+                    </h3>
+                  </div>
+                  <div className="px-4 py-3 space-y-2.5">
+                    {regions.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2 min-w-0">
+                        <span className="text-sm text-on-surface-variant shrink-0 max-w-[42%] truncate">{r.original}</span>
+                        <span className="material-symbols-outlined text-[14px] text-on-surface-variant/40 shrink-0 mt-0.5">arrow_forward</span>
+                        <span className="text-sm font-semibold text-primary min-w-0 break-words">{r.translated}</span>
+                        <span className="ml-auto text-[10px] text-on-surface-variant/50 bg-surface-container rounded-full px-1.5 py-0.5 shrink-0 self-start">
+                          {(r.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Empty state */}
               {!capturedImage && (mode === "ocr" ? regions.length === 0 : classifications.length === 0) && (
