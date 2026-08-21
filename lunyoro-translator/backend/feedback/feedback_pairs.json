@@ -511,5 +511,17 @@
     "refined": false,
     "ip": "10.16.38.135",
     "timestamp": "2026-08-05T14:21:25.453548"
+  },
+  {
+    "source_text": "the cat ate the rat",
+    "translation": "enjangu yazya embeba",
+    "direction": "en->lun",
+    "rating": -1,
+    "correction": "enjangu erire embeba",
+    "error_type": "spelling, vocabulary",
+    "model_used": "",
+    "refined": false,
+    "ip": "10.16.29.35",
+    "timestamp": "2026-08-21T10:24:52.126159"
   }
 ]
