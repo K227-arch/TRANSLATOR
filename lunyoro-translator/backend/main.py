@@ -199,7 +199,7 @@ def _qwen_refine_translation(source_en: str, draft_lun: str) -> str:
     """
     try:
         hf_token = os.getenv("HF_TOKEN", "")
-        hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        hf_model = os.getenv("HF_CHAT_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
         if not hf_token:
             return draft_lun
         from openai import OpenAI as _OAI
@@ -295,7 +295,7 @@ def translate_reverse(req: TranslateRequest):
         def _do_refine():
             try:
                 hf_token = os.getenv("HF_TOKEN", "")
-                hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+                hf_model = os.getenv("HF_CHAT_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
                 if not hf_token:
                     return None
                 from openai import OpenAI as _OAI
@@ -941,7 +941,7 @@ async def summarize_pdf(file: UploadFile = File(...)):
         """Refine a single MT draft with Qwen. Returns draft unchanged on failure."""
         try:
             _hf_token = os.getenv("HF_TOKEN", "")
-            _hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+            _hf_model = os.getenv("HF_CHAT_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
             if not _hf_token:
                 return draft
             from openai import OpenAI as _OpenAI
@@ -1143,13 +1143,13 @@ def chat(req: ChatRequest, request: Request):
 
     # ── Call HuggingFace Router (Qwen2.5) ────────────────────────────────────
     _hf_token = os.getenv("HF_TOKEN", "")
-    _hf_model = os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+    _hf_model = os.getenv("HF_CHAT_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
     try:
         from openai import OpenAI
         _hf_client = OpenAI(
             base_url="https://router.huggingface.co/v1",
             api_key=_hf_token,
-            timeout=45.0,
+            timeout=120.0,
         )
         completion = _hf_client.chat.completions.create(
             model=_hf_model,

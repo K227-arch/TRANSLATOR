@@ -211,16 +211,34 @@ export default function CameraTranslator() {
     };
     try {
       await tryStart({ video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } });
-    } catch {
+    } catch (firstErr) {
+      const firstMsg = firstErr instanceof Error ? firstErr.message : "";
+      // If first attempt was permission-denied, skip the retry and go straight to native picker
+      if (
+        firstMsg.toLowerCase().includes("denied") ||
+        firstMsg.toLowerCase().includes("permission") ||
+        firstMsg.toLowerCase().includes("not allowed") ||
+        firstMsg.toLowerCase().includes("notallowederror")
+      ) {
+        cameraCaptureRef.current?.click();
+        return;
+      }
       try { await tryStart({ video: true }); }
       catch (e) {
         const msg = e instanceof Error ? e.message : "Unknown error";
-        // Offer the native camera as a way out rather than a dead end.
-        setError(
-          msg.includes("denied")
-            ? "Camera permission denied — use Upload Image, or allow camera access."
-            : `Camera unavailable (${msg}). Use Upload Image instead.`
-        );
+        // Permission denied or hardware unavailable — fall back to native camera file picker
+        // so the user can still take a photo without a dead end.
+        if (
+          msg.toLowerCase().includes("denied") ||
+          msg.toLowerCase().includes("permission") ||
+          msg.toLowerCase().includes("not allowed") ||
+          msg.toLowerCase().includes("notallowederror")
+        ) {
+          // Silently open the native camera picker instead of showing an error
+          cameraCaptureRef.current?.click();
+          return;
+        }
+        setError(`Camera unavailable (${msg}). Use Upload Image instead.`);
       }
     }
   }, [facingMode]);
@@ -303,6 +321,9 @@ export default function CameraTranslator() {
   return (
     <div className="w-full">
       <canvas ref={canvasRef} className="hidden" />
+      {/* Native camera fallback — always in DOM so .click() works even from camera-active state */}
+      <input ref={cameraCaptureRef} type="file" accept="image/*" capture="environment"
+             className="hidden" onChange={handleFileUpload} />
 
       {/* Always-in-DOM video element */}
       <video ref={videoRef} playsInline muted autoPlay
@@ -528,10 +549,6 @@ export default function CameraTranslator() {
                     <span className="text-xs font-medium">Upload Image Text</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                   </label>
-                  {/* Opens the device's own camera app. Used by "Open Camera" when
-                      getUserMedia is unavailable, i.e. on the Pi's HTTP origin. */}
-                  <input ref={cameraCaptureRef} type="file" accept="image/*" capture="environment"
-                         className="hidden" onChange={handleFileUpload} />
                 </div>
               ) : (
                 <label className="w-full flex flex-col items-center justify-center gap-2 bg-primary text-on-primary py-6 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-all">
