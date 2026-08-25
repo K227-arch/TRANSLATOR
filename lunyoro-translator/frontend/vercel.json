@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "buildCommand": "NODE_OPTIONS='--max-old-space-size=3072' npm run build",
-  "installCommand": "npm install --prefer-offline --no-audit --no-fund",
+  "installCommand": "npm install --no-optional --ignore-scripts --no-audit --no-fund",
   "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://keithtwesigye-runyoro-translator-api.hf.space"
