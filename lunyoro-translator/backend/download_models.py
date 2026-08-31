@@ -114,6 +114,11 @@ if __name__ == "__main__":
         "--marian-only", action="store_true",
         help="Download only MarianMT + sem_model (skip NLLB). NLLB loads lazily from HF Hub cache."
     )
+    parser.add_argument(
+        "--model", action="append", dest="models", metavar="NAME",
+        help="Download a specific model by local name (repeatable). "
+             "e.g. --model en2lun --model nllb_en2lun_int8"
+    )
     args = parser.parse_args()
 
     print("=== Downloading Runyoro-Rutooro models from HuggingFace ===")
@@ -124,7 +129,28 @@ if __name__ == "__main__":
         os.system("pip install huggingface_hub")
         from huggingface_hub import snapshot_download
 
-    if args.marian_only:
+    if args.models:
+        # Download only the explicitly requested model dirs
+        print(f"  [--model] Downloading: {', '.join(args.models)}")
+        for local_name in args.models:
+            repo_id = HF_MODELS.get(local_name)
+            if not repo_id:
+                print(f"  [SKIP] Unknown model name '{local_name}' — check HF_MODELS dict")
+                continue
+            dest = MODEL_DIR / local_name
+            if dest.exists() and not args.force:
+                has_weights = (any(dest.glob("*.safetensors")) or
+                               any(dest.glob("*.bin")) or
+                               any(dest.glob("*.onnx")))
+                if has_weights:
+                    print(f"  [OK] {local_name} already exists — skipping")
+                    continue
+            print(f"  Downloading {repo_id} -> model/{local_name}/")
+            dest.mkdir(parents=True, exist_ok=True)
+            snapshot_download(repo_id=repo_id, local_dir=str(dest),
+                              ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"])
+            print(f"  [OK] {local_name}")
+    elif args.marian_only:
         # Only download MarianMT (small) + sem_model for Space startup.
         # NLLB (2.3GB each) loads on first request via HF Hub cache.
         marian_models = {k: v for k, v in HF_MODELS.items() if "nllb" not in k}
