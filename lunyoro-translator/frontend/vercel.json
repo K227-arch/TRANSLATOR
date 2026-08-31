@@ -1,9 +1,11 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run build",
+  "buildCommand": "rm -rf .next/build && npm run build",
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://keithtwesigye-runyoro-translator-api.hf.space"
+    "NEXT_PUBLIC_API_URL": "https://keithtwesigye-runyoro-translator-api.hf.space",
+    "TURBOPACK_CACHE_DISABLED": "1",
+    "NEXT_CACHE_DISABLED": "1"
   }
 }
