@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "installCommand": "npm install --include=optional",
   "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://keithtwesigye-runyoro-translator-api.hf.space",
