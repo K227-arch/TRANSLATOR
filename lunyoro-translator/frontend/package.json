@@ -6,7 +6,8 @@
     "dev": "next dev -p 3002 --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "node -e \"if(process.env.VERCEL==='1'){const{execSync}=require('child_process');try{execSync('rm -rf .next/build',{stdio:'inherit',cwd:__dirname})}catch(e){}}\" "
   },
   "dependencies": {
     "@swc/helpers": "^0.5.15",
