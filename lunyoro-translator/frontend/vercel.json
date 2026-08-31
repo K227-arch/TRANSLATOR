@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "rm -rf .next && npm run build",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "env": {
