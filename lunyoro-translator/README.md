@@ -1294,8 +1294,8 @@ All models are automatically loaded from HuggingFace Hub on first use and cached
 
 - **MarianMT en2lun:** [keithtwesigye/lunyoro-en2lun](https://huggingface.co/keithtwesigye/lunyoro-en2lun)
 - **MarianMT lun2en:** [keithtwesigye/lunyoro-lun2en](https://huggingface.co/keithtwesigye/lunyoro-lun2en)
-- **NLLB en2lun:** [keithtwesigye/lunyoro-nllb_en2lun](https://huggingface.co/keithtwesigye/lunyoro-nllb_en2lun)
-- **NLLB lun2en:** [keithtwesigye/lunyoro-nllb_lun2en](https://huggingface.co/keithtwesigye/lunyoro-nllb_lun2en)
+- **NLLB en2lun:** [keithtwesigye/lunyoro-nllb-en2lun](https://huggingface.co/keithtwesigye/lunyoro-nllb-en2lun)
+- **NLLB lun2en:** [keithtwesigye/lunyoro-nllb-lun2en](https://huggingface.co/keithtwesigye/lunyoro-nllb-lun2en)
 - **Semantic search:** [sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)
 - **Image classification:** [google/mobilenet_v2_1.0_224](https://huggingface.co/google/mobilenet_v2_1.0_224) — lightweight ImageNet classifier for object recognition in uploaded images
 - **Chat:** [meta-llama/Llama-3.1-8B-Instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct) via HF Router

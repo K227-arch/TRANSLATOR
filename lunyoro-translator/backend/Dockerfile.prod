@@ -1,0 +1,49 @@
+# Production backend Dockerfile — AWS deployment
+# Port 8000, downloads models on first boot via docker-entrypoint.sh
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# ── System dependencies ───────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        curl \
+        build-essential \
+        tesseract-ocr \
+        libglib2.0-0 \
+        libsm6 \
+        libxrender1 \
+        libxext6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Python dependencies ───────────────────────────────────────────────────────
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+# ── Application code ──────────────────────────────────────────────────────────
+# Copy everything except what is listed in .dockerignore
+COPY . .
+
+# ── Runtime directories ───────────────────────────────────────────────────────
+RUN mkdir -p /app/model /app/history /app/feedback /app/logs \
+ && chmod +x /app/docker-entrypoint.sh
+
+# ── Environment defaults (overridden by docker-compose env_file) ──────────────
+ENV PORT=8000
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV TRANSFORMERS_OFFLINE=0
+ENV HF_DATASETS_OFFLINE=0
+ENV HF_HUB_OFFLINE=0
+ENV DOWNLOAD_MODELS_ON_START=1
+ENV DISABLE_NLLB=0
+ENV DISABLE_MARIAN=0
+
+EXPOSE 8000
+
+# docker-entrypoint.sh:
+#   1. Downloads models from HF Hub if DOWNLOAD_MODELS_ON_START=1
+#   2. Starts uvicorn on $PORT
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

@@ -24,8 +24,8 @@ MODEL_DIR = Path(__file__).parent / "model"
 HF_REPOS = {
     "en2lun":      "keithtwesigye/lunyoro-en2lun",
     "lun2en":      "keithtwesigye/lunyoro-lun2en",
-    "nllb_en2lun": "keithtwesigye/lunyoro-nllb_en2lun",
-    "nllb_lun2en": "keithtwesigye/lunyoro-nllb_lun2en",
+    "nllb_en2lun": "keithtwesigye/lunyoro-nllb-en2lun",
+    "nllb_lun2en": "keithtwesigye/lunyoro-nllb-lun2en",
 }
 
 def push(model_name: str):

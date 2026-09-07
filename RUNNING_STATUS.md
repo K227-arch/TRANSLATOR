@@ -69,8 +69,8 @@ The backend automatically downloads models from HuggingFace Hub on first use:
    - `keithtwesigye/lunyoro-lun2en` - Lunyoro → English
 
 2. **NLLB-200 Models** (Meta's multilingual model, fine-tuned)
-   - `keithtwesigye/lunyoro-nllb_en2lun` - English → Lunyoro
-   - `keithtwesigye/lunyoro-nllb_lun2en` - Lunyoro → English
+   - `keithtwesigye/lunyoro-nllb-en2lun` - English → Lunyoro
+   - `keithtwesigye/lunyoro-nllb-lun2en` - Lunyoro → English
 
 3. **Semantic Search Model**
    - `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
