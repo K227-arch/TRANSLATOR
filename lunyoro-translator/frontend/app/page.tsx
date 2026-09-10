@@ -78,9 +78,10 @@ export default function Home() {
         </div>
       )}
       <aside
-        className={`fixed top-0 right-0 h-full w-3/4 max-w-xs z-[70] bg-surface-bright border-l border-outline-variant/40 shadow-2xl transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full w-3/4 max-w-xs z-[70] border-l border-outline-variant/20 shadow-2xl transform transition-transform duration-300 ease-in-out ${
           helpOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ background: "#161616" }}
       >
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-4 h-16 border-b border-outline-variant/30">
@@ -107,8 +108,12 @@ export default function Home() {
 
       {/* Ambient background blobs */}
       <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary-container/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-primary-fixed/10 rounded-full blur-[140px]" />
+        <div className="absolute top-1/4 -left-20 w-96 h-96 rounded-full blur-[140px]"
+          style={{ background: "rgba(233,195,73,0.05)" }} />
+        <div className="absolute bottom-1/3 -right-20 w-[500px] h-[500px] rounded-full blur-[160px]"
+          style={{ background: "rgba(233,100,50,0.04)" }} />
+        <div className="absolute top-3/4 left-1/3 w-64 h-64 rounded-full blur-[120px]"
+          style={{ background: "rgba(233,195,73,0.03)" }} />
       </div>
     </div>
   );

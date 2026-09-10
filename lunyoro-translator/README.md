@@ -1,6 +1,6 @@
 # AI Stick — Runyoro / Rutooro Translator
 
-**Version 2.9** - AI Stick Lens
+**Version 3.0** - Dark Gold Theme
 
 A neural machine translation system for Runyoro-Rutooro ↔ English with:
 - Fine-tuned MarianMT + NLLB-200 models
@@ -47,7 +47,9 @@ Additional pages accessible from Home dashboard cards:
 | History | `History` | Translation history log |
 | Voice | `VoiceTranslator` | Voice input translation |
 
-Inner pages (Editor, Dictionary, History, Voice, Camera, Help) display a section title in the **TopBar** and a back button that returns to Home.
+Inner pages (Editor, Dictionary, History, Voice, Camera, Help) display a section title in the **TopBar** and a back button that returns to Home. On the home view the TopBar shows the AI Stick logo and an "AI Stick" text label (hidden on small screens). The bar uses a frosted-glass background (`rgba(14,14,14,0.85)` with `backdrop-filter: blur(16px)`) so it remains legible over any page content.
+
+The **BottomNav** bar itself also uses a frosted-glass background (`rgba(14,14,14,0.92)` with `backdrop-filter: blur(16px)`) and a subtle top border (`border-outline-variant/30`). The active tab is indicated by a filled icon inside a translucent primary pill (`bg-primary/15`) with the label coloured `text-primary`; inactive tabs use `text-on-surface-variant` and highlight to `text-on-surface` on hover. No opaque container chip is applied to the active item.
 
 - **Page transitions:** Tab switches remount the content area (`key={tab}`) and wrap pages in a `.page-enter` CSS animation for a smooth fade/slide-in effect
 - **Offline banner (`OfflineBanner.tsx`):** Fixed top-of-screen strip that appears automatically when the device loses network connectivity; shows a red `wifi_off` banner with the message "You're offline — showing cached translations"; when connectivity is restored, switches to a green `wifi` banner ("Back online") that auto-dismisses after 3 seconds; renders nothing when the connection is stable
@@ -1179,8 +1181,8 @@ lunyoro-translator/
 │   ├── components/Dictionary.tsx    # Dictionary lookup UI
 │   ├── components/History.tsx       # Translation history UI
 │   ├── components/VoiceTranslator.tsx # Voice input translation UI
-│   ├── components/TopBar.tsx        # Top navigation bar (shows section title + back button for inner pages)
-│   ├── components/BottomNav.tsx     # Fixed bottom navigation bar (Home, Translate, Chat, Editor, Dictionary, History, Voice)
+│   ├── components/TopBar.tsx        # Top navigation bar (frosted-glass bar; shows AI Stick logo + label on home, section title + back button on inner pages)
+│   ├── components/BottomNav.tsx     # Fixed bottom navigation bar (Home, Translate, Camera/Lens, Editor, Chat); frosted-glass background; active tab shown with translucent primary pill indicator
 │   └── app/                         # Next.js app router
 ├── TRAINING_GUIDE.md                # Model improvement guide
 ├── PIPELINE_GUIDE.md                # Data pipeline guide
@@ -1553,7 +1555,7 @@ vercel --prod
 
 ### Backend (.env)
 ```bash
-HF_TOKEN=hf_...                    # HuggingFace API token (optional, for private models)
+HF_TOKEN=hf_...                    # HuggingFace API token (optional, for private models and model push). Must be set here or in the environment — never hardcoded in pipeline scripts.
 HF_USERNAME=keithtwesigye          # HuggingFace username for model repositories
 HF_CHAT_MODEL=meta-llama/Llama-3.1-8B-Instruct
 CORS_ORIGINS=http://localhost:3002,http://localhost:3000,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app
@@ -1683,6 +1685,20 @@ If you use this work, please cite:
 - Covers copula constructions, kinship term agreement, enumerative patterns, and the *ka* diminutive/adverbial particle
 - Applied after all existing rules (R/L, nasal assimilation, apostrophe elision) in the normalisation pipeline
 
+### v2.3 - Translator Dark Gold Theme
+- **`Translator.tsx` visual refresh** — translation panels and controls migrated from Material Design 3 surface tokens to an explicit dark charcoal + gold palette
+  - Language direction bar: `#161616` background; active language pill uses a gold tint (`rgba(233,195,73,0.15)` fill, `#e9c349` text)
+  - Source panel: `#121212` background; border opacity reduced to `outline-variant/30`
+  - Output panel: `#0e0e0e` background; border uses `rgba(233,195,73,0.2)` gold accent; output language label styled in `#e9c349`
+  - Translate button: gold fill (`#e9c349`, `#1a1200` text) in idle state; muted dark gold (`#3d3000`) while loading; `gold-glow` shadow utility applied
+  - Loading indicator dots: gold (`#e9c349`) instead of `bg-primary-container`
+  - Dual-model NLLB card: gold-tinted border and background; MarianMT card retains surface-container styling
+  - Feedback/benchmark action buttons (Confirm, Submit Benchmark): gold fill matching the translate button
+  - Score buttons in benchmark: active state uses gold fill; inactive state uses `#121212` background
+  - Feedback correction form and benchmark panel: `#1a1a1a` background; input fields use `#121212`
+  - Domain selector: `#1f1f1f` background; border opacity reduced
+  - Spellcheck tooltip: `#1f1f1f` background with `rgba(233,195,73,0.2)` border; suggestion buttons use `text-primary` with surface-container hover
+
 ### v2.2 - Document Editor Mobile Responsiveness
 - **Document Editor toolbar removed** — the formatting toolbar (bold, italic, underline, lists, alignment, spellcheck, save) has been removed from `DocumentEditor.tsx`. Formatting controls remain available in the dedicated `RunyoroEditor.tsx` component.
 
@@ -1692,7 +1708,7 @@ If you use this work, please cite:
 - **Typography:** Inter font (400/600/700/800) loaded via Google Fonts
 - **Icons:** Material Symbols Outlined added via Google Fonts
 - **PWA title** updated to "AI Stick"
-- **Bottom navigation bar** (`BottomNav.tsx`) — fixed mobile nav with Home, Translate, Chat, and Editor tabs; active tab uses filled icon + secondary-container highlight
+- **Bottom navigation bar** (`BottomNav.tsx`) — fixed mobile nav with Home, Translate, Camera (Lens), Editor, and Chat tabs; active tab uses filled icon inside a translucent primary pill (`bg-primary/15`) with `text-primary` label; bar background is frosted-glass (`rgba(14,14,14,0.92)` + `backdrop-filter: blur(16px)`)
 - **Chat UI redesign** — migrated to Material Design 3 tokens; input upgraded to multi-line textarea with mic button; language switcher (English / Runyoro-Rutooro) added at top; sector list consolidated to 8 domains
 
 ### v2.0 - Enhanced Feedback & Model Comparison
