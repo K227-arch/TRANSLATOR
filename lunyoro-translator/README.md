@@ -58,7 +58,7 @@ The **BottomNav** bar itself also uses a frosted-glass background (`rgba(14,14,1
 - **Direction toggle:** Segmented control switches between English → Runyoro and Runyoro → English; resets query and results on change
 - **Search bar:** Icon-prefixed input with rounded Material Design styling; submits on Enter or the Search button
 - **POS filter chips:** Noun / Verb / Adjective filter pills appear above results once a search returns entries; active pill uses the primary theme colour; chips with zero matches are hidden automatically
-- **Result cards:** Each entry displays the target-language word, source label (Runyoro / Rutooro or English), POS badge, dialect badge, AI/corpus source tag, and confidence percentage; primary-matched entries receive a highlighted border
+- **Result cards:** Each entry displays the target-language word, source label (Runyoro / Rutooro or English), POS badge, dialect badge, AI/corpus source tag, and confidence percentage; primary-matched entries receive a highlighted border; dictionary entries with an empty word or empty English definition are silently filtered out before results are returned, so only well-formed entries are displayed
 - **Example sentences:** Shown in a separated section at the bottom of each card when available
 - **Language rule hints:** Inline banner surfaces interjection/idiom annotations and the R/L rule reminder for Runyoro input searches
 - **Empty state:** Illustrated "no results" message with a search-off icon when a query returns nothing
@@ -130,7 +130,7 @@ The **BottomNav** bar itself also uses a frosted-glass background (`rgba(14,14,1
 - **Direction pill:** Compact top-bar toggle showing current direction (EN ↔ LUN) with swap icon
 - **Translation overlay:** Bounding boxes with translated text overlaid on the captured image using normalized coordinates; dark background with backdrop blur for readability; green text with font size clamped and scaled to region height; **only rendered on the OCR tab and only when the original image view is active** (`showOriginal === true`) — the Identify tab never shows bounding-box overlays, and the overlay is hidden when the canvas-painted translated image is displayed
 - **Canvas-painted translated image:** After OCR results arrive — whether from a file upload or a camera capture — translated text is rendered in-place directly on top of the source image rather than in a separate card. For each detected region the renderer samples all pixels in the bounding box and separates them into three brightness bands (dark < 35%, light > 65%, mid-tone). The majority band determines the background colour (used to erase the original text), while the minority band determines the text colour — so dark text on a light background and light text on a dark background are both handled correctly without a fixed luminance threshold. Font size is initialised at `0.78 × bbox height` (accounting for ascenders/descenders) and shrunk one pixel at a time until the translated text fits within 98% of the region width; no bold weight is applied so the rendered font better matches typical body text. Long translations are word-wrapped using the same 98% width budget, and the resulting text block is centred vertically within the bounding box using `alphabetic` baseline alignment. The canvas retains the original image dimensions and is exported as JPEG at 0.95 quality. The result is stored as `renderedOcrImage` and shown by default in place of the original photo; any previously rendered canvas image is cleared at the start of each new upload so stale results never persist; on each new file upload the view state is also reset (`showOriginal → false`) so the translated canvas view is always shown immediately for the new image
-- **OCR translation list panel:** After OCR results arrive in OCR mode, a translation list is displayed below the action bar. Each detected region is shown as a row with the original text, an arrow, the translated text (bold, primary colour), and a confidence percentage badge. The panel is headed with a count of translations found (e.g. "3 Translations Found") and is only visible when `regions.length > 0` and the mode is `"ocr"`
+- **OCR translation list panel:** After OCR results arrive in OCR mode, a translation list is displayed below the action bar. The panel header shows the count of translations found (e.g. "3 Translations Found") alongside a direction pill (e.g. "EN → RUN" or "RUN → EN") derived from the current `direction` state. Each detected region is rendered as its own card, separated by a divider, with a stacked two-row layout: the source-language label and original text on top, a centred arrow separator, and the target-language label with bold translated text below. A confidence badge is colour-coded by threshold — green (≥ 80 %), yellow (≥ 50 %), or red (< 50 %) — and sits at the bottom-right of the card. The panel is only visible when `regions.length > 0` and the mode is `"ocr"`
 - **Original / Translated toggle:** A pill button (top-right of the image preview, visible only after the canvas-painted image is ready) switches between the canvas-painted translated view and the unmodified original image (`showOriginal` state); when showing the original, the bounding-box overlay is also re-displayed; toggling does not re-run OCR — both images are kept in memory
 - **Results panel:** Slide-up bottom sheet displaying detected translations in a compact paragraph layout — regions are grouped in pairs per line as "original → translated · original → translated"; toggled via a "Results" pill with a close button
 - **Camera switch:** Flip between front and rear cameras via a bottom-bar icon button
@@ -1199,7 +1199,7 @@ lunyoro-translator/
   - Parameters: `text` (required), `context` (optional, up to the last 3 sentences / 400 chars of prior text, used to improve coherence across paragraph-level translation), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Llama 3.1 8B pass to improve grammar, noun-class agreement, R/L rule, apostrophe elision, and kinship terms before returning the result), `direction` (optional string, default `"en->lun"` — accepted for API compatibility but ignored; the endpoint itself determines the translation direction)
 - `POST /translate-reverse` — Lunyoro → English
   - Parameters: `text` (required), `context` (optional), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Llama 3.1 8B pass to improve fluency, accuracy, and natural phrasing of the English output; the call executes in a background thread with a 10s hard timeout so the worker is never blocked beyond that — timeouts and errors fall back silently to the raw MT output and are logged at DEBUG level), `direction` (optional string — accepted for API compatibility but ignored; use `/translate` for en→lun and `/translate-reverse` for lun→en)
-- `POST /lookup` — Dictionary word lookup
+- `POST /lookup` — Dictionary word lookup; results are filtered to exclude dictionary entries that have no useful content (empty `word` or empty `definitionEnglish`), so only well-formed entries are returned
 - `POST /spellcheck` — Lunyoro spellcheck
 
 ### Chat
@@ -1287,6 +1287,17 @@ A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, d
 - `POST /language-rules/apply` — Apply specific grammar rule
 - `GET /history` — Translation history
 - `GET /health` — Health check
+- `GET /ping` — Lightweight keep-alive probe; returns `{"pong": true, "timestamp": "<ISO-8601>"}` instantly without invoking any model. Used by the self-ping keep-alive thread (see below).
+
+### Keep-Alive (HuggingFace Spaces)
+HuggingFace Spaces hibernates after 48 hours of inactivity. To prevent this, `main.py` starts a daemon background thread (`keepalive`) at startup that pings `GET /ping` on the running Space every 25 minutes.
+
+| Env variable | Default | Description |
+|---|---|---|
+| `SPACE_URL` | `https://keithtwesigye-runyoro-translator-api.hf.space` | URL the thread pings |
+| `KEEPALIVE_INTERVAL` | `1500` (25 min) | Ping interval in seconds |
+
+The thread is non-blocking and daemon-flagged — it never delays startup or requests, and it exits automatically when the process stops. Ping failures are logged at `DEBUG` level and do not affect normal operation.
 
 ---
 

@@ -250,6 +250,41 @@ def root():
     return {"message": "Lunyoro/Rutooro Translator API is running"}
 
 
+@app.get("/ping")
+def ping():
+    """Lightweight keep-alive endpoint — returns instantly with no model calls."""
+    return {"pong": True, "timestamp": datetime.utcnow().isoformat()}
+
+
+# ── Self-ping keep-alive ───────────────────────────────────────────────────────
+# HuggingFace Spaces sleep after 48 h of inactivity.
+# This background thread pings /health every 25 minutes to prevent that.
+def _start_keepalive():
+    import requests as _req
+
+    SPACE_URL = os.getenv(
+        "SPACE_URL",
+        "https://keithtwesigye-runyoro-translator-api.hf.space",
+    )
+    PING_INTERVAL = int(os.getenv("KEEPALIVE_INTERVAL", "1500"))  # 25 min default
+
+    def _loop():
+        while True:
+            time.sleep(PING_INTERVAL)
+            try:
+                r = _req.get(f"{SPACE_URL}/ping", timeout=15)
+                logger.info("keep-alive ping → %s %s", r.status_code, SPACE_URL)
+            except Exception as _e:
+                logger.debug("keep-alive ping failed (non-fatal): %s", _e)
+
+    t = threading.Thread(target=_loop, daemon=True, name="keepalive")
+    t.start()
+    logger.info("Keep-alive thread started — pinging every %ds", PING_INTERVAL)
+
+
+_start_keepalive()
+
+
 @app.post("/translate")
 def translate_text(req: TranslateRequest):
     if not req.text.strip():

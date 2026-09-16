@@ -1,4 +1,4 @@
-"""
+﻿"""
 Translation logic:
   Primary  â€” fine-tuned NLLB-200 models (nllb_en2lun / nllb_lun2en) trained locally
   Secondary â€” fine-tuned MarianMT models (en2lun / lun2en) as fallback
@@ -295,29 +295,37 @@ def _load_retrieval():
         _index = pickle.load(f)
     sem_path = _index["model_name"]
 
-    # Always use the model name stored in the index so embeddings stay consistent.
-    # The local sem_model dir may contain a DIFFERENT model — only use it if its
-    # name matches what the index was built with.
-    index_model_name = _index.get("model_name", "paraphrase-multilingual-MiniLM-L12-v2")
-    local_model_name_file = os.path.join(SEM_MODEL_DIR, "sentence_bert_config.json")
-    local_matches = False
-    if os.path.isdir(SEM_MODEL_DIR) and os.path.exists(local_model_name_file):
-        try:
-            import json as _json
-            with open(local_model_name_file) as _lf:
-                _lcfg = _json.load(_lf)
-            if index_model_name in str(_lcfg):
-                local_matches = True
-        except Exception:
-            pass
+    # Prefer local sem_model dir (always present when downloaded by download_models.py)
+    # But verify tokenizer.json is valid (not an LFS pointer)
+    local_sem_ok = False
+    if os.path.isdir(SEM_MODEL_DIR) and any(
+        f.endswith((".json", ".safetensors", ".bin", ".pt"))
+        for f in os.listdir(SEM_MODEL_DIR)
+    ):
+        # Check that tokenizer.json is actually valid JSON (not an LFS pointer)
+        tok_path = os.path.join(SEM_MODEL_DIR, "tokenizer.json")
+        if os.path.exists(tok_path):
+            try:
+                import json
+                with open(tok_path, "r") as tf:
+                    first_char = tf.read(1)
+                    if first_char in ("{", "["):
+                        local_sem_ok = True
+                    else:
+                        logger.warning("tokenizer.json appears to be an LFS pointer, skipping local")
+            except Exception:
+                pass
+        else:
+            local_sem_ok = True  # no tokenizer.json but other files exist
 
-    if local_matches:
+    if local_sem_ok:
         sem_path = SEM_MODEL_DIR
-        logger.info("Loading sem_model from local path (matches index): %s", SEM_MODEL_DIR)
+        logger.info("Loading sem_model from local path: %s", SEM_MODEL_DIR)
     else:
-        # Use the exact model the index was built with — download from HF Hub if needed
-        sem_path = index_model_name
-        logger.info("Loading sem_model from HF Hub (index model): %s", sem_path)
+        # Fall back to HuggingFace Hub
+        hf_sem = HF_MODELS.get("sem_model", "keithtwesigye/lunyoro-sentence-embeddings")
+        sem_path = hf_sem
+        logger.info("Loading sem_model from HF Hub: %s", sem_path)
 
     _sem_model = SentenceTransformer(sem_path)
     _dictionary = _index["dictionary"]
@@ -1707,16 +1715,8 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
         return t
 
     mt_direction = "en2lun" if direction == "enâ†’lun" else "lun2en"
-    # Use NLLB as primary (consistent with /translate), Marian as fallback
-    raw_nllb = _nllb_translate(word, mt_direction)
-    raw_mt   = _mt_translate(word, mt_direction)
-    # Prefer NLLB unless empty; _is_garbage is module-level but guard with try
-    try:
-        _nllb_ok = bool(raw_nllb) and not _is_garbage(raw_nllb)
-    except Exception:
-        _nllb_ok = bool(raw_nllb)
-    raw_primary = raw_nllb if _nllb_ok else raw_mt
-    mt_translation = clean_mt(raw_primary)
+    raw_mt = _mt_translate(word, mt_direction)
+    mt_translation = clean_mt(raw_mt)
 
     # â”€â”€ 1. Exact dictionary match (highest priority) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if direction == "enâ†’lun":
@@ -1724,7 +1724,7 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
             d
             for d in _dictionary
             if word_lower == (d.get("definitionEnglish") or "").lower().strip()
-            or bool(__import__('re').search(r'\\b' + __import__('re').escape(word_lower) + r'\\b', (d.get("definitionEnglish") or "").lower()))
+            or word_lower in (d.get("definitionEnglish") or "").lower().split()
         ]
     else:
         exact = [
@@ -1742,17 +1742,15 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
 
     # â”€â”€ 2. Fuzzy dictionary match â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if direction == "enâ†’lun":
-        # Only match entries that actually have an English definition
-        _def_entries = [d for d in _dictionary if (d.get("definitionEnglish") or "").strip()]
         fuzzy_raw = process.extract(
             word_lower,
-            [(d.get("definitionEnglish") or "").lower() for d in _def_entries],
+            [(d.get("definitionEnglish") or "").lower() for d in _dictionary],
             scorer=fuzz.token_sort_ratio,
             limit=10,
-            score_cutoff=65,
+            score_cutoff=70,
         )
-        for match_text, score, idx_i in fuzzy_raw:
-            entry = _def_entries[idx_i] if idx_i < len(_def_entries) else _index.get("_dict_def_map", {}).get(match_text)
+        for match_text, score, _ in fuzzy_raw:
+            entry = _index["_dict_def_map"].get(match_text)
             if entry and entry["word"] not in seen_words:
                 seen_words.add(entry["word"])
                 results.append(
@@ -1868,12 +1866,6 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
             -x.get("confidence", 0),
         )
     )
-    # Remove dictionary entries that have no useful content
-    results = [
-        r for r in results
-        if r.get("source") != "dictionary"
-        or (r.get("word", "").strip() and r.get("definitionEnglish", "").strip())
-    ]
     return results[:8]
 
 

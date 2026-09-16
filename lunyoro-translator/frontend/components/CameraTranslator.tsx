@@ -568,22 +568,42 @@ export default function CameraTranslator() {
               {/* Classification results — only on Identify tab */}
               {mode === "classify" && classifications.length > 0 && (
                 <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2 bg-surface-container/30">
-                    <span className="material-symbols-outlined text-primary text-[18px]">image_search</span>
-                    <h3 className="text-sm font-semibold text-on-background">Objects Identified</h3>
+                  <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center justify-between bg-primary/5">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>image_search</span>
+                      <h3 className="text-sm font-semibold text-on-background">Objects Identified</h3>
+                    </div>
+                    <span className="text-xs text-on-surface-variant bg-surface-container rounded-full px-2 py-0.5">{classifications.length} results</span>
                   </div>
-                  <div className="px-4 py-3 space-y-3">
-                    {classifications.map((item, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-on-surface-variant truncate">{item.label_en}</p>
-                          <p className="text-base font-semibold text-primary truncate">{item.label_lun}</p>
+                  <div className="divide-y divide-outline-variant/20">
+                    {classifications.map((item, i) => {
+                      const conf = item.confidence;
+                      const barW = Math.round(conf * 100);
+                      return (
+                        <div key={i} className="px-4 py-3.5">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-on-surface-variant uppercase tracking-wider mb-0.5">
+                                {item.label_en}
+                              </p>
+                              <p className="text-lg font-bold text-primary leading-tight">{item.label_lun}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className={`text-sm font-bold ${conf >= 0.7 ? "text-green-600" : conf >= 0.4 ? "text-yellow-600" : "text-red-500"}`}>
+                                {barW}%
+                              </span>
+                            </div>
+                          </div>
+                          {/* Confidence bar */}
+                          <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${conf >= 0.7 ? "bg-green-500" : conf >= 0.4 ? "bg-yellow-500" : "bg-red-400"}`}
+                              style={{ width: `${barW}%` }}
+                            />
+                          </div>
                         </div>
-                        <span className="text-xs text-on-surface-variant/60 bg-surface-container rounded-full px-2 py-0.5 shrink-0">
-                          {(item.confidence * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -591,23 +611,49 @@ export default function CameraTranslator() {
               {/* OCR translation list — shown below the action bar after upload */}
               {mode === "ocr" && regions.length > 0 && (
                 <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2 bg-surface-container/30">
-                    <span className="material-symbols-outlined text-primary text-[18px]">translate</span>
-                    <h3 className="text-sm font-semibold text-on-background">
-                      {regions.length} Translation{regions.length !== 1 ? "s" : ""} Found
-                    </h3>
+                  <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center justify-between bg-primary/5">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>translate</span>
+                      <h3 className="text-sm font-semibold text-on-background">
+                        {regions.length} Translation{regions.length !== 1 ? "s" : ""} Found
+                      </h3>
+                    </div>
+                    <span className="text-xs text-on-surface-variant bg-surface-container rounded-full px-2 py-0.5">
+                      {direction === "en->lun" ? "EN → RUN" : "RUN → EN"}
+                    </span>
                   </div>
-                  <div className="px-4 py-3 space-y-2.5">
-                    {regions.map((r, i) => (
-                      <div key={i} className="flex items-start gap-2 min-w-0">
-                        <span className="text-sm text-on-surface-variant shrink-0 max-w-[42%] truncate">{r.original}</span>
-                        <span className="material-symbols-outlined text-[14px] text-on-surface-variant/40 shrink-0 mt-0.5">arrow_forward</span>
-                        <span className="text-sm font-semibold text-primary min-w-0 break-words">{r.translated}</span>
-                        <span className="ml-auto text-[10px] text-on-surface-variant/50 bg-surface-container rounded-full px-1.5 py-0.5 shrink-0 self-start">
-                          {(r.confidence * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                    ))}
+                  <div className="divide-y divide-outline-variant/20">
+                    {regions.map((r, i) => {
+                      const conf = r.confidence;
+                      const confColor = conf >= 0.8 ? "text-green-600 bg-green-50" : conf >= 0.5 ? "text-yellow-600 bg-yellow-50" : "text-red-500 bg-red-50";
+                      return (
+                        <div key={i} className="px-4 py-3.5 flex flex-col gap-2">
+                          {/* Original text */}
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/50 mt-0.5 w-6 shrink-0">
+                              {direction === "en->lun" ? "EN" : "RN"}
+                            </span>
+                            <span className="text-sm text-on-surface-variant leading-snug flex-1">{r.original}</span>
+                          </div>
+                          {/* Arrow */}
+                          <div className="flex items-center gap-2 pl-8">
+                            <div className="h-px flex-1 bg-primary/20" />
+                            <span className="material-symbols-outlined text-primary text-[14px]">arrow_downward</span>
+                            <div className="h-px flex-1 bg-primary/20" />
+                          </div>
+                          {/* Translated text */}
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-primary/60 mt-0.5 w-6 shrink-0">
+                              {direction === "en->lun" ? "RN" : "EN"}
+                            </span>
+                            <span className="text-base font-bold text-primary leading-snug flex-1">{r.translated}</span>
+                            <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 shrink-0 self-end ${confColor}`}>
+                              {(conf * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
