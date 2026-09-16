@@ -1,0 +1,73 @@
+name: Keep HuggingFace Spaces Alive
+
+# Runs every 20 minutes, 24/7 — completely external to the Spaces.
+# If a Space is sleeping it gets restarted via the HF API before pinging.
+on:
+  schedule:
+    - cron: "*/20 * * * *"   # every 20 minutes, every hour, every day
+  workflow_dispatch:          # allow manual trigger from GitHub Actions UI
+
+jobs:
+  ping-spaces:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: runyoro-translator-api
+            url: https://keithtwesigye-runyoro-translator-api.hf.space
+            space_id: keithtwesigye/runyoro-translator-api
+          - name: bwated-translation
+            url: https://keithtwesigye-bwated-translation.hf.space
+            space_id: keithtwesigye/bwated-translation
+
+    steps:
+      - name: Check Space status and wake if sleeping
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "=== Checking ${{ matrix.name }} ==="
+
+          # Get current runtime stage
+          STAGE=$(curl -sf \
+            -H "Authorization: Bearer $HF_TOKEN" \
+            "https://huggingface.co/api/spaces/${{ matrix.space_id }}" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['runtime']['stage'])" 2>/dev/null || echo "UNKNOWN")
+
+          echo "Current stage: $STAGE"
+
+          # If not running, restart it via the HF API
+          if [ "$STAGE" != "RUNNING" ]; then
+            echo "Space is $STAGE — sending restart ..."
+            curl -sf -X POST \
+              -H "Authorization: Bearer $HF_TOKEN" \
+              "https://huggingface.co/api/spaces/${{ matrix.space_id }}/restart" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print('Restart response:', d.get('stage','?'))"
+
+            echo "Waiting 60s for Space to boot ..."
+            sleep 60
+          fi
+
+          # Ping /ping endpoint — retries up to 5 times with 15s gaps
+          echo "Pinging ${{ matrix.url }}/ping ..."
+          for i in 1 2 3 4 5; do
+            HTTP=$(curl -sf -o /dev/null -w "%{http_code}" \
+              --max-time 20 \
+              "${{ matrix.url }}/ping" 2>/dev/null || echo "000")
+            echo "  Attempt $i: HTTP $HTTP"
+            if [ "$HTTP" = "200" ]; then
+              echo "  ✓ ${{ matrix.name }} is alive"
+              exit 0
+            fi
+            sleep 15
+          done
+
+          echo "  ✗ ${{ matrix.name }} did not respond after 5 attempts"
+          # Do NOT fail the workflow — just log. A sleeping Space may still be booting.
+          exit 0
+
+      - name: Log keep-alive timestamp
+        run: |
+          echo "Keep-alive run completed at $(date -u '+%Y-%m-%dT%H:%M:%SZ') for ${{ matrix.name }}"
