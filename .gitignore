@@ -5,6 +5,16 @@ __pycache__/
 .env
 venv/
 .venv/
+venv312/
+lunyoro-translator/backend/venv312/
+
+# Temp/lock files
+lunyoro-translator/backend/data/word/~$*
+
+# Training logs and temp feedback
+lunyoro-translator/backend/training_log.txt
+lunyoro-translator/backend/sp18_training_log.txt
+lunyoro-translator/backend/feedback/all_feedback_tmp.csv
 
 # Model files - stored on HuggingFace Hub
 lunyoro-translator/backend/model/

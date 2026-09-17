@@ -575,6 +575,45 @@ Converts the fine-tuned NLLB-200 models to ONNX format using [Hugging Face Optim
 - Decoder file auto-detected in priority order: `decoder_model_merged.onnx` (newer Optimum, `use_cache=True`) → `decoder_model.onnx` (`use_cache=False`); a clear error is raised if neither is found
 - Requires `optimum[onnxruntime]` (already in `requirements.txt`); install with `pip install optimum[onnxruntime]` if missing
 
+### 6c-5. Push Models to HuggingFace Hub
+```bash
+python backend/push_models.py --model en2lun          # push a single base PyTorch model
+python backend/push_models.py --model nllb_en2lun     # push NLLB en→lun base model
+python backend/push_models.py --all                   # push all four base PyTorch models
+python backend/push_models.py --all-variants          # push base PyTorch + ONNX FP32 + ONNX INT8
+```
+
+Uploads fine-tuned models from `backend/model/` to HuggingFace Hub. Requires `HF_TOKEN` set in `backend/.env` or the environment.
+
+**Base model repos (`--model` / `--all`):**
+
+| Key | Local dir | HF repo |
+|-----|-----------|---------|
+| `en2lun` | `model/en2lun/` | `keithtwesigye/lunyoro-en2lun` |
+| `lun2en` | `model/lun2en/` | `keithtwesigye/lunyoro-lun2en` |
+| `nllb_en2lun` | `model/nllb_en2lun/` | `keithtwesigye/lunyoro-nllb-en2lun` |
+| `nllb_lun2en` | `model/nllb_lun2en/` | `keithtwesigye/lunyoro-nllb-lun2en` |
+
+**ONNX/INT8 variants (`--all-variants` only):**
+
+ONNX and INT8 models are uploaded as subfolders within the same HF repo rather than separate repos:
+
+| Local dir | HF repo | Subfolder |
+|-----------|---------|-----------|
+| `model/en2lun_onnx/` | `keithtwesigye/lunyoro-en2lun` | `onnx/` |
+| `model/lun2en_onnx/` | `keithtwesigye/lunyoro-lun2en` | `onnx/` |
+| `model/nllb_en2lun_onnx/` | `keithtwesigye/lunyoro-nllb-en2lun` | `onnx/` |
+| `model/nllb_lun2en_onnx/` | `keithtwesigye/lunyoro-nllb-lun2en` | `onnx/` |
+| `model/nllb_en2lun_int8/` | `keithtwesigye/lunyoro-nllb-en2lun` | `onnx_int8/` |
+| `model/nllb_lun2en_int8/` | `keithtwesigye/lunyoro-nllb-lun2en` | `onnx_int8/` |
+
+**Notes:**
+- `--all` and `--model` push base PyTorch model folders only; ONNX/INT8 variants are skipped
+- `--all-variants` first pushes all base models, then uploads each ONNX/INT8 subfolder in sequence
+- Each variant upload uses a dedicated commit message (e.g. `"Add ONNX FP32 export (nllb_en2lun)"`)
+- A missing local directory is logged as an error and skipped — the remaining uploads continue
+- `push()` and `push_variant()` both return `True`/`False` so callers can detect failures
+
 ### 6d. Run Full Training Pipeline with New-Only Data + Full Deploy
 ```bash
 python backend/run_full_training.py                                  # full pipeline (5 epochs each)
@@ -616,7 +655,7 @@ Each direction is trained as a separate step, so you can tune epoch counts indep
 4. **NLLB lun2en** — `train_nllb.py --direction lun2en --new-only` *(skipped with `--skip-nllb` or `--retrain-marian-only`)*
 5. **MarianMT retrain en2lun** — `train_marian.py --direction en2lun --new-only` on new-only data, validated against the **full `val.csv`** *(always runs)*
 6. **MarianMT retrain lun2en** — same as above for lun→en *(always runs)*
-7. **HF Hub push** — `push_models.py --all`
+7. **HF Hub push** — `push_models.py --all` (base PyTorch models only; use `--all-variants` to also upload ONNX/INT8 subfolders)
 8. **HF Space push** — `push_to_hf_space.py`
 9. **Git push** — stages training CSVs + pipeline scripts (including `language_rules_gr4.py`, `language_rules_gr5.py`, `translate.py`, `generate_grammar_pairs.py`), commits with a datestamped message, and pushes to both `origin` and `k227` remotes
 
