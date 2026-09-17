@@ -237,6 +237,43 @@ def _qwen_refine_translation(source_en: str, draft_lun: str) -> str:
         return draft_lun
 
 
+def _qwen_refine_lun2en(source_lun: str, draft_en: str) -> str:
+    """
+    Run a Qwen LLM pass to refine a lun->en MT draft translation.
+    Cleans up awkward phrasing, double subjects, and language artefacts.
+    Returns draft unchanged on any failure.
+    """
+    try:
+        hf_token = os.getenv("HF_TOKEN", "")
+        hf_model = os.getenv("HF_CHAT_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
+        if not hf_token:
+            return draft_en
+        from openai import OpenAI as _OAI
+        prompt = (
+            "You are an English language editor. "
+            "A machine translation system produced the draft English translation below from a Runyoro-Rutooro source. "
+            "Fix any grammatical errors, remove duplicate subjects (e.g. 'The man he went' → 'The man went'), "
+            "strip any language-code prefixes (e.g. 'run_Latn:', 'eng_Latn:'), "
+            "ensure natural English fluency, and correct capitalisation and punctuation. "
+            "Output ONLY the corrected English text, nothing else."
+        )
+        client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+        resp = client.chat.completions.create(
+            model=hf_model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Runyoro: {source_lun}\nDraft English: {draft_en}\nRefined English:"},
+            ],
+            max_tokens=256,
+            temperature=0.2,
+        )
+        refined = resp.choices[0].message.content.strip()
+        return refined if refined and len(refined) > 3 else draft_en
+    except Exception:
+        return draft_en
+
+
+
 class WordLookupRequest(BaseModel):
     word: str
     direction: str = "en→lun"
@@ -1655,6 +1692,11 @@ def _get_ocr_engine():
         import easyocr
         import torch
         use_gpu = torch.cuda.is_available()
+        if use_gpu:
+            gpu_name = torch.cuda.get_device_name(0)
+            print(f"[ocr] GPU detected: {gpu_name} — EasyOCR will use GPU")
+        else:
+            print("[ocr] No GPU detected — EasyOCR will use CPU")
         _ocr_reader = easyocr.Reader(["en"], gpu=use_gpu)
         _ocr_engine = "easyocr"
         print(f"[ocr] Using EasyOCR engine (GPU={use_gpu})")
@@ -1708,17 +1750,25 @@ def _run_ocr(img):
     return []
 
 
-def _translate_region(text: str, direction: str) -> str:
-    """Translate a detected text region using NLLB (primary) + MarianMT fallback."""
+def _translate_region(text: str, direction: str, refine: bool = True) -> str:
+    """Translate a detected text region using NLLB (primary) + MarianMT fallback.
+    Optionally refines the draft with Qwen LLM for higher accuracy.
+    """
     from translate import _nllb_translate, _mt_translate
     if direction == "en->lun":
         translation = _nllb_translate(text, "en2lun")
         if not translation:
             translation = _mt_translate(text, "en2lun")
+        # Qwen refinement: improve Runyoro-Rutooro grammar and accuracy
+        if refine and translation:
+            translation = _qwen_refine_translation(text, translation)
     else:
         translation = _nllb_translate(text, "lun2en")
         if not translation:
             translation = _mt_translate(text, "lun2en")
+        # For lun->en, use Qwen to clean up English output
+        if refine and translation:
+            translation = _qwen_refine_lun2en(text, translation)
     return translation or text
 
 

@@ -110,7 +110,7 @@ The **BottomNav** bar itself also uses a frosted-glass background (`rgba(14,14,1
 - **Bounding box overlay:** Returns normalized coordinates (0–1) for responsive text overlay on any screen size
 - **Bidirectional:** Supports both English → Lunyoro and Lunyoro → English directions
 - **Confidence filtering:** Low-confidence detections (< 0.3) are automatically excluded
-- **GPU acceleration:** EasyOCR automatically uses CUDA GPU when available for faster text detection; falls back to CPU otherwise
+- **GPU acceleration:** EasyOCR automatically uses CUDA GPU when available for faster text detection; falls back to CPU otherwise. On startup the server logs the detected GPU name (e.g. `[ocr] GPU detected: NVIDIA GeForce RTX 3080 — EasyOCR will use GPU`) or a CPU-fallback notice, making it easy to confirm hardware utilisation in the server logs
 - **Requires:** `easyocr` (Python < 3.12 only), `pytesseract`, `opencv-python-headless`
 
 ### Image Classification & Translation
@@ -1239,6 +1239,7 @@ lunyoro-translator/
 - `POST /translate-reverse` — Lunyoro → English
   - Parameters: `text` (required), `context` (optional), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Llama 3.1 8B pass to improve fluency, accuracy, and natural phrasing of the English output; the call executes in a background thread with a 10s hard timeout so the worker is never blocked beyond that — timeouts and errors fall back silently to the raw MT output and are logged at DEBUG level), `direction` (optional string — accepted for API compatibility but ignored; use `/translate` for en→lun and `/translate-reverse` for lun→en)
 - `POST /lookup` — Dictionary word lookup; results are filtered to exclude dictionary entries that have no useful content (empty `word` or empty `definitionEnglish`), so only well-formed entries are returned
+  - Parameters: `word` (required), `direction` (optional, default `"en→lun"` — use `"lun→en"` for Runyoro → English lookups)
 - `POST /spellcheck` — Lunyoro spellcheck
 
 ### Chat
