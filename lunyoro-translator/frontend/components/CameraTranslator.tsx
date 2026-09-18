@@ -311,7 +311,7 @@ export default function CameraTranslator() {
     setClassifyLoading(true); setError(""); setClassifyImage(URL.createObjectURL(file)); setClassifications([]); stopCamera();
     const fd = new FormData(); fd.append("file", file);
     try {
-      const res = await fetch(`${API}/classify-image?top_k=5`, { method: "POST", body: fd });
+      const res = await fetch(`${API}/classify-image?top_k=1`, { method: "POST", body: fd });
       const data = await res.json();
       if (data.detail) setError(data.detail); else setClassifications(data.predictions || []);
     } catch { setError("Could not connect to translation server."); }
@@ -565,48 +565,23 @@ export default function CameraTranslator() {
                 </div>
               )}
 
-              {/* Classification results — only on Identify tab */}
-              {mode === "classify" && classifications.length > 0 && (
-                <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center justify-between bg-primary/5">
-                    <div className="flex items-center gap-2">
+              {mode === "classify" && classifications.length > 0 && (() => {
+                const item = classifications[0];
+                return (
+                  <div className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2 bg-primary/5">
                       <span className="material-symbols-outlined text-primary text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>image_search</span>
-                      <h3 className="text-sm font-semibold text-on-background">Objects Identified</h3>
+                      <h3 className="text-sm font-semibold text-on-background">Object Identified</h3>
                     </div>
-                    <span className="text-xs text-on-surface-variant bg-surface-container rounded-full px-2 py-0.5">{classifications.length} results</span>
+                    <div className="px-5 py-5 flex flex-col items-center gap-2">
+                      {/* Runyoro name — large and prominent */}
+                      <p className="text-3xl font-bold text-primary text-center leading-tight">{item.label_lun}</p>
+                      {/* English label */}
+                      <p className="text-sm text-on-surface-variant text-center">{item.label_en}</p>
+                    </div>
                   </div>
-                  <div className="divide-y divide-outline-variant/20">
-                    {classifications.map((item, i) => {
-                      const conf = item.confidence;
-                      const barW = Math.round(conf * 100);
-                      return (
-                        <div key={i} className="px-4 py-3.5">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-on-surface-variant uppercase tracking-wider mb-0.5">
-                                {item.label_en}
-                              </p>
-                              <p className="text-lg font-bold text-primary leading-tight">{item.label_lun}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className={`text-sm font-bold ${conf >= 0.7 ? "text-green-600" : conf >= 0.4 ? "text-yellow-600" : "text-red-500"}`}>
-                                {barW}%
-                              </span>
-                            </div>
-                          </div>
-                          {/* Confidence bar */}
-                          <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${conf >= 0.7 ? "bg-green-500" : conf >= 0.4 ? "bg-yellow-500" : "bg-red-400"}`}
-                              style={{ width: `${barW}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* OCR translation list — shown below the action bar after upload */}
               {mode === "ocr" && regions.length > 0 && (

@@ -274,6 +274,49 @@ def _qwen_refine_lun2en(source_lun: str, draft_en: str) -> str:
 
 
 
+def _qwen_verify_image_label(raw_label: str) -> str:
+    """
+    Ask Qwen to verify/correct a MobileNetV2 image classification label.
+    MobileNetV2 returns verbose ImageNet labels like 'african elephant, Loxodonta africana'
+    or misclassifies entirely. Qwen confirms the most accurate common English noun.
+    Returns the verified label, or raw_label unchanged on any failure.
+    """
+    try:
+        hf_token = os.getenv("HF_TOKEN", "")
+        hf_model = os.getenv("HF_CHAT_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
+        if not hf_token:
+            return raw_label
+        from openai import OpenAI as _OAI
+        prompt = (
+            "You are a label cleaning assistant. "
+            "A computer vision model returned an ImageNet classification label. "
+            "Your job is to return the single most accurate, simple, common English noun "
+            "that describes what was in the image. "
+            "Rules:\n"
+            "- Return ONLY the noun (1-3 words max), nothing else\n"
+            "- Use the simplest common name (e.g. 'elephant' not 'african elephant')\n"
+            "- If the label already looks correct and simple, return it as-is\n"
+            "- Never add explanation, punctuation, or extra words\n"
+        )
+        client = _OAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+        resp = client.chat.completions.create(
+            model=hf_model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Label: {raw_label}\nSimplified:"},
+            ],
+            max_tokens=16,
+            temperature=0.1,
+        )
+        verified = resp.choices[0].message.content.strip().lower()
+        # Sanity check — if response is too long or empty, fall back
+        if verified and len(verified.split()) <= 4:
+            return verified
+        return raw_label
+    except Exception:
+        return raw_label
+
+
 class WordLookupRequest(BaseModel):
     word: str
     direction: str = "en→lun"
@@ -1943,14 +1986,21 @@ async def classify_image(file: UploadFile = File(...), top_k: int = 5):
     # Translate each English label to Runyoro
     results = []
     for pred in predictions:
-        label_en = pred["label"]
+        raw_label = pred["label"]
+        # Step 1 — Qwen verifies/simplifies the MobileNetV2 label
+        # e.g. "african elephant" → "elephant", handles misclassifications
+        label_en = _qwen_verify_image_label(raw_label)
+        # Step 2 — NLLB/MarianMT translates the verified English label to Runyoro
         translation_result = translate(label_en)
         label_lun = translation_result.get("translation", label_en)
+        # Step 3 — Qwen refines the Runyoro output (noun class, R/L rule, grammar)
+        refined_lun = _qwen_refine_translation(label_en, label_lun)
         results.append({
             "label_en": label_en,
-            "label_lun": label_lun,
+            "label_lun": refined_lun,
+            "label_lun_raw": label_lun,
             "confidence": pred["confidence"],
-            "method": translation_result.get("method", "unknown"),
+            "method": translation_result.get("method", "unknown") + "+qwen",
         })
 
     return {

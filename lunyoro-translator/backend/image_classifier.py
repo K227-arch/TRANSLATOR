@@ -23,6 +23,108 @@ _MAGIC_BYTES = {
     b"RIFF": "image/webp",  # WebP starts with RIFF....WEBP
 }
 
+# ── ImageNet label normalisation ──────────────────────────────────────────────
+# ImageNet uses verbose/scientific labels that translate poorly.
+# Map them to clean common English nouns that the MT models know well.
+_LABEL_NORMALISE = {
+    # Elephants
+    "african elephant": "elephant",
+    "indian elephant": "elephant",
+    "tusker": "elephant",
+    # Big cats
+    "tiger cat": "cat",
+    "egyptian cat": "cat",
+    "tabby": "cat",
+    "persian cat": "cat",
+    "siamese cat": "cat",
+    "cougar": "lion",
+    "cheetah": "cheetah",
+    "snow leopard": "leopard",
+    "jaguar": "leopard",
+    # Dogs
+    "german shepherd": "dog",
+    "golden retriever": "dog",
+    "labrador retriever": "dog",
+    "dalmatian": "dog",
+    "poodle": "dog",
+    "bulldog": "dog",
+    # Birds
+    "cock": "chicken",
+    "hen": "chicken",
+    "ostrich": "ostrich",
+    "peacock": "peacock",
+    "flamingo": "flamingo",
+    "pelican": "pelican",
+    "hornbill": "hornbill",
+    "hummingbird": "bird",
+    "bald eagle": "eagle",
+    "kite": "bird",
+    "vulture": "vulture",
+    "macaw": "parrot",
+    "lorikeet": "parrot",
+    # Primates
+    "chimpanzee": "chimpanzee",
+    "gorilla": "gorilla",
+    "baboon": "baboon",
+    "macaque": "monkey",
+    "langur": "monkey",
+    "colobus": "monkey",
+    # Reptiles
+    "african crocodile": "crocodile",
+    "american alligator": "crocodile",
+    "komodo dragon": "lizard",
+    "nile crocodile": "crocodile",
+    # Bovines / farm animals
+    "water buffalo": "buffalo",
+    "bison": "buffalo",
+    "ox": "bull",
+    "ram": "goat",
+    "ibex": "goat",
+    # Other wildlife
+    "hippopotamus": "hippo",
+    "warthog": "pig",
+    "wild boar": "pig",
+    "zebra": "zebra",
+    "impala": "antelope",
+    "gazelle": "antelope",
+    "hartebeest": "antelope",
+    "eland": "antelope",
+    "rhinoceros beetle": "beetle",
+    "african grey": "parrot",
+    "green mamba": "snake",
+    "king cobra": "snake",
+    "rock python": "snake",
+    # Trees / plants
+    "banana": "banana",
+    "pineapple": "pineapple",
+    "jackfruit": "jackfruit",
+    "fig": "fig",
+    # Vehicles
+    "motor scooter": "motorcycle",
+    "moped": "motorcycle",
+    "go-kart": "car",
+    "jeep": "car",
+    "minivan": "car",
+    "ambulance": "car",
+    "fire engine": "car",
+    "pickup": "car",
+    "taxicab": "taxi",
+    # Common objects
+    "laptop": "laptop",
+    "notebook": "laptop",
+    "desktop computer": "computer",
+    "monitor": "screen",
+    "cellular telephone": "phone",
+    "mobile phone": "phone",
+    "payphone": "phone",
+}
+
+
+def _normalise_label(raw: str) -> str:
+    """Map verbose ImageNet labels to clean common nouns."""
+    key = raw.lower().strip()
+    return _LABEL_NORMALISE.get(key, raw)
+
 
 def _detect_mime_from_bytes(data: bytes) -> str | None:
     """Detect image MIME type from magic bytes."""
@@ -159,7 +261,9 @@ class ImageClassifier:
         for prob, idx in zip(top_probs, top_indices):
             label = self._model.config.id2label[idx.item()]
             # Clean up ImageNet labels (they can have commas for synonyms)
+            # then normalise verbose labels to clean common nouns
             label = label.split(",")[0].strip().lower()
+            label = _normalise_label(label)
             results.append({
                 "label": label,
                 "confidence": round(prob.item(), 4),
