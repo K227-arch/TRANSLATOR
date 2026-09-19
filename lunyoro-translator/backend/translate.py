@@ -354,7 +354,9 @@ def _load_mt(direction: str):
     onnx_path = os.path.join(MODEL_DIR, f"{direction}_onnx")
 
     # â”€â”€ Try ONNX first (faster inference) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if os.path.isdir(onnx_path) and any(
+    # Skip ONNX if DISABLE_ONNX=1 — load FP32 PyTorch directly
+    _disable_onnx_mt = os.getenv("DISABLE_ONNX", "0").strip() in ("1", "true", "yes")
+    if not _disable_onnx_mt and os.path.isdir(onnx_path) and any(
         f.endswith(".onnx") for f in os.listdir(onnx_path)
     ):
         try:
@@ -608,10 +610,15 @@ def _load_nllb(direction: str) -> bool:
             return False
 
     # Priority: INT8 > FP32 ONNX > PyTorch
-    if _dir_has_onnx(int8_path) and _try_load_onnx(int8_path, "ONNX INT8"):
-        return True
-    if _dir_has_onnx(onnx_path) and _try_load_onnx(onnx_path, "ONNX FP32"):
-        return True
+    # Set DISABLE_ONNX=1 in .env to skip all ONNX variants and use FP32 PyTorch directly.
+    _disable_onnx = os.getenv("DISABLE_ONNX", "0").strip() in ("1", "true", "yes")
+    if not _disable_onnx:
+        if _dir_has_onnx(int8_path) and _try_load_onnx(int8_path, "ONNX INT8"):
+            return True
+        if _dir_has_onnx(onnx_path) and _try_load_onnx(onnx_path, "ONNX FP32"):
+            return True
+    else:
+        logger.info("DISABLE_ONNX=1 — skipping ONNX, loading FP32 PyTorch for NLLB %s", direction)
 
     # On HF Space cpu-basic: /app/model has 1GB limit so NLLB can't be stored there.
     # Instead, stream from HF Hub cache (/root/.cache/huggingface) which is unlimited.

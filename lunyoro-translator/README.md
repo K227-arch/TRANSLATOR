@@ -576,6 +576,7 @@ Converts the fine-tuned NLLB-200 models to ONNX format using [Hugging Face Optim
   1. **INT8 ONNX** — `model/nllb_{direction}_int8/` (fastest; produced by `export_nllb_onnx_int8.py`)
   2. **FP32 ONNX** — `model/nllb_{direction}_onnx/` (produced by `export_nllb_onnx.py`)
   3. **PyTorch** — `model/nllb_{direction}/` (fallback; loads in `float16` on CPU to reduce memory)
+- Set `DISABLE_ONNX=1` in `.env` (or the environment) to skip steps 1 and 2 and load the FP32 PyTorch model directly — useful when ONNX runtime is unavailable or causing issues. Accepted values: `1`, `true`, `yes`.
 - Decoder file auto-detected in priority order: `decoder_model_merged.onnx` (newer Optimum, `use_cache=True`) → `decoder_model.onnx` (`use_cache=False`); a clear error is raised if neither is found
 - Requires `optimum[onnxruntime]` (already in `requirements.txt`); install with `pip install optimum[onnxruntime]` if missing
 
