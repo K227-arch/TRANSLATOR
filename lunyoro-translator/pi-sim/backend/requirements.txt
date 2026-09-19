@@ -1,0 +1,43 @@
+# pi-sim backend requirements
+# CPU-only inference stack — mirrors what the Pi runs, on x86
+
+# Web framework
+fastapi>=0.111.0
+uvicorn>=0.29.0
+python-multipart>=0.0.9
+
+# ONNX Runtime — CPU only (no onnxruntime-gpu)
+onnxruntime>=1.18.0
+optimum[onnxruntime]>=1.18.0
+
+# HuggingFace stack (tokenizers + transformers; torch installed separately in Dockerfile)
+transformers>=4.41.0,<4.52.0
+sentencepiece>=0.2.0
+huggingface_hub>=0.23.0
+
+# Real backend helpers (imported from mounted /backend volume)
+# These are satisfied by the /backend volume at runtime — listed here so the
+# container image has them available even before the volume is mounted:
+sentence-transformers>=3.0.0,<4.0.0
+rapidfuzz>=3.9.1
+numpy>=1.26.0
+python-dotenv>=1.0.1
+pydantic>=2.7.1
+requests>=2.32.0
+
+# OCR (optional — gracefully skipped if tesseract binary not found)
+pytesseract>=0.3.10
+# easyocr is Python < 3.12 only; include it so OCR features work in pi-sim too
+easyocr>=1.7.0;python_version<"3.12"
+opencv-python-headless>=4.9.0
+Pillow>=10.0.0
+
+# Image classification (MobileNetV2)
+# torch already installed from CPU wheel in Dockerfile
+
+# Document processing (for /summarize-pdf via sidecar)
+PyPDF2>=3.0.1
+python-docx>=1.1.0
+
+# Memory stats for /system-info
+psutil>=5.9.0

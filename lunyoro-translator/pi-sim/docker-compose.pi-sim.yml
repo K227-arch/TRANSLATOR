@@ -1,0 +1,164 @@
+version: "3.9"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pi-Sim Stack — Raspberry Pi 5 AI Stick virtual environment
+#
+# Runs on a completely isolated Docker network (pisim_net) so it never
+# touches the original dev stack (lunyoro-translator_default network).
+# All four services communicate only over pisim_net; nothing leaks out.
+#
+# Services:
+#   pi-sim-backend   Port 8080  Python ORT (NLLB INT8 + Marian FP32 ONNX)
+#   pi-sim-sidecar   Port 8001  Python FastAPI (batch, PDF, classify, chat)
+#   pi-sim-nginx     Port 8090  Nginx router (mirrors Pi's nginx-translator.conf)
+#   pi-sim-frontend  Port 3090  Next.js static frontend
+#
+# Usage (from inside lunyoro-translator/pi-sim/):
+#   docker compose --project-name pi-sim -f docker-compose.pi-sim.yml up --build
+#
+#   Or use the launcher script:
+#   .\start-pi-sim.ps1 -Build
+#
+# Then open: http://localhost:3090  (full UI)
+#            http://localhost:8090  (API via nginx)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Project-level network — completely separate from the original dev stack.
+# The original stack uses `lunyoro-translator_default`; this stack uses
+# `pi-sim_pisim_net`. The two networks are never connected.
+networks:
+  pisim_net:
+    driver: bridge
+    name: pisim_net   # explicit name avoids project-prefix collision
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24   # distinct subnet from Docker's default 172.17/18
+
+services:
+
+  # ── Backend: Python ORT — greedy NLLB INT8 + Marian FP32 ONNX ──────────────
+  pi-sim-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: pi-sim-backend:latest
+    container_name: pi-sim-backend
+    networks:
+      - pisim_net
+    ports:
+      - "8080:8080"   # host:container — only pi-sim uses 8080
+    volumes:
+      # ONNX model directories — mounted read-only (no writes needed)
+      - ../backend/model:/models:ro
+      # Real backend source (translate.py, language_rules_data.py, etc.)
+      # mounted so pi-sim can import grammar helpers, retrieval, spellcheck
+      - ../backend:/backend:ro
+      # Writable scratch for history.json and feedback entries
+      - pisim_history:/tmp/pisim
+    environment:
+      MODEL_DIR: /models
+      BACKEND_DIR: /backend
+      HISTORY_FILE: /tmp/pisim/history.json
+      CORS_ORIGINS: "http://localhost:3090,http://localhost:8090,http://pi-sim-frontend:3000,http://pi-sim-nginx:80"
+      NLLB_THREADS: "4"
+      MARIAN_THREADS: "2"
+      MARIAN_GREEDY: "0"          # 0 = beam-search (higher quality); 1 = greedy (Pi-exact)
+      LOG_LEVEL: INFO
+      # Offline — all models are on the mounted volume; no HF downloads
+      TRANSFORMERS_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      HF_HUB_OFFLINE: "1"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 10s
+      start_period: 120s    # NLLB INT8 takes ~60-90s to load on first run
+      retries: 6
+    restart: unless-stopped
+    mem_limit: 8g
+    memswap_limit: 8g
+
+  # ── Sidecar: batch / PDF / classify / chat / language-rules ─────────────────
+  pi-sim-sidecar:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    image: pi-sim-sidecar:latest
+    container_name: pi-sim-sidecar
+    networks:
+      - pisim_net
+    ports:
+      - "8001:8001"
+    volumes:
+      - pisim_mobilenet:/app/models/mobilenet_v2
+    environment:
+      # Reaches backend by container name over pisim_net — never touches host network
+      CPP_BACKEND_URL: "http://pi-sim-backend:8080"
+      TRANSFORMERS_OFFLINE: "1"
+      LOG_LEVEL: INFO
+    depends_on:
+      pi-sim-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 8s
+      start_period: 30s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 512m
+
+  # ── Nginx router — mirrors Pi's nginx-translator.conf ─────────────────────
+  pi-sim-nginx:
+    image: nginx:1.27-alpine
+    container_name: pi-sim-nginx
+    networks:
+      - pisim_net
+    ports:
+      - "8090:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      pi-sim-backend:
+        condition: service_healthy
+      pi-sim-sidecar:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Frontend: Next.js ──────────────────────────────────────────────────────
+  # Browser-side JS must reach the API at a host:port the user's browser can
+  # resolve — not a Docker container name. So NEXT_PUBLIC_API_URL points to
+  # localhost:8090 (the nginx host port), not the internal container name.
+  pi-sim-frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8090"
+    image: pi-sim-frontend:latest
+    container_name: pi-sim-frontend
+    networks:
+      - pisim_net
+    ports:
+      - "3090:3000"
+    depends_on:
+      - pi-sim-nginx
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 20s
+      timeout: 8s
+      start_period: 30s
+      retries: 5
+
+volumes:
+  pisim_history:
+    name: pisim_history     # explicit name avoids project-prefix in `docker volume ls`
+  pisim_mobilenet:
+    name: pisim_mobilenet
