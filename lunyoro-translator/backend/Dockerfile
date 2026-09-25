@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir --timeout=300 --retries=5 \
 # Install remaining deps (torch already satisfied above, so pip skips it)
 COPY requirements.txt .
 RUN pip install --no-cache-dir --timeout=300 --retries=5 \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
         -r requirements.txt
 
 # App code

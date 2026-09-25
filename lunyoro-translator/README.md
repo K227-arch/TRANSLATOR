@@ -33,7 +33,7 @@ The app uses a fixed **BottomNav** bar with five tabs:
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
-| Home | `HomeDashboard` | Landing page with feature cards |
+| Home | `HomeDashboard` | Landing dashboard with tool list, system status, and recent translations |
 | Translate | `Translator` | English ↔ Lunyoro translation |
 | Camera | `CameraTranslator` | Camera OCR translation (Google Lens-like) |
 | Chat | `ChatPage` | AI language assistant |
@@ -47,7 +47,23 @@ Additional pages accessible from Home dashboard cards:
 | History | `History` | Translation history log |
 | Voice | `VoiceTranslator` | Voice input translation |
 
-Inner pages (Editor, Dictionary, History, Voice, Camera, Help) display a section title in the **TopBar** and a back button that returns to Home. On the home view the TopBar shows the AI Stick logo and an "AI Stick" text label (hidden on small screens). The bar uses a frosted-glass background (`rgba(14,14,14,0.85)` with `backdrop-filter: blur(16px)`) so it remains legible over any page content.
+### Home Dashboard (`HomeDashboard.tsx`)
+- **Hero banner:** Theme-aware gradient card (light: warm gold on white; dark: deep gold on near-black) with the headline "Uncompromised Power, Fully Offline" and a "START TRANSLATING" CTA; stat pills surface the two loaded AI models (NLLB-200, MarianMT); a decorative `memory` chip icon fades into the background at low opacity
+- **Primary Tools list:** Vertical list (not a grid) of five navigation targets rendered as a single rounded card with dividers; each row shows a gold-tinted icon, title, description, and a chevron; tapping any row calls `onNavigate(tab)`
+
+| Tool | Tab ID | Description shown |
+|------|--------|-------------------|
+| Translator | `translate` | Instant neural translation — English ↔ Runyoro-Rutooro |
+| Word Editor | `editor` | Advanced syntax & grammar refining in Runyoro |
+| AI Chatbot | `chat` | Conversational grammar and culture assistant |
+| Document & Audio | `camera` | Batch process documents and voice recordings |
+| Dictionary | `dictionary` | Offline etymology and comprehensive definitions |
+
+- **System Status section:** Fetches `GET /system-info` on mount and renders three live status pills — GPU Accelerated / CPU Mode, Neural Engine (NLLB), and Local Models (Marian); each pill cycles through `loading → ok / warn / off` states using colour-coded backgrounds and a dot indicator
+- **Recent Translations:** Shows the last three history entries (from `GET /history`); each row displays the source text, direction, and time; tapping navigates to the Translate tab; an illustrated empty state is shown when no history exists
+- **Theme awareness:** Reads `useTheme()` (`"light"` or `"dark"`) and resolves all colour tokens inline — no CSS class names are used for themed colours; adapts hero gradient, badge colours, card backgrounds, text, and icon tints accordingly
+
+Inner pages (Editor, Dictionary, History, Voice, Camera, Help) display a section title in the **TopBar** and a back button that returns to Home. On the home view the TopBar shows the AI Stick logo and an "AI Stick" text label (hidden on small screens). The bar uses a theme-aware frosted-glass background (`rgba(250,250,248,0.90)` in light mode, `rgba(14,14,14,0.85)` in dark mode, both with `backdrop-filter: blur(16px)`) so it remains legible over any page content. A **theme toggle** button (sun/moon icon) in the top-right switches between light and dark mode via the `ThemeProvider` context (`useTheme` hook); the button is always visible alongside the optional help and account icons.
 
 The **BottomNav** bar itself also uses a frosted-glass background (`rgba(14,14,14,0.92)` with `backdrop-filter: blur(16px)`) and a subtle top border (`border-outline-variant/30`). The active tab is indicated by a filled icon inside a translucent primary pill (`bg-primary/15`) with the label coloured `text-primary`; inactive tabs use `text-on-surface-variant` and highlight to `text-on-surface` on hover. No opaque container chip is applied to the active item.
 
@@ -575,7 +591,7 @@ Converts the fine-tuned NLLB-200 models to ONNX format using [Hugging Face Optim
 - `translate.py` automatically selects the best available NLLB backend at load time using this priority order:
   1. **INT8 ONNX** — `model/nllb_{direction}_int8/` (fastest; produced by `export_nllb_onnx_int8.py`)
   2. **FP32 ONNX** — `model/nllb_{direction}_onnx/` (produced by `export_nllb_onnx.py`)
-  3. **PyTorch** — `model/nllb_{direction}/` (fallback; loads in `float16` on CPU to reduce memory)
+  3. **PyTorch** — `model/nllb_{direction}/` (fallback; loads in `float16` on CPU to reduce memory; set `FORCE_FP32=1` to override and use `float32` everywhere)
 - Set `DISABLE_ONNX=1` in `.env` (or the environment) to skip steps 1 and 2 and load the FP32 PyTorch model directly — useful when ONNX runtime is unavailable or causing issues. Accepted values: `1`, `true`, `yes`.
 - Decoder file auto-detected in priority order: `decoder_model_merged.onnx` (newer Optimum, `use_cache=True`) → `decoder_model.onnx` (`use_cache=False`); a clear error is raised if neither is found
 - Requires `optimum[onnxruntime]` (already in `requirements.txt`); install with `pip install optimum[onnxruntime]` if missing
@@ -1225,7 +1241,7 @@ lunyoro-translator/
 │   ├── components/Dictionary.tsx    # Dictionary lookup UI
 │   ├── components/History.tsx       # Translation history UI
 │   ├── components/VoiceTranslator.tsx # Voice input translation UI
-│   ├── components/TopBar.tsx        # Top navigation bar (frosted-glass bar; shows AI Stick logo + label on home, section title + back button on inner pages)
+│   ├── components/TopBar.tsx        # Top navigation bar (theme-aware frosted-glass bar; shows AI Stick logo + label on home, section title + back button on inner pages; theme toggle button in top-right via ThemeProvider)
 │   ├── components/BottomNav.tsx     # Fixed bottom navigation bar (Home, Translate, Camera/Lens, Editor, Chat); frosted-glass background; active tab shown with translucent primary pill indicator
 │   └── app/                         # Next.js app router
 ├── TRAINING_GUIDE.md                # Model improvement guide
@@ -1243,12 +1259,12 @@ lunyoro-translator/
   - Parameters: `text` (required), `context` (optional, up to the last 3 sentences / 400 chars of prior text, used to improve coherence across paragraph-level translation), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Llama 3.1 8B pass to improve grammar, noun-class agreement, R/L rule, apostrophe elision, and kinship terms before returning the result), `direction` (optional string, default `"en->lun"` — accepted for API compatibility but ignored; the endpoint itself determines the translation direction)
 - `POST /translate-reverse` — Lunyoro → English
   - Parameters: `text` (required), `context` (optional), `refine` (optional bool, default `false` — when `true` and `HF_TOKEN` is set, runs a Llama 3.1 8B pass to improve fluency, accuracy, and natural phrasing of the English output; the call executes in a background thread with a 10s hard timeout so the worker is never blocked beyond that — timeouts and errors fall back silently to the raw MT output and are logged at DEBUG level), `direction` (optional string — accepted for API compatibility but ignored; use `/translate` for en→lun and `/translate-reverse` for lun→en)
-- `POST /lookup` — Dictionary word lookup; results are filtered to exclude dictionary entries that have no useful content (empty `word` or empty `definitionEnglish`), so only well-formed entries are returned
+- `POST /lookup` — Dictionary word lookup; results are filtered to exclude dictionary entries that have no useful content (empty `word` or empty `definitionEnglish`), so only well-formed entries are returned. Results are sorted by source priority: **neural MT first** (direct translation, confidence 0.95), then exact dictionary matches (confidence 1.0), then fuzzy dictionary matches, then corpus results — within each tier, higher-confidence results come first. Up to 10 results are returned.
   - Parameters: `word` (required), `direction` (optional, default `"en→lun"` — use `"lun→en"` for Runyoro → English lookups)
 - `POST /spellcheck` — Lunyoro spellcheck
 
 ### Chat
-- `POST /chat` — AI language assistant (Llama 3.1 8B). Replies in English only, plain prose, 2–4 paragraphs. System prompt includes the startup grammar context (built from `get_grammar_context()`, `get_gr4_grammar_context()`, and `get_gr5_grammar_context()` with per-section budgets totalling ~6000 chars) and up to 2 corpus examples retrieved by semantic similarity. Rate-limited to 5 requests per 60 seconds per IP.
+- `POST /chat` — AI language assistant (Llama 3.1 8B). Replies in English only, plain prose, 2–4 paragraphs. System prompt includes the startup grammar context (built from `get_grammar_context()`, `get_gr4_grammar_context()`, and `get_gr5_grammar_context()` with per-section budgets totalling ~6000 chars) and up to 2 corpus examples retrieved by semantic similarity. Rate-limited to 5 requests per 60 seconds per IP. The HuggingFace Router client uses a 25 s timeout with no automatic retries — if the router is slow or unavailable the endpoint returns an error immediately rather than leaving the user waiting.
 
 ### Feedback
 - `POST /feedback` — Submit translation rating with optional error categorization and corrections
@@ -1622,6 +1638,7 @@ HF_KATHAY_TOKEN=hf_...             # HuggingFace read token for the kathay accou
 DISABLE_NLLB=1                     # Set to 1/true/yes to skip loading NLLB-200 locally — use on CPU-only deployments (e.g. HF Space cpu-basic) to avoid OOM errors. With float16 loading (default on CPU), each NLLB direction uses ~1.2GB RAM (down from 2.3GB). When set, NLLB inference is routed to the HF Inference API using kathay's fine-tuned repos (kathay/lunyoro-nllb-en2lun and kathay/lunyoro-nllb-lun2en) via HF_KATHAY_TOKEN (falls back to HF_TOKEN). Tries router.huggingface.co first (preferred inside HF Space infra), then api-inference.huggingface.co; MarianMT is the final fallback if both API calls fail or no token is set
 DISABLE_MARIAN=0                   # Set to 1/true/yes to skip loading MarianMT models at startup — useful when running NLLB-only deployments or on memory-constrained environments where loading both model families would cause OOM. Translation falls back to NLLB (or retrieval/dictionary) when MarianMT is disabled
 FORCE_OFFLINE=0                    # Set to 1/true/yes to force fully offline mode (sets TRANSFORMERS_OFFLINE=1, HF_DATASETS_OFFLINE=1, HF_HUB_OFFLINE=1). By default, HuggingFace Hub downloads are allowed so models can be fetched on first use and cached locally
+FORCE_FP32=0                       # Set to 1/true/yes to force float32 for all PyTorch model loads. By default, models are loaded in float16 on CPU (~1.2GB per NLLB direction) and float32 on GPU. Use this if float16 causes numerical issues or is unsupported on your hardware. Accepted values: 1, true, yes
 ```
 
 ### Frontend (.env.local)
@@ -1698,12 +1715,13 @@ If you use this work, please cite:
 ## Version History
 
 ### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives (Current)
+- **`translate.py`:** NLLB tokenizer loading no longer passes `fix_mistral_regex=True` to `AutoTokenizer.from_pretrained()`. That flag triggers `_patch_mistral_regex()`, which attempts item assignment on the pre-tokenizer and crashes on `tokenizers < 0.21`. NLLB is not a Mistral model and does not require that patch — removing the flag restores compatibility with the tokenizers version pinned in `requirements.txt`.
 - **`translate.py`:** Added a circuit-breaker for outbound NLLB API calls (used when `DISABLE_NLLB=1`). After `_CB_FAIL_THRESHOLD` (3) consecutive failures the breaker opens and API calls are skipped for `_CB_OPEN_SECONDS` (120 s), preventing cascading timeouts when the HF Inference API is unreachable. The breaker resets automatically after the cooldown period.
-- **`translate.py`:** NLLB models are now loaded in float16 on CPU to halve memory usage (~2.3GB → ~1.2GB per direction). On GPU, float32 is used for maximum speed. This reduces OOM risk on memory-constrained deployments (e.g. HF Space cpu-basic) without requiring `DISABLE_NLLB=1`.
+- **`translate.py`:** NLLB models are now loaded in float16 on CPU to halve memory usage (~2.3GB → ~1.2GB per direction). On GPU, float32 is used for maximum speed. Set `FORCE_FP32=1` in the environment to override and use float32 everywhere (useful if float16 causes numerical issues on your hardware). This reduces OOM risk on memory-constrained deployments (e.g. HF Space cpu-basic) without requiring `DISABLE_NLLB=1`.
 - **`main.py`:** NLLB model loading at startup is now wrapped in error handling — if an NLLB model fails to load (e.g. OOM on memory-constrained hardware), the server logs the error and continues startup with MarianMT and retrieval-based translation still available. Previously, an OOM during NLLB loading would crash the entire server.
 - **`translate.py`:** Semantic search now guards against `_sem_model` being `None` — if the sentence-transformer model failed to load at startup, semantic search returns `None` immediately and the pipeline falls back to dictionary lookup, rather than raising an AttributeError. This mirrors the existing NLLB load-failure handling.
 - **`main.py`:** Semantic retrieval index (`get_index_and_model()`) is loaded synchronously at startup, ensuring the retrieval-based translation is available immediately when the server starts accepting requests. This guarantees consistent translation quality from the first request onward.
-- **`main.py`:** HuggingFace Router OpenAI client timeout increased from 45 s to 120 s. This prevents premature timeout errors on the chat endpoint when the HF Router is under load or the Llama model takes longer to generate a response.
+- **`main.py`:** HuggingFace Router OpenAI client timeout reduced from 120 s to 25 s and automatic retries disabled (`max_retries=0`). The client now fails fast so users receive an error response promptly rather than waiting up to two minutes; failures are handled gracefully by the endpoint and do not crash the server.
 - **`train_nllb.py`:** Added multi-GPU support via `torch.nn.DataParallel` — when more than one CUDA GPU is available, the NLLB model is automatically wrapped and training is distributed across all GPUs. Device names are printed at startup. Mirrors the existing multi-GPU behaviour in `train_marian.py`.
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix(verb, locative_prefix)` — appends the correct locative suffix (`-mu`, `-ho`, or `-yo`) to a verb based on its accompanying locative prefix (`omu-`/`omw-` → `-mu`, `ha-` → `-ho`, `owa-`/`omba`/`ku-` → `-yo`).
 - **`language_rules_gr5.py`:** Implemented `apply_adverbial_suffix_correction(text)` — regex-based post-processing pass that corrects common MT errors where adverbial suffixes are missing (e.g. `genda owaitu` → `gendayo owaitu`, `ikara hansi` → `ikaraho hansi`, `ikara omunsi` → `ikaramu omunsi`).
@@ -1741,9 +1759,20 @@ If you use this work, please cite:
 - Covers copula constructions, kinship term agreement, enumerative patterns, and the *ka* diminutive/adverbial particle
 - Applied after all existing rules (R/L, nasal assimilation, apostrophe elision) in the normalisation pipeline
 
+### v2.3 - Translator Mobile Responsiveness
+- **`Translator.tsx` responsive layout pass** — improved usability on small screens without changing desktop appearance
+  - Outer container: reduced horizontal padding (`px-3 sm:px-5`) and vertical gap (`gap-3 sm:gap-4`) on small screens
+  - Language direction bar: tighter internal padding (`p-2.5 sm:p-3`), reduced gap between elements (`gap-2 sm:gap-3`), and `flex-shrink-0` on the domain selector to prevent overflow
+  - Language pills (from/to labels): smaller text (`text-xs sm:text-sm`), narrower horizontal padding (`px-3 sm:px-4`), `truncate` + `max-w-[35%]` so long language names don't overflow the bar
+  - Swap button: slightly smaller on mobile (`w-9 h-9 sm:w-10 sm:h-10`); swap icon scales from `text-[20px]` to `text-[24px]` at `sm`
+  - Domain selector: capped at `max-w-[100px]` on mobile with tighter padding (`px-2 sm:px-3`)
+  - Translation panels row: removed fixed `min-h-[360px]` to let panels size naturally on mobile
+  - Source/output panels: reduced padding (`p-4 sm:p-5`); textarea and contenteditable editor min-height changed from a fixed `160px` to `140px` on mobile / `180px` on `sm+`; font size reduced to `text-base` on mobile (`text-lg` on `sm+`)
+  - Translate button: smaller on mobile (`w-14 h-14 sm:w-16 sm:h-16`), icon scales from `text-[28px]` to `text-[32px]` at `sm`
+
 ### v2.3 - Translator Dark Gold Theme
 - **`Translator.tsx` visual refresh** — translation panels and controls migrated from Material Design 3 surface tokens to an explicit dark charcoal + gold palette
-  - Language direction bar: `#161616` background; active language pill uses a gold tint (`rgba(233,195,73,0.15)` fill, `#e9c349` text)
+  - Language direction bar: `var(--color-surface-bright)` background (theme-aware CSS variable, resolves to `#161616` in dark mode); active language pill uses a gold tint (`rgba(233,195,73,0.15)` fill, `#e9c349` text)
   - Source panel: `#121212` background; border opacity reduced to `outline-variant/30`
   - Output panel: `#0e0e0e` background; border uses `rgba(233,195,73,0.2)` gold accent; output language label styled in `#e9c349`
   - Translate button: gold fill (`#e9c349`, `#1a1200` text) in idle state; muted dark gold (`#3d3000`) while loading; `gold-glow` shadow utility applied
@@ -1751,7 +1780,7 @@ If you use this work, please cite:
   - Dual-model NLLB card: gold-tinted border and background; MarianMT card retains surface-container styling
   - Feedback/benchmark action buttons (Confirm, Submit Benchmark): gold fill matching the translate button
   - Score buttons in benchmark: active state uses gold fill; inactive state uses `#121212` background
-  - Feedback correction form and benchmark panel: `#1a1a1a` background; input fields use `#121212`
+  - Feedback correction form and benchmark panel: `#1a1a1a` background; correction textarea uses `var(--color-surface-container-lowest)` background and `var(--color-on-surface)` text (theme-aware CSS variables)
   - Domain selector: `#1f1f1f` background; border opacity reduced
   - Spellcheck tooltip: `#1f1f1f` background with `rgba(233,195,73,0.2)` border; suggestion buttons use `text-primary` with surface-container hover
 
