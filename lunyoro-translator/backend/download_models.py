@@ -7,8 +7,8 @@ Run this once after cloning the repo:
 Models pulled:
     keithtwesigye/lunyoro-en2lun      → model/en2lun/
     keithtwesigye/lunyoro-lun2en      → model/lun2en/
-    keithtwesigye/lunyoro-nllb_en2lun → model/nllb_en2lun/
-    keithtwesigye/lunyoro-nllb_lun2en → model/nllb_lun2en/
+    keithtwesigye/lunyoro-nllb-en2lun → model/nllb_en2lun/
+    keithtwesigye/lunyoro-nllb-lun2en → model/nllb_lun2en/
     sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 → model/sem_model/
 
 Dataset pulled:
@@ -25,10 +25,10 @@ DATASET_REPO = "keithtwesigye/lunyoro-dataset"
 HF_MODELS = {
     "en2lun": "keithtwesigye/lunyoro-en2lun",
     "lun2en": "keithtwesigye/lunyoro-lun2en",
-    "nllb_en2lun": "keithtwesigye/lunyoro-nllb_en2lun",
-    "nllb_lun2en": "keithtwesigye/lunyoro-nllb_lun2en",
-    "nllb_en2lun_pre_nyo": "keithtwesigye/lunyoro-nllb_en2lun",
-    "nllb_lun2en_pre_nyo": "keithtwesigye/lunyoro-nllb_lun2en",
+    "nllb_en2lun": "keithtwesigye/lunyoro-nllb-en2lun",
+    "nllb_lun2en": "keithtwesigye/lunyoro-nllb-lun2en",
+    "nllb_en2lun_pre_nyo": "keithtwesigye/lunyoro-nllb-en2lun",
+    "nllb_lun2en_pre_nyo": "keithtwesigye/lunyoro-nllb-lun2en",
 }
 
 # Sentence-transformers semantic search model — downloaded to HF cache
