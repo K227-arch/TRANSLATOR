@@ -123,17 +123,17 @@ def _load_rules():
 
 def _postprocess_lunyoro(text: str) -> str:
     """
-    Apply Runyoro-Rutooro orthographic rules to enâ†’lun MT output.
+    Apply Runyoro-Rutooro orthographic rules to en→lun MT output.
 
     Order matters:
-      1. Nasal assimilation       (nbâ†’mb, npâ†’mp, nrâ†’nd, nlâ†’nd)
-      2. niâ†’nu prefix change      (nimugendaâ†’numugenda before u-class concords)
+      1. Nasal assimilation       (nb→mb, np→mp, nr→nd, nl→nd)
+      2. ni→nu prefix change      (nimugenda→numugenda before u-class concords)
       3. Consonant+suffix changes (r/t/j/nd/nt + -ire/-i/-ya mutations)
-      4. Reflexive imperative fix (okwesereka â†’ weesereke)
+      4. Reflexive imperative fix (okwesereka → weesereke)
       5. Initial vowel rule       (prefix-based initial vowel correction)
-      6. Semi-vowel substitution  (iâ†’y, uâ†’w at prefix boundaries)
-      7. Particle elision         (na enteâ†’n'ente, habwa okugonzaâ†’habw'okugonza)
-      8. R/L rule                 (Lâ†’R except adjacent to e/i)
+      6. Semi-vowel substitution  (i→y, u→w at prefix boundaries)
+      7. Particle elision         (na ente→n'ente, habwa okugonza→habw'okugonza)
+      8. R/L rule                 (L→R except adjacent to e/i)
       9. Grammar Rules 4          (copula, kinship, enumeratives, ka particle)
     """
     if not text:
@@ -169,12 +169,12 @@ def _postprocess_lunyoro(text: str) -> str:
         text = apply_gr5_rules(text, direction="en->lun")
     except Exception:
         pass
-    # Dialect normalisation: Rutooro â†’ Runyoro standard forms
+    # Dialect normalisation: Rutooro → Runyoro standard forms
     text = _normalise_dialect(text)
     return text
 
 
-# Rutooro â†’ Runyoro dialect mappings (case-insensitive word substitutions)
+# Rutooro → Runyoro dialect mappings (case-insensitive word substitutions)
 _DIALECT_MAP = [
     # Days of the week
     (r"\bkiro\s+kinu\b", "leero"),  # today
@@ -187,7 +187,7 @@ _DIALECT_MAP = [
     (r"\bkya\s+mukaaga\b", "n'Orwomukaaga"),  # Saturday
     (r"\bkya\s+sande\b", "n'Orwosande"),  # Sunday
     (r"\bkya\s+banza\b", "n'Orwobanza"),  # Monday
-    # Common Rutooroâ†’Runyoro word swaps
+    # Common Rutooro→Runyoro word swaps
     (r"\bkiro\b", "leero"),  # today (standalone)
     (r"\bkinu\s+kizi\b", "kinu"),  # this (demonstrative cleanup)
 ]
@@ -205,10 +205,10 @@ def _normalise_dialect(text: str) -> str:
 
 def _preprocess_lunyoro_input(text: str) -> str:
     """
-    Normalise lunâ†’en input before feeding to the model.
+    Normalise lun→en input before feeding to the model.
     - Nasal assimilation (canonical consonant clusters)
-    - Apostrophe elision expansion (n'ente â†’ na ente)
-    - Dialect variant normalisation (kiro â†’ leero, etc.)
+    - Apostrophe elision expansion (n'ente → na ente)
+    - Dialect variant normalisation (kiro → leero, etc.)
     Does NOT apply R/L rule on input â€” the model was trained on real text.
     """
     if not text:
@@ -218,16 +218,16 @@ def _preprocess_lunyoro_input(text: str) -> str:
     if _apply_nasal:
         text = _apply_nasal(text)
     # 2. Expand apostrophe elisions so model sees canonical forms
-    # e.g. n'ente â†’ na ente, habw'okugonza â†’ habwa okugonza
+    # e.g. n'ente → na ente, habw'okugonza → habwa okugonza
     import re as _re_pre
     text = _re_pre.sub(r"\bn'([aeiouAEIOU])", r"na \1", text)
     text = _re_pre.sub(r"\bw'([aeiouAEIOU])", r"wa \1", text)
     text = _re_pre.sub(r"\by'([aeiouAEIOU])", r"ya \1", text)
     text = _re_pre.sub(r"\bk'([aeiouAEIOU])", r"ka \1", text)
-    # 3. Common spelling variants â†’ canonical forms
+    # 3. Common spelling variants → canonical forms
     _VARIANT_MAP = [
-        (r"\bkiro\b", "leero"),       # today (Rutooro â†’ Runyoro)
-        (r"\beky([aeiou])", r"eki\1"),  # eky- â†’ eki- prefix variant
+        (r"\bkiro\b", "leero"),       # today (Rutooro → Runyoro)
+        (r"\beky([aeiou])", r"eki\1"),  # eky- → eki- prefix variant
         (r"\boky([aeiou])", r"oki\1"),  # oky- prefix
         (r"\baky([aeiou])", r"aki\1"),  # aky- prefix
     ]
@@ -241,7 +241,7 @@ _index = None
 _sem_model = None
 _dictionary = None
 _corpus_vocab = None
-_dict_word_map: dict = {}  # lowercase word â†’ entry, for O(1) lookup
+_dict_word_map: dict = {}  # lowercase word → entry, for O(1) lookup
 
 _mt_models = {}  # {"en2lun": (tokenizer, model), "lun2en": (tokenizer, model)}
 _mt_available = {}  # {"en2lun": bool, "lun2en": bool}
@@ -331,7 +331,7 @@ def _load_retrieval():
     _dictionary = _index["dictionary"]
     # build O(1) lookup map
     _dict_word_map = {d["word"].lower(): d for d in _dictionary}
-    # also map by lowercased definitionEnglish for enâ†’lun searches
+    # also map by lowercased definitionEnglish for en→lun searches
     _dict_def_map: dict = {}
     for d in _dictionary:
         key = (d.get("definitionEnglish") or "").lower()
@@ -459,7 +459,7 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
 
     tokenizer, model, device = _mt_models[direction]
 
-    # Pre-process lunâ†’en input: normalise nasal clusters
+    # Pre-process lun→en input: normalise nasal clusters
     if direction == "lun2en":
         text = _preprocess_lunyoro_input(text)
 
@@ -497,7 +497,7 @@ def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
         # Also strip trailing English sentences
         result = _re2.sub(r"\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$", "", result).strip()
 
-    # Post-process enâ†’lun output: apply orthographic rules
+    # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and result:
         result = _postprocess_lunyoro(result)
 
@@ -667,12 +667,20 @@ def _load_nllb(direction: str) -> bool:
         import warnings as _warn
         with _warn.catch_warnings():
             _warn.simplefilter("ignore")
-            tokenizer = AutoTokenizer.from_pretrained(path, fix_mistral_regex=True)
-        # Load in float16 on CPU to halve memory usage (2.3GB â†’ ~1.2GB)
-        # On GPU, float16 is natively fast; on CPU it's slower but avoids OOM
+            # Note: do NOT pass fix_mistral_regex=True — that flag triggers
+            # _patch_mistral_regex() which tries to do item assignment on the
+            # pre_tokenizer, crashing on tokenizers < 0.21.  NLLB is not a
+            # Mistral model and does not need that patch.
+            tokenizer = AutoTokenizer.from_pretrained(path)
+        # Load in float16 on CPU to halve memory usage (2.3GB → ~1.2GB)
+        # Set FORCE_FP32=1 to override and use float32 everywhere.
         import torch
-        load_dtype = torch.float16 if not torch.cuda.is_available() else torch.float32
-        model = AutoModelForSeq2SeqLM.from_pretrained(path, torch_dtype=load_dtype)
+        _force_fp32 = os.getenv("FORCE_FP32", "0").strip() in ("1", "true", "yes")
+        if _force_fp32:
+            load_dtype = torch.float32
+        else:
+            load_dtype = torch.float16 if not torch.cuda.is_available() else torch.float32
+        model = AutoModelForSeq2SeqLM.from_pretrained(path, dtype=load_dtype)
         model.eval()
         if torch.cuda.device_count() >= 2:
             device = "cuda:1"
@@ -727,7 +735,7 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
     if not repo_id:
         return None
 
-    # Pre-process lunâ†’en input
+    # Pre-process lun→en input
     if direction == "lun2en":
         text = _preprocess_lunyoro_input(text)
 
@@ -785,7 +793,7 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
                 _out_n = _re.sub(r"\s+", " ", result.strip().lower())
                 if _out_n == _src_n:
                     continue
-                # English passthrough check for enâ†’lun
+                # English passthrough check for en→lun
                 if direction == "en2lun" and result:
                     common_en = {
                         "the",
@@ -879,7 +887,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
 
     tokenizer, model, device = _nllb_models[direction]
 
-    # Pre-process lunâ†’en input: normalise nasal clusters
+    # Pre-process lun→en input: normalise nasal clusters
     if direction == "lun2en":
         text = _preprocess_lunyoro_input(text)
 
@@ -924,7 +932,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     nllb_result = nllb_result.replace("\u2581", " ").strip()
     # 2. Collapse multiple spaces left by â– stripping
     nllb_result = re.sub(r"  +", " ", nllb_result)
-    # 3. Fix Lâ†’I: NLLB run_Latn proxy confuses capital I with L in lunâ†’en output
+    # 3. Fix L→I: NLLB run_Latn proxy confuses capital I with L in lun→en output
     if direction == "lun2en":
         nllb_result = re.sub(r"(?<![A-Za-z])L(?![A-Za-z])", "I", nllb_result)
 
@@ -961,7 +969,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         r"\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$", "", nllb_result
     ).strip()
 
-    # Post-process enâ†’lun output: apply orthographic rules
+    # Post-process en→lun output: apply orthographic rules
     if direction == "en2lun" and nllb_result:
         # Detect if NLLB output is English (passthrough) â€” reject it
         # Heuristic: if output has >60% common English words, it's a passthrough
@@ -1059,9 +1067,9 @@ def _is_notation_garbage(text: str) -> bool:
 
 # â”€â”€ Selective RAG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Thresholds:
-#   >= 0.92  â†’ use retrieved translation directly (very high confidence)
-#   0.70-0.91 â†’ inject as context hint to MT model
-#   < 0.70   â†’ pure neural MT, no retrieval
+#   >= 0.92  → use retrieved translation directly (very high confidence)
+#   0.70-0.91 → inject as context hint to MT model
+#   < 0.70   → pure neural MT, no retrieval
 _RAG_DIRECT_THRESHOLD = 0.92  # use retrieved translation as-is
 _RAG_HINT_THRESHOLD = 0.70  # inject as context hint
 _RAG_LENGTH_TOLERANCE = 0.25  # max 25% length difference to use direct retrieval
@@ -1157,7 +1165,7 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
     length_ratio = abs(input_len - retrieved_len) / max(input_len, retrieved_len)
 
     if best_score >= _RAG_DIRECT_THRESHOLD and length_ratio <= _RAG_LENGTH_TOLERANCE:
-        # High confidence + similar length â†’ use retrieved translation directly
+        # High confidence + similar length → use retrieved translation directly
         translation = matched_tgt
         if direction == "en2lun":
             translation = _postprocess_lunyoro(translation)
@@ -1198,10 +1206,10 @@ def _mirror_punctuation(source: str, translation: str) -> str:
     3. Whether the translation is a complete sentence or a phrase/fragment
 
     Rules:
-    - Source has '?' â†’ translation ends with '?' (always â€” it's a question)
-    - Source has '!' â†’ translation ends with '!' (always â€” it's an exclamation)
-    - Source has '.' â†’ add '.' only if translation looks like a full sentence
-    - Source has no terminal punct â†’ don't add any (user typed a fragment/phrase)
+    - Source has '?' → translation ends with '?' (always â€” it's a question)
+    - Source has '!' → translation ends with '!' (always â€” it's an exclamation)
+    - Source has '.' → add '.' only if translation looks like a full sentence
+    - Source has no terminal punct → don't add any (user typed a fragment/phrase)
     - Never double-punctuate (if translation already ends with correct punct, leave it)
     - Single words or very short phrases don't get periods
     """
@@ -1260,7 +1268,7 @@ def _mirror_punctuation(source: str, translation: str) -> str:
 
 
 def translate(text: str, top_k: int = 3, context: str = "") -> dict:
-    """English â†’ Lunyoro/Rutooro â€” always runs both MarianMT and NLLB."""
+    """English → Lunyoro/Rutooro â€” always runs both MarianMT and NLLB."""
     text = _normalise(text.strip())
 
     # Context window: keep up to 3 most recent sentences, max 400 chars total.
@@ -1394,18 +1402,18 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
         }
 
     return _dict_fallback(
-        text, best_score, english_sentences[best], alternatives, "enâ†’lun"
+        text, best_score, english_sentences[best], alternatives, "en→lun"
     )
 
 
 def _postprocess_english(text: str) -> str:
     """
-    Post-process lunâ†’en NLLB/Marian output for natural English.
+    Post-process lun→en NLLB/Marian output for natural English.
 
     Fixes:
     1. Strip NLLB language-code prefix artifacts (run_Latn: ...)
-    2. Double-subject removal ("The man he went" â†’ "The man went")
-    3. Redundant pronoun after noun ("My father he said" â†’ "My father said")
+    2. Double-subject removal ("The man he went" → "The man went")
+    3. Redundant pronoun after noun ("My father he said" → "My father said")
     4. Over-capitalisation of common words mid-sentence
     5. Sentence capitalisation + punctuation cleanup
     6. Strip leading/trailing whitespace and repeated spaces
@@ -1433,7 +1441,7 @@ def _postprocess_english(text: str) -> str:
         flags=_re.IGNORECASE,
     )
 
-    # 3. Proper name + pronoun ("John he said" â†’ "John said")
+    # 3. Proper name + pronoun ("John he said" → "John said")
     text = _re.sub(
         r"\b([A-Z][a-z]+)\s+(he|she|they)\s+",
         r"\1 ",
@@ -1466,7 +1474,7 @@ def _postprocess_english(text: str) -> str:
 
 
 def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
-    """Lunyoro/Rutooro â†’ English â€” always runs both MarianMT and NLLB."""
+    """Lunyoro/Rutooro → English â€” always runs both MarianMT and NLLB."""
     text = _normalise(text.strip())
 
     # Context window: keep up to 3 most recent sentences, max 400 chars total.
@@ -1584,7 +1592,7 @@ def _dict_fallback(text, best_score, matched_english, alternatives, direction):
         # Check static web entries first
         from web_fallback import lookup_static
 
-        static = lookup_static(word, "enâ†’lun")
+        static = lookup_static(word, "en→lun")
         if static:
             found.append(
                 {"english_word": word, "lunyoro_word": static, "definition": ""}
@@ -1606,7 +1614,7 @@ def _dict_fallback(text, best_score, matched_english, alternatives, direction):
     if not found:
         from web_fallback import web_search_fallback
 
-        web_result = web_search_fallback(text, "enâ†’lun")
+        web_result = web_search_fallback(text, "en→lun")
         if web_result:
             return {
                 "translation": _postprocess_lunyoro(web_result),
@@ -1688,9 +1696,9 @@ def _infer_pos(word: str) -> str | None:
     return None
 
 
-def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
+def lookup_word(word: str, direction: str = "en→lun") -> list:
     """
-    Dictionary lookup: exact match â†’ fuzzy dictionary â†’ neural MT â†’ corpus.
+    Dictionary lookup: exact match → fuzzy dictionary → neural MT → corpus.
     """
     _load_retrieval()
     word = _normalise(word.strip())
@@ -1721,17 +1729,47 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
             return None
         return t
 
-    mt_direction = "en2lun" if direction == "enâ†’lun" else "lun2en"
-    raw_mt = _mt_translate(word, mt_direction)
-    mt_translation = clean_mt(raw_mt)
+    # Helper: detect English words stored as Runyoro in bad dict entries
+    import re as _re_ew
+    _ENGLISH_SW = {
+        "water","house","food","dog","cat","man","woman","child","fire","tree",
+        "book","car","road","city","work","time","day","night","life","hand",
+        "place","way","year","head","eye","ear","nose","mouth","face","heart",
+        "walk","run","eat","drink","sleep","speak","know","see","hear","come",
+        "go","give","take","make","want","need","have","get","put","set",
+        "after","before","with","without","about","above","below","inside",
+        "outside","under","over","between","around","through","against",
+        "weather","waste","rater","cater","father","wither","sitting",
+    }
+    def _is_english_word(w: str) -> bool:
+        wl = (w or "").lower().strip()
+        if not wl: return False
+        if wl in _ENGLISH_SW: return True
+        if _re_ew.match(r"^[a-z]{2,8}$", wl) and not _re_ew.match(
+            r"^(ok|om|ab|ek|eb|er|em|en|ha|ni|mu|bu|ku|ka|na|ng|nk|am|ib)", wl
+        ):
+            return True
+        return False
+
+    mt_direction = "en2lun" if direction == "en→lun" else "lun2en"
+    # Use NLLB as primary (better single-word quality), Marian as fallback
+    raw_nllb = _nllb_translate(word, mt_direction)
+    raw_mt   = _mt_translate(word, mt_direction)
+    mt_translation = clean_mt(raw_nllb) or clean_mt(raw_mt)
+    # Reject if MT echoed the input back unchanged (English passthrough)
+    if mt_translation and mt_translation.lower().strip() == word_lower:
+        mt_translation = None
 
     # â”€â”€ 1. Exact dictionary match (highest priority) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if direction == "enâ†’lun":
+    if direction == "en→lun":
         exact = [
-            d
-            for d in _dictionary
-            if word_lower == (d.get("definitionEnglish") or "").lower().strip()
-            or word_lower in (d.get("definitionEnglish") or "").lower().split()
+            d for d in _dictionary
+            if (d.get("definitionEnglish") or "").strip()  # skip empty defs
+            and not _is_english_word(d.get("word", ""))    # skip English-word entries
+            and (
+                word_lower == (d.get("definitionEnglish") or "").lower().strip()
+                or word_lower in (d.get("definitionEnglish") or "").lower().split()
+            )
         ]
     else:
         exact = [
@@ -1748,16 +1786,21 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
             )
 
     # â”€â”€ 2. Fuzzy dictionary match â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if direction == "enâ†’lun":
+    if direction == "en→lun":
+        # Only fuzzy-match entries that have a real English definition.
+        # Without this filter, 6,178 empty-def entries corrupt results
+        # (e.g. "water" matched "weather" via score_cutoff=70).
+        valid_entries = [d for d in _dictionary if (d.get("definitionEnglish") or "").strip() and not _is_english_word(d.get("word", ""))]
+        valid_defs    = [(d.get("definitionEnglish") or "").lower() for d in valid_entries]
         fuzzy_raw = process.extract(
             word_lower,
-            [(d.get("definitionEnglish") or "").lower() for d in _dictionary],
+            valid_defs,
             scorer=fuzz.token_sort_ratio,
             limit=10,
-            score_cutoff=70,
+            score_cutoff=85,
         )
-        for match_text, score, _ in fuzzy_raw:
-            entry = _index["_dict_def_map"].get(match_text)
+        for match_text, score, idx_pos in fuzzy_raw:
+            entry = valid_entries[idx_pos]
             if entry and entry["word"] not in seen_words:
                 seen_words.add(entry["word"])
                 results.append(
@@ -1791,14 +1834,14 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
                 )
 
     # â”€â”€ 3. Neural MT result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if mt_translation and mt_translation.lower() not in seen_words:
+    if mt_translation:  # always include MT even if dict results are full
         seen_words.add(mt_translation.lower())
         # Try to enrich with dictionary entry for the MT word
         mt_dict = _dict_word_map.get(mt_translation.lower())
         results.append(
             {
-                "word": mt_translation if direction == "enâ†’lun" else word,
-                "definitionEnglish": word if direction == "enâ†’lun" else mt_translation,
+                "word": mt_translation if direction == "en→lun" else word,
+                "definitionEnglish": word if direction == "en→lun" else mt_translation,
                 "definitionNative": mt_dict.get("definitionNative", "")
                 if mt_dict
                 else "",
@@ -1821,7 +1864,7 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
     is_phrase = len(word.split()) > 1
     if is_phrase:
         q_emb = _sem_model.encode(word, convert_to_numpy=True)
-        if direction == "enâ†’lun":
+        if direction == "en→lun":
             scores = util.cos_sim(q_emb, _index["embeddings"])[0].numpy()
         else:
             if "lunyoro_embeddings" not in _index:
@@ -1842,13 +1885,13 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
             en = _index["english_sentences"][i]
             if _is_notation_garbage(lun) or _is_notation_garbage(en):
                 continue
-            display_word = lun if direction == "enâ†’lun" else en
+            display_word = lun if direction == "en→lun" else en
             if display_word not in seen_words:
                 seen_words.add(display_word)
                 results.append(
                     {
                         "word": display_word,
-                        "definitionEnglish": en if direction == "enâ†’lun" else lun,
+                        "definitionEnglish": en if direction == "en→lun" else lun,
                         "definitionNative": "",
                         "exampleSentence1": lun,
                         "exampleSentence1English": en,
@@ -1860,20 +1903,17 @@ def lookup_word(word: str, direction: str = "enâ†’lun") -> list:
                     }
                 )
 
-    # Sort: exact dict first, then by confidence
+    # Sort: neural MT first (direct translation), then exact dict matches, then fuzzy
     results.sort(
         key=lambda x: (
-            0
-            if (x["source"] == "dictionary" and x["confidence"] == 1.0)
-            else 1
-            if x["source"] == "dictionary"
-            else 2
-            if x["source"] == "neural_mt"
+            0 if x["source"] == "neural_mt"
+            else 1 if (x["source"] == "dictionary" and x["confidence"] == 1.0)
+            else 2 if x["source"] == "dictionary"
             else 3,
             -x.get("confidence", 0),
         )
     )
-    return results[:8]
+    return results[:10]
 
 
 def get_index_and_model():
