@@ -33,6 +33,7 @@ ENV HF_HUB_OFFLINE=0
 ENV DOWNLOAD_MODELS_ON_START=1
 ENV CORS_ORIGINS=https://frontend-six-phi-25.vercel.app,http://localhost:3002,https://horizonx.kathay.tech
 ENV DISABLE_NLLB=0
+ENV DISABLE_MARIAN=1
 
-CMD ["sh", "-c", "python download_models.py --marian-only && \
+CMD ["sh", "-c", "python download_models.py && \
     uvicorn main:app --host 0.0.0.0 --port 7860 --workers 1"]
