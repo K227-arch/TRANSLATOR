@@ -232,8 +232,18 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => 
               state={gpuReady === null ? "loading" : gpuReady ? "ok" : "warn"}
             />
             <StatusPill
-              label={nllbReady === null ? "Neural Engine…" : nllbReady ? "Neural Engine Ready" : "Neural Engine Offline"}
-              state={pillState(nllbReady)}
+              label={
+                nllbReady === null ? "Neural Engine…"
+                : nllbReady ? "Neural Engine Ready"
+                : marianReady ? "Translation Engine Ready"
+                : "Neural Engine Offline"
+              }
+              state={
+                nllbReady === null ? "loading"
+                : nllbReady ? "ok"
+                : marianReady ? "warn"
+                : "off"
+              }
             />
             <StatusPill
               label={marianReady === null ? "Local Models…" : marianReady ? "Local Models Installed" : "Models Missing"}
