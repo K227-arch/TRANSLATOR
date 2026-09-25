@@ -92,9 +92,79 @@
   direction: ltr;
 }
 
+/* ── Light Mode — matches ai-stick-portal.vercel.app ──────────────────
+   Applied when <html class="light"> is set by ThemeProvider.
+   Primary gold is deepened slightly for contrast on white.
+   ─────────────────────────────────────────────────────────────────── */
+html.light {
+  /* Brand — deeper gold for readability on white */
+  --color-primary:                  #9a7c00;
+  --color-on-primary:               #ffffff;
+  --color-primary-container:        #fff3c4;
+  --color-on-primary-container:     #2c2000;
+  --color-primary-fixed:            #fff3c4;
+  --color-primary-fixed-dim:        #e9c349;
+  --color-on-primary-fixed:         #241a00;
+  --color-on-primary-fixed-variant: #574500;
+  --color-inverse-primary:          #e9c349;
+
+  /* Secondary — warm terracotta adapted for light */
+  --color-secondary:                #8c4030;
+  --color-on-secondary:             #ffffff;
+  --color-secondary-container:      #ffdbd0;
+  --color-on-secondary-container:   #3b0c06;
+
+  /* Tertiary */
+  --color-tertiary:                 #7c5c52;
+  --color-on-tertiary:              #ffffff;
+  --color-tertiary-container:       #ffdbce;
+  --color-on-tertiary-container:    #2e150e;
+
+  /* Background / Surface — clean whites and very light greys */
+  --color-background:               #fafaf8;
+  --color-on-background:            #1a1a1a;
+  --color-surface:                  #fafaf8;
+  --color-surface-dim:              #e8e6e0;
+  --color-surface-bright:           #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low:    #f4f3ef;
+  --color-surface-container:        #eeece7;
+  --color-surface-container-high:   #e8e6e0;
+  --color-surface-container-highest:#e2e0da;
+  --color-surface-variant:          #ece9e0;
+  --color-on-surface:               #1a1a1a;
+  --color-on-surface-variant:       #5a5348;
+  --color-inverse-surface:          #1a1a1a;
+  --color-inverse-on-surface:       #fafaf8;
+
+  /* Outline */
+  --color-outline:                  #a09880;
+  --color-outline-variant:          #d4cfbf;
+  --color-surface-tint:             #9a7c00;
+
+  /* Error */
+  --color-error:                    #ba1a1a;
+  --color-on-error:                 #ffffff;
+  --color-error-container:          #ffdad6;
+  --color-on-error-container:       #410002;
+}
+
+/* Light-mode body override */
+html.light body {
+  background-color: #fafaf8;
+  color: #1a1a1a;
+}
+
+/* Light-mode scrollbar */
+html.light ::-webkit-scrollbar-thumb { background: #c8c3b0; }
+
 /* ── Elevation & Glass ─────────────────────────────────────────────── */
 .premium-shadow {
   box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+html.light .premium-shadow {
+  box-shadow: 0 2px 16px -4px rgba(0, 0, 0, 0.10), 0 1px 4px -2px rgba(0, 0, 0, 0.06);
 }
 
 .glass-card {
@@ -109,11 +179,22 @@
 }
 
 /* ── Base ──────────────────────────────────────────────────────────── */
+/* Default (dark) — also applied when <html class="dark"> */
 body {
   background-color: #0e0e0e;
   font-family: var(--font-inter), 'Inter', sans-serif;
   color: #f0ede6;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Light-mode glass card */
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(154, 124, 0, 0.15);
+}
+
+html.light .gold-glow {
+  box-shadow: 0 0 24px rgba(154, 124, 0, 0.18);
 }
 
 /* ── Spellcheck underline ──────────────────────────────────────────── */

@@ -14,7 +14,7 @@ export default function BottomNav({ active, onChange }: { active: Tab; onChange:
     <nav
       className="fixed bottom-0 left-0 w-full z-50 border-t border-outline-variant/30 pb-safe"
       style={{
-        background: "rgba(14,14,14,0.92)",
+        background: "color-mix(in srgb, var(--color-background) 92%, transparent)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
         borderRadius: "16px 16px 0 0",

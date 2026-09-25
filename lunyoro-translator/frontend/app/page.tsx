@@ -81,7 +81,7 @@ export default function Home() {
         className={`fixed top-0 right-0 h-full w-3/4 max-w-xs z-[70] border-l border-outline-variant/20 shadow-2xl transform transition-transform duration-300 ease-in-out ${
           helpOpen ? "translate-x-0" : "translate-x-full"
         }`}
-        style={{ background: "#161616" }}
+        style={{ background: "var(--color-surface-bright)" }}
       >
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-4 h-16 border-b border-outline-variant/30">

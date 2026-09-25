@@ -226,37 +226,37 @@ export default function Translator() {
   }
 
   return (
-    <div className="max-w-screen-xl mx-auto px-5 pt-6 pb-32 flex flex-col gap-4">
+    <div className="max-w-screen-xl mx-auto px-3 sm:px-5 pt-4 sm:pt-6 pb-32 flex flex-col gap-3 sm:gap-4">
 
       {/* Language direction bar */}
-      <div className="flex items-center rounded-2xl p-3 premium-shadow border border-outline-variant/30 gap-3 flex-wrap"
-        style={{ background: "#161616" }}>
-        <button className="px-4 py-1.5 rounded-full text-sm font-bold tracking-wide"
+      <div className="flex items-center rounded-2xl p-2.5 sm:p-3 premium-shadow border border-outline-variant/30 gap-2 sm:gap-3"
+        style={{ background: "var(--color-surface-bright)" }}>
+        <button className="px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide truncate min-w-0 max-w-[35%]"
           style={{ background: "rgba(233,195,73,0.15)", color: "#e9c349", border: "1px solid rgba(233,195,73,0.3)" }}>
           {fromLabel}
         </button>
         <button onClick={swapDirection}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-all active:scale-90 text-primary">
-          <span className="material-symbols-outlined">swap_horiz</span>
+          className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-container transition-all active:scale-90 text-primary">
+          <span className="material-symbols-outlined text-[20px] sm:text-[24px]">swap_horiz</span>
         </button>
-        <button className="px-4 py-1.5 rounded-full bg-surface-container text-on-surface-variant text-sm font-semibold">
+        <button className="px-3 sm:px-4 py-1.5 rounded-full bg-surface-container text-on-surface-variant text-xs sm:text-sm font-semibold truncate min-w-0 max-w-[35%]">
           {toLabel}
         </button>
-        <div className="ml-auto">
+        <div className="ml-auto flex-shrink-0">
           <select value={domain} onChange={e => setDomain(e.target.value)}
-            className="text-xs border border-outline-variant/50 rounded-full px-3 py-1.5 text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-            style={{ background: "#1f1f1f" }}>
+            className="text-xs border border-outline-variant/50 rounded-full px-2 sm:px-3 py-1.5 text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[100px] sm:max-w-none"
+            style={{ background: "var(--color-surface-container)" }}>
             {DOMAINS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
           </select>
         </div>
       </div>
 
       {/* Translation panels */}
-      <div className="flex flex-col md:flex-row gap-4 min-h-[360px]">
+      <div className="flex flex-col md:flex-row gap-3 sm:gap-4">
 
         {/* Source panel */}
-        <div className="flex-1 border border-outline-variant/30 rounded-2xl premium-shadow p-5 flex flex-col"
-          style={{ background: "#121212" }}>
+        <div className="flex-1 border border-outline-variant/30 rounded-2xl premium-shadow p-4 sm:p-5 flex flex-col"
+          style={{ background: "var(--color-surface-container-lowest)" }}>
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">{fromLabel}</span>
             {input && (
@@ -272,11 +272,11 @@ export default function Translator() {
               onCompositionStart={() => { isComposing.current = true; }}
               onCompositionEnd={() => { isComposing.current = false; handleEditorInput(); }}
               onKeyDown={e => e.key === "Enter" && e.ctrlKey && handleTranslate()}
-              className="flex-grow outline-none text-lg text-on-surface min-h-[160px] whitespace-pre-wrap break-words"
+              className="flex-grow outline-none text-base sm:text-lg text-on-surface min-h-[140px] sm:min-h-[180px] whitespace-pre-wrap break-words"
               style={{ fontFamily: "inherit" }} />
           ) : (
             <textarea ref={textareaRef}
-              className="flex-grow outline-none text-lg text-on-surface resize-none placeholder:text-outline/40 min-h-[160px] bg-transparent"
+              className="flex-grow outline-none text-base sm:text-lg text-on-surface resize-none placeholder:text-outline/40 min-h-[140px] sm:min-h-[180px] bg-transparent"
               placeholder="Enter text to translate..."
               value={input} onChange={e => handleInputChange(e.target.value)}
               onKeyDown={e => e.key === "Enter" && e.ctrlKey && handleTranslate()} />
@@ -293,17 +293,17 @@ export default function Translator() {
         {/* Translate button */}
         <div className="flex flex-row md:flex-col justify-center items-center gap-3">
           <button onClick={handleTranslate} disabled={loading || !input.trim()}
-            className="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center active:scale-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed gold-glow"
+            className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center active:scale-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed gold-glow"
             style={{ background: loading ? "#3d3000" : "#e9c349", color: "#1a1200" }}>
-            <span className="material-symbols-outlined text-[32px] md:text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined text-[28px] sm:text-[32px] md:text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               {loading ? "hourglass_empty" : "translate"}
             </span>
           </button>
         </div>
 
         {/* Output panel */}
-        <div className="flex-1 border-2 rounded-2xl premium-shadow p-5 flex flex-col overflow-y-auto"
-          style={{ background: "#0e0e0e", borderColor: "rgba(233,195,73,0.2)" }}>
+        <div className="flex-1 border-2 rounded-2xl premium-shadow p-4 sm:p-5 flex flex-col overflow-y-auto"
+          style={{ background: "var(--color-surface-container-lowest)", borderColor: "rgba(233,195,73,0.2)" }}>
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#e9c349" }}>{toLabel}</span>
             <div className="flex items-center gap-1">
@@ -331,7 +331,7 @@ export default function Translator() {
             </div>
           </div>
 
-          <div className="text-lg text-on-surface flex flex-col justify-start mb-3">
+          <div className="text-base sm:text-lg text-on-surface flex flex-col justify-start mb-3">
             {loading ? (
               <div className="flex items-center gap-2 text-outline">
                 <div className="flex space-x-1">
@@ -411,7 +411,7 @@ export default function Translator() {
             <div className="mt-4 pt-4 border-t border-outline-variant/20 space-y-3">
               {showCorrection && feedbackRating === -1 && (
                 <div className="p-3 rounded-xl border border-outline-variant/30 space-y-2"
-                  style={{ background: "#1a1a1a" }}>
+                  style={{ background: "var(--color-surface-container-low)" }}>
                   <p className="text-xs text-on-surface-variant font-semibold">What is wrong?</p>
                   <div className="space-y-1">
                     {ERROR_TYPES.map(type => (
@@ -427,7 +427,7 @@ export default function Translator() {
                         {type === "other" && errorTypes.includes("other") && (
                           <input type="text" autoFocus
                             className="mt-1 ml-5 w-[calc(100%-1.25rem)] border border-outline-variant/40 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                            style={{ background: "#121212", color: "#f0ede6" }}
+                            style={{ background: "var(--color-surface-container-lowest)", color: "var(--color-on-surface)" }}
                             placeholder="Describe the problem..."
                             value={otherNote} onChange={e => setOtherNote(e.target.value)} />
                         )}
@@ -436,7 +436,7 @@ export default function Translator() {
                   </div>
                   <textarea
                     className="w-full border border-outline-variant/30 rounded-xl p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                    style={{ background: "#121212", color: "#f0ede6" }}
+                    style={{ background: "var(--color-surface-container-lowest)", color: "var(--color-on-surface)" }}
                     rows={2} placeholder="Correct translation (optional)..."
                     value={correction} onChange={e => setCorrection(e.target.value)} />
                   <div className="flex gap-2">
@@ -500,26 +500,26 @@ export default function Translator() {
                   </button>
                   {showBenchmark && (
                     <div className="mt-3 rounded-xl border border-outline-variant/30 p-3 space-y-3"
-                      style={{ background: "#1a1a1a" }}>
+                      style={{ background: "var(--color-surface-container-low)" }}>
                       <p className="text-xs text-on-surface font-semibold">Runyoro-Rutooro LLM Benchmark</p>
                       <div className="space-y-2">
                         {DIMS.map(dim => (
-                          <div key={dim.key} className="flex items-center gap-2">
-                            <div className="w-20 flex-shrink-0">
+                          <div key={dim.key} className="flex items-center gap-1.5 sm:gap-2">
+                            <div className="w-16 sm:w-20 flex-shrink-0">
                               <span className="text-[10px] font-bold text-on-background uppercase tracking-wide cursor-help" title={dim.tooltip}>{dim.code}</span>
                               <span className="text-[10px] text-on-surface-variant block leading-tight">{dim.label}</span>
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex gap-0.5 sm:gap-1 flex-wrap">
                               {[0, 1, 2, 3, 4, 5].map(n => (
                                 <button key={n}
                                   onClick={() => setDimScores(s => ({ ...s, [dim.key]: s[dim.key] === n ? null : n }))}
-                                  className={`w-7 h-7 rounded-full text-xs font-bold border transition-all ${dimScores[dim.key] === n ? "border-primary shadow" : "border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary"}`}
-                                  style={dimScores[dim.key] === n ? { background: "#e9c349", color: "#1a1200", borderColor: "#e9c349" } : { background: "#121212" }}>
+                                  className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full text-[11px] sm:text-xs font-bold border transition-all ${dimScores[dim.key] === n ? "border-primary shadow" : "border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary"}`}
+                                  style={dimScores[dim.key] === n ? { background: "#e9c349", color: "#1a1200", borderColor: "#e9c349" } : { background: "var(--color-surface-container-lowest)" }}>
                                   {n}
                                 </button>
                               ))}
                             </div>
-                            <span className="text-[10px] text-outline ml-1">{dim.weight}%</span>
+                            <span className="text-[10px] text-outline ml-0.5 sm:ml-1 flex-shrink-0">{dim.weight}%</span>
                           </div>
                         ))}
                       </div>
@@ -561,7 +561,7 @@ export default function Translator() {
       {/* Spellcheck tooltip */}
       {tooltip && (
         <div className="fixed z-50 rounded-xl p-3 shadow-2xl min-w-[140px]"
-          style={{ top: tooltip.y + 6, left: tooltip.x, background: "#1f1f1f", border: "1px solid rgba(233,195,73,0.2)" }}
+          style={{ top: tooltip.y + 6, left: tooltip.x, background: "var(--color-surface-container)", border: "1px solid rgba(233,195,73,0.2)" }}
           onMouseEnter={() => { if (tooltipTimer.current) clearTimeout(tooltipTimer.current); }}
           onMouseLeave={scheduleTooltipClose}>
           <p className="text-xs text-on-surface-variant mb-1">Did you mean?</p>

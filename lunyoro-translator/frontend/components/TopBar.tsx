@@ -1,4 +1,5 @@
 "use client";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface TopBarProps {
   processing?: boolean;
@@ -8,10 +9,17 @@ interface TopBarProps {
 }
 
 export default function TopBar({ processing = false, section, onBack, onHelp }: TopBarProps) {
+  const { theme, toggle } = useTheme();
+  const isLight = theme === "light";
+
   return (
     <header
       className="fixed top-0 w-full z-50 border-b border-outline-variant/40"
-      style={{ background: "rgba(14,14,14,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}
+      style={{
+        background: isLight ? "rgba(250,250,248,0.90)" : "rgba(14,14,14,0.85)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+      }}
     >
       <div className="flex items-center justify-between px-5 h-16 max-w-screen-xl mx-auto">
         {/* Left */}
@@ -45,6 +53,21 @@ export default function TopBar({ processing = false, section, onBack, onHelp }: 
 
         {/* Right */}
         <div className="flex items-center gap-2">
+          {/* Theme toggle */}
+          <button
+            onClick={toggle}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant"
+            aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
+            title={isLight ? "Dark mode" : "Light mode"}
+          >
+            <span
+              className="material-symbols-outlined text-[22px]"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              {isLight ? "dark_mode" : "light_mode"}
+            </span>
+          </button>
+
           {onHelp && (
             <button
               onClick={onHelp}
@@ -54,6 +77,7 @@ export default function TopBar({ processing = false, section, onBack, onHelp }: 
               <span className="material-symbols-outlined text-[22px]">help</span>
             </button>
           )}
+
           <div className="w-9 h-9 rounded-full border border-primary/40 overflow-hidden bg-surface-container flex items-center justify-center">
             <span className="material-symbols-outlined text-primary text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               account_circle
