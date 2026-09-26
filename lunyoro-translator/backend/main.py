@@ -33,7 +33,7 @@ if os.getenv("FORCE_OFFLINE", "0").strip() in ("1", "true", "yes"):
     os.environ["HF_HUB_OFFLINE"] = "1"
 
 from translate import translate, translate_to_english, lookup_word, spellcheck, get_index_and_model
-from translate import _mt_translate, _nllb_translate
+from translate import _nllb_translate
 import re as _re
 
 
@@ -129,10 +129,7 @@ def preload_model():
         except Exception as _e:
             logger.warning("Retrieval index failed: %s", _e)
 
-        from translate import _load_mt, _load_nllb
-        if os.getenv("DISABLE_MARIAN", "0").strip() not in ("1", "true", "yes"):
-            _load_mt("en2lun")
-            _load_mt("lun2en")
+        from translate import _load_nllb
 
         for d in ["en2lun", "lun2en"]:
             try:
@@ -629,12 +626,12 @@ def health():
 @app.get("/system-info")
 def system_info():
     """Return which models are loaded and hardware info — used by frontend to show model badges."""
-    from translate import _mt_available, _nllb_available, _mt_onnx
+    from translate import _nllb_available
     import torch
     return {
-        "marian_en2lun":  _mt_available.get("en2lun", False),
-        "marian_lun2en":  _mt_available.get("lun2en", False),
-        "marian_onnx":    _mt_onnx.get("en2lun", False) or _mt_onnx.get("lun2en", False),
+        "marian_en2lun":  False,
+        "marian_lun2en":  False,
+        "marian_onnx":    False,
         "nllb_en2lun":    _nllb_available.get("en2lun", False),
         "nllb_lun2en":    _nllb_available.get("lun2en", False),
         "nllb_disabled":  os.getenv("DISABLE_NLLB", "").strip() in ("1", "true", "yes"),
@@ -952,7 +949,7 @@ async def summarize_pdf(file: UploadFile = File(...)):
     validate_upload(file.filename)
 
     import re
-    from translate import _mt_translate, _load_retrieval, _dictionary
+    from translate import _load_retrieval, _dictionary
 
     contents = await file.read()
     try:
@@ -991,7 +988,7 @@ async def summarize_pdf(file: UploadFile = File(...)):
                 sent = apply_copula_to_text(sent)
             except Exception:
                 pass
-            translated = _mt_translate(sent, "lun2en") or sent
+            translated = _nllb_translate(sent, "lun2en") or sent
             english_sentences.append(translated)
     else:
         english_sentences = sentences
@@ -1024,7 +1021,7 @@ async def summarize_pdf(file: UploadFile = File(...)):
     summary = " ".join(top_sentences)
 
     # Translate the English summary to Lunyoro sentence-by-sentence
-    from translate import _mt_translate, _nllb_translate
+    from translate import _nllb_translate
     import re as _re2
 
     def _translate_summary(text: str, use_nllb: bool) -> str:
@@ -1035,9 +1032,9 @@ async def summarize_pdf(file: UploadFile = File(...)):
                 out.append(sent)
                 continue
             if use_nllb:
-                result = _nllb_translate(sent, "en2lun") or _mt_translate(sent, "en2lun") or sent
+                result = _nllb_translate(sent, "en2lun") or sent
             else:
-                result = _mt_translate(sent, "en2lun") or sent
+                result = _nllb_translate(sent, "en2lun") or sent
             # Apply all grammar rules (including gr4) to Lunyoro output
             try:
                 from language_rules_gr4 import apply_gr4_rules
@@ -1047,9 +1044,9 @@ async def summarize_pdf(file: UploadFile = File(...)):
             out.append(result)
         return " ".join(out)
 
-    summary_lunyoro_marian = _translate_summary(summary, use_nllb=False)
+    summary_lunyoro_marian = ""
     summary_lunyoro_nllb   = _translate_summary(summary, use_nllb=True)
-    summary_lunyoro = summary_lunyoro_nllb or summary_lunyoro_marian
+    summary_lunyoro = summary_lunyoro_nllb
 
     # ── Qwen refinement pass (both models independently) ─────────────────────
     def _qwen_refine(draft: str) -> str:
@@ -1096,7 +1093,7 @@ async def summarize_pdf(file: UploadFile = File(...)):
             pass
         return draft
 
-    summary_lunyoro_marian_refined = _qwen_refine(summary_lunyoro_marian)
+    summary_lunyoro_marian_refined = ""
     summary_lunyoro_nllb_refined   = _qwen_refine(summary_lunyoro_nllb) if summary_lunyoro_nllb else summary_lunyoro_nllb
     # Primary output: prefer NLLB-refined, fall back to Marian-refined
     summary_lunyoro_best = summary_lunyoro_nllb_refined or summary_lunyoro_marian_refined
@@ -1117,7 +1114,7 @@ async def summarize_pdf(file: UploadFile = File(...)):
         "language_detected": "lunyoro" if is_lunyoro else "english",
         "summary": summary,
         "summary_lunyoro": summary_lunyoro_best,
-        "summary_lunyoro_marian": summary_lunyoro_marian_refined,
+        "summary_lunyoro_marian": "",
         "summary_lunyoro_nllb": summary_lunyoro_nllb_refined,
         "sentences_used": top_n,
     }
@@ -1134,7 +1131,7 @@ class ChatRequest(BaseModel):
 def chat(req: ChatRequest, request: Request):
     """AI Language Assistant — LLM-powered generative replies about Runyoro-Rutooro."""
     import re, requests as _requests
-    from translate import _mt_translate, _load_retrieval, _normalise, _index, _sem_model
+    from translate import _load_retrieval, _normalise, _index, _sem_model
     from language_rules import EMPAAKO, PROVERBS, NUMBERS
     import numpy as np
     from sentence_transformers import util as st_util
@@ -1159,26 +1156,6 @@ def chat(req: ChatRequest, request: Request):
         "HIS": "History",              "HLT": "Health",
         "POL": "Politics",             "ALL": "All Sectors",
     }
-
-    def to_runyoro_marian(text: str) -> str:
-        """Translate using MarianMT only (primary)."""
-        import re as _r
-        lines = text.split("\n")
-        out = []
-        for line in lines:
-            stripped = line.strip()
-            if not stripped:
-                out.append(""); continue
-            bullet_match = _r.match(r'^([*\-•]\s*|\d+\.\s*)', stripped)
-            marker = bullet_match.group(0) if bullet_match else ""
-            content = stripped[len(marker):].strip() if bullet_match else stripped
-            if not content:
-                out.append(line); continue
-            sentences = _r.split(r'(?<=[.!?])\s+', content)
-            out.append(marker + " ".join(
-                _mt_translate(s, "en2lun") or s for s in sentences if len(s.strip()) >= 3
-            ))
-        return "\n".join(out)
 
     def to_runyoro_nllb(text: str) -> str:
         """Translate using NLLB-200 only (comparison)."""
@@ -1282,28 +1259,23 @@ def chat(req: ChatRequest, request: Request):
     from language_rules import apply_rl_rule_to_text
     import concurrent.futures as _cf
 
-    marian_out = nllb_out = None
+    nllb_out = None
     if reply_en:
         with _cf.ThreadPoolExecutor(max_workers=2) as pool:
-            f_marian = pool.submit(to_runyoro_marian, reply_en)
             f_nllb   = pool.submit(to_runyoro_nllb,   reply_en)
-            marian_out = f_marian.result()
             nllb_out   = f_nllb.result()
-        if marian_out:
-            marian_out = apply_rl_rule_to_text(_clean_translation(marian_out))
         if nllb_out:
             nllb_out = apply_rl_rule_to_text(_clean_translation(nllb_out))
 
-    if not marian_out and not nllb_out:
+    if not nllb_out:
         # If LLM replied but translation failed, return English reply
         if reply_en:
-            return {"reply": reply_en, "reply_marian": None, "reply_nllb": None}
+            return {"reply": reply_en, "reply_nllb": None}
         return {"reply": "Sorry, the chat assistant is unavailable right now. Please try again.",
-                "reply_marian": None, "reply_nllb": None}
+                "reply_nllb": None}
 
     return {
-        "reply":         nllb_out or marian_out,  # NLLB is primary
-        "reply_marian":  marian_out,
+        "reply":         nllb_out,
         "reply_nllb":    nllb_out,
     }
 
@@ -1797,18 +1769,14 @@ def _translate_region(text: str, direction: str, refine: bool = True) -> str:
     """Translate a detected text region using NLLB (primary) + MarianMT fallback.
     Optionally refines the draft with Qwen LLM for higher accuracy.
     """
-    from translate import _nllb_translate, _mt_translate
+    from translate import _nllb_translate
     if direction == "en->lun":
         translation = _nllb_translate(text, "en2lun")
-        if not translation:
-            translation = _mt_translate(text, "en2lun")
         # Qwen refinement: improve Runyoro-Rutooro grammar and accuracy
         if refine and translation:
             translation = _qwen_refine_translation(text, translation)
     else:
         translation = _nllb_translate(text, "lun2en")
-        if not translation:
-            translation = _mt_translate(text, "lun2en")
         # For lun->en, use Qwen to clean up English output
         if refine and translation:
             translation = _qwen_refine_lun2en(text, translation)

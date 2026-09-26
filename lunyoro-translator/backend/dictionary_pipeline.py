@@ -671,8 +671,8 @@ def step_push_to_hub():
 # ── STEP 7: RETRAIN NLLB ─────────────────────────────────────────────────────
 
 # NLLB uses run_Latn (Rundi) as the closest proxy for Runyoro-Rutooro
-NLLB_SRC_LANG = {"en2lun": "eng_Latn", "lun2en": "run_Latn"}
-NLLB_TGT_LANG = {"en2lun": "run_Latn", "lun2en": "eng_Latn"}
+NLLB_SRC_LANG = {"en2lun": "eng_Latn", "lun2en": "nyo_Latn"}
+NLLB_TGT_LANG = {"en2lun": "nyo_Latn", "lun2en": "eng_Latn"}
 
 def step_retrain_nllb(direction: str, epochs: int = 5, batch_size: int = 16, lr: float = 5e-6):
     """Fine-tune an NLLB-200 model from its existing checkpoint."""

@@ -1,0 +1,29 @@
+[Unit]
+Description=Pull Ollama LLM model (qwen2.5:1.5b) at boot if not cached
+# Run after Ollama server is fully up, before the sidecar needs it
+After=network-online.target ollama.service
+Wants=network-online.target
+Requires=ollama.service
+
+[Service]
+Type=oneshot
+User=pi
+# Pull the model only if it is not already in the local cache.
+# 'ollama show' exits 0 when the model exists, non-zero otherwise.
+ExecStart=/bin/bash -c '\
+    if ollama show qwen2.5:1.5b > /dev/null 2>&1; then \
+        echo "[ollama-pull] qwen2.5:1.5b already cached — skipping pull"; \
+    else \
+        echo "[ollama-pull] Pulling qwen2.5:1.5b (~986 MB, one-time download)..."; \
+        ollama pull qwen2.5:1.5b; \
+        echo "[ollama-pull] Pull complete."; \
+    fi'
+# Give it enough time for the initial download on slow connections
+TimeoutStartSec=600
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ollama-pull
+
+[Install]
+WantedBy=multi-user.target

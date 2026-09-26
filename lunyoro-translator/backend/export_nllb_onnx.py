@@ -91,8 +91,8 @@ def verify_onnx(out_dir: Path, label: str):
         )
 
         # Short test translation
-        src_lang = "eng_Latn" if "en2lun" in label else "run_Latn"
-        tgt_lang = "run_Latn" if "en2lun" in label else "eng_Latn"
+        src_lang = "eng_Latn" if "en2lun" in label else "nyo_Latn"
+        tgt_lang = "nyo_Latn" if "en2lun" in label else "eng_Latn"
         tokenizer.src_lang = src_lang
         test_text = "Hello" if "en2lun" in label else "ningenda"
         inputs = tokenizer(test_text, return_tensors="pt")

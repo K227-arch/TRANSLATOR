@@ -31,9 +31,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python deps ────────────────────────────────────────────────────────────
-# Install CPU-only torch first — avoids pulling the 1.3 GB CUDA wheel
+# Install CPU-only torch + matching torchvision first.
+# torchvision must be pinned to the CPU variant that matches torch==2.3.1+cpu;
+# without this, easyocr pulls in a torchvision CUDA wheel whose nms op is
+# missing on CPU, which breaks the optimum import chain at runtime.
 RUN pip install --no-cache-dir --timeout=300 --retries=5 \
         torch==2.3.1+cpu \
+        torchvision==0.18.1+cpu \
         --index-url https://download.pytorch.org/whl/cpu
 
 COPY requirements.txt .

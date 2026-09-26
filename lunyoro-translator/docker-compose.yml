@@ -19,6 +19,8 @@ services:
       - HF_DATASETS_OFFLINE=0
       - HF_HUB_OFFLINE=0
       - HISTORY_FILE=/app/history/history.json
+      - DISABLE_ONNX=1        # use FP32 PyTorch models (nllb_en2lun / nllb_lun2en)
+      - DISABLE_MARIAN=1      # MarianMT removed — only NLLB used
     depends_on:
       ollama:
         condition: service_started

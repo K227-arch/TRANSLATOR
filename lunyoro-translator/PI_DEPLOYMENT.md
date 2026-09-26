@@ -111,33 +111,166 @@ after Next's CSS.
 
 ---
 
+## Deploying the Ollama chat LLM
+
+The chat endpoint uses **qwen2.5:1.5b** (986 MB Q4_K_M) running inside Ollama on the Pi.
+It must be set up once and thereafter starts automatically on every boot.
+
+### Boot sequence
+
+```
+boot
+ └─ ollama.service          (installed by Ollama's install.sh, starts the server on :11434)
+     └─ ollama-pull.service  (one-shot: pulls qwen2.5:1.5b if not already cached)
+         └─ lunyoro-sidecar.service  (Python FastAPI — waits for model to be ready)
+```
+
+### First-time setup (run on the Pi, needs sudo)
+
+```bash
+# 1. Install Ollama — registers ollama.service to start at boot automatically
+curl -fsSL https://ollama.com/install.sh | sh
+systemctl is-active ollama   # should print: active
+
+# 2. Install the model-pull service
+sudo cp /home/pi/lunyoro-sidecar/ollama-pull.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ollama-pull
+
+# 3. Do the initial pull now (one-time, ~986 MB)
+sudo systemctl start ollama-pull
+journalctl -u ollama-pull -f    # watch until "Pull complete."
+
+# 4. Install / update the sidecar service (also done by deploy.sh step 3)
+sudo cp /home/pi/lunyoro-sidecar/lunyoro-sidecar.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable lunyoro-sidecar
+sudo systemctl restart lunyoro-sidecar
+```
+
+### What runs automatically after this
+
+On every subsequent boot, systemd brings up services in this order automatically:
+
+1. **ollama.service** — Ollama server, no user action needed
+2. **ollama-pull.service** — checks if model is cached; skips the download if already present (fast)
+3. **lunyoro-translator.service** — C++ NLLB backend (NLLB only — MarianMT removed)
+4. **lunyoro-sidecar.service** — Python sidecar, starts after all the above are ready
+
+No manual intervention is needed after the first-time setup.
+
+### Updating the model
+
+To swap to a different model (e.g. a future `qwen2.5:3b`):
+
+```bash
+# On the Pi:
+ollama pull qwen2.5:3b
+# Edit /etc/systemd/system/lunyoro-sidecar.service:
+#   Environment=OLLAMA_MODEL=qwen2.5:3b
+sudo systemctl daemon-reload && sudo systemctl restart lunyoro-sidecar
+```
+
+### Verifying the chat is working
+
+```bash
+curl -s -X POST http://localhost/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "How are you?"}' | python3 -m json.tool
+# Expected: "reply": "Ndyoho, webale muno.\n\n(English: I am fine, thank you.)"
+```
+
+---
+
 ## Deploying a model update
 
 Only when models are retrained. Requires the PyTorch checkpoints in `backend/model/`:
 
 ```bash
 cd lunyoro-translator/backend
-python export_onnx_all.py                # PyTorch -> ONNX
-python export_onnx_int8.py --prune-fp32  # NLLB -> INT8
-python export_marian_tokenizer.py        # Unigram data the C++ Marian path needs
+python export_nllb_onnx.py
+python export_onnx_int8.py --prune-fp32  # NLLB → INT8
 python verify_pi_models.py --all         # check output before shipping
 
 PI=pi@<ip>
-rsync -a --exclude 'decoder_with_past_model.onnx' model/en2lun_onnx/ $PI:/home/pi/lunyoro-translator-cpp/models/v3/marian_en2lun/
-rsync -a --exclude 'decoder_with_past_model.onnx' model/lun2en_onnx/ $PI:/home/pi/lunyoro-translator-cpp/models/v3/marian_lun2en/
 rsync -a model/nllb_en2lun_pi/ $PI:/home/pi/lunyoro-translator-cpp/models/v3/nllb_en2lun/
 rsync -a model/nllb_lun2en_pi/ $PI:/home/pi/lunyoro-translator-cpp/models/v3/nllb_lun2en/
 ```
 
 Then have someone restart the service (below).
 
-**NLLB must be quantized.** Unquantized it is ~6.8 GB per direction, 13.6 GB for both — it cannot
-load on the Pi's 8 GB. INT8 brings it to ~1.19 GB per direction with no measurable quality loss
-(4/5 exact output parity against fp32 on our probes). MarianMT stays fp32 at ~550 MB per direction.
+#### Fixing external-data references after quantization
 
-**Keep `model_config.json` in each NLLB directory.** It pins the Runyoro language token to
-`256146`. Without it the loader falls back to the key `nyk_Latn`, which is not a real NLLB token
-and silently resolves to UNK, degrading output.
+After quantizing NLLB models to INT8 the `.onnx` protobuf header still records the old
+`*_quantized.onnx.data` filename rather than the renamed `*.onnx.data` file. Running
+inference against a mismatched filename causes a load error.
+`backend/model/patch_ext_refs.py` fixes this without touching the `.data` file itself:
+
+```bash
+# Run inside the pi-sim-backend container (or any environment with the onnx package)
+python3 /models/patch_ext_refs.py
+```
+
+The script:
+- Covers **all** tensor locations in the protobuf — `graph.initializer`, `node.attribute`
+  tensors (e.g. Constant nodes), and subgraphs inside `If`/`Loop`/`Scan` nodes recursively
+- Derives the correct target filename dynamically from each model's own base name
+  (`encoder_model_quantized.onnx.data` → `encoder_model.onnx.data`, etc.)
+- Rewrites only the protobuf header (`SerializeToString`) — the `.data` weight file is
+  **never modified**, so no data is duplicated or lost
+- Backs up each `.onnx` file to `<file>.bak` on first run (skips if backup already exists)
+- Prints a per-model count of references fixed and a final verification pass showing any
+  remaining old-style references
+
+Models patched: `nllb_en2lun_int8` and `nllb_lun2en_int8`, both encoder and decoder.
+
+**NLLB must be quantized.** Unquantized it is ~6.8 GB per direction, 13.6 GB for both — it cannot
+load on the Pi's 8 GB. INT8 brings it to ~1.19 GB per direction (~2.4 GB total). MarianMT has
+been removed — only NLLB is used for translation.
+
+**NLLB language token: `run_Latn` (Rundi proxy, ID 256146).** Use `run_Latn` as
+`forced_bos_token_id` for all NLLB INT8 ONNX inference on the Pi — both en→lun and lun→en.
+
+**Why not `nyo_Latn`?** `nyo_Latn` (ID 256205) is the custom Runyoro-Rutooro token baked into the
+FP32 PyTorch model during fine-tuning. INT8 quantization distorts its embedding because it sits at
+the very end of the vocabulary matrix as a custom-added token with limited training exposure. In
+practice, every quantized model tested outputs Luganda (`muli kurungi`) or garbage when
+`nyo_Latn` is the forced BOS, and correct Runyoro when `run_Latn` is used instead.
+
+**`model_config.json` pin.** Each `nllb_*_pi` directory now contains:
+```json
+{"runyoro_lang_code": "run_Latn"}
+```
+This file is rsynced to the Pi alongside the model weights and is read by any Python inference
+layer (`pi-sim`, sidecar patches). The C++ backend reads its token from the compiled binary and
+**must be updated separately** — see the C++ fix section below.
+
+**If the Pi is still outputting Luganda (`muli kurungi`) or wrong-language text**, the C++ binary
+is compiled with the old token. Fix:
+
+```cpp
+// In translator_v2.cpp (or wherever NLLB_TGT_LANG / NLLB_SRC_LANG are defined):
+
+// OLD — causes Luganda output from INT8 models:
+// const std::string NLLB_LANG_LUN = "nyk_Latn";   // was: Nyankore placeholder → <unk>
+// const std::string NLLB_LANG_LUN = "lug_Latn";   // was: Luganda proxy
+// const std::string NLLB_LANG_LUN = "nyo_Latn";   // was: custom token, distorted by INT8
+
+// CORRECT — use this:
+const std::string NLLB_LANG_LUN = "run_Latn";       // Rundi proxy, ID 256146, works with INT8
+```
+
+After editing, rebuild and restart the service:
+```bash
+ssh pi@<ip>
+cd ~/lunyoro-translator-cpp
+make -j4
+sudo systemctl restart lunyoro-translator
+sleep 45
+curl -s -X POST localhost/translate -H 'Content-Type: application/json' \
+  -d '{"text":"How are you?"}' | python3 -m json.tool
+# Expected: "translation": "Oroho ota?" or "Oirirwe ota" — Runyoro, not Luganda
+```
 
 ---
 
@@ -149,7 +282,7 @@ Needed after a model or backend change. A person must type the password:
 ssh pi@<ip> 'sudo systemctl restart lunyoro-translator && sleep 45 && systemctl is-active lunyoro-translator'
 ```
 
-Allow ~45 seconds — it loads four models. Expect roughly 3.6 GB of the 7.9 GB in use afterwards.
+Allow ~30 seconds — it loads two NLLB INT8 models (~2.4 GB). Memory use after startup is roughly 2.4 GB for models + OS/sidecar overhead.
 
 ---
 
@@ -163,8 +296,10 @@ curl -s -X POST $IP/translate-reverse -H 'Content-Type: application/json' -d '{"
 ssh pi@$IP 'systemctl is-active lunyoro-translator; free -h | head -2'
 ```
 
-Known-good answers: `Good morning, my friend.` → `Oraire ota mugenziwe.` (NLLB) and
-`Oraire ota, mukwangu.` (Marian); `Webale muno` → `Thank you very much`.
+Known-good answers: `Good morning, my friend.` → `Oraire ota mugenziwe.` (NLLB);
+`Webale muno` → `Thank you very much`; `How are you?` → `Oroho ota?` or `Oirirwe ota`.
+If NLLB returns Luganda (`muli kurungi`) the C++ binary is using the wrong language token —
+see the C++ fix instructions in the model update section above.
 
 Live request log, useful when something silently fails:
 

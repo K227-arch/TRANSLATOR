@@ -1,4 +1,4 @@
-﻿"""
+"""
 Translation logic:
   Primary  â€” fine-tuned NLLB-200 models (nllb_en2lun / nllb_lun2en) trained locally
   Secondary â€” fine-tuned MarianMT models (en2lun / lun2en) as fallback
@@ -243,9 +243,6 @@ _dictionary = None
 _corpus_vocab = None
 _dict_word_map: dict = {}  # lowercase word → entry, for O(1) lookup
 
-_mt_models = {}  # {"en2lun": (tokenizer, model), "lun2en": (tokenizer, model)}
-_mt_available = {}  # {"en2lun": bool, "lun2en": bool}
-_mt_onnx = {}  # {"en2lun": bool, "lun2en": bool} â€” True if using ONNX
 _nllb_models = {}  # {"en2lun": (tokenizer, model, device), "lun2en": ...}
 _nllb_available = {}  # {"en2lun": bool, "lun2en": bool}
 _nllb_whitelist: list | None = None  # token ID whitelist loaded once
@@ -257,7 +254,7 @@ _cb_failures:    int   = 0
 _cb_open_until:  float = 0.0
 
 NLLB_LANG_EN = "eng_Latn"
-NLLB_LANG_LUN = "run_Latn"  # Rundi â€” proxy Bantu language for Runyoro-Rutooro
+NLLB_LANG_LUN = "nyo_Latn"  # Custom Runyoro-Rutooro token — must match train_nllb.py
 
 
 def _load_nllb_whitelist() -> list | None:
@@ -338,189 +335,6 @@ def _load_retrieval():
         if key:
             _dict_def_map[key] = d
     _index["_dict_def_map"] = _dict_def_map
-
-
-def _load_mt(direction: str):
-    """Lazy-load a fine-tuned MarianMT model. Prefers ONNX if available."""
-    if direction in _mt_available:
-        return _mt_available[direction]
-
-    # Respect DISABLE_MARIAN flag â€” used on NLLB-only deployments
-    if os.getenv("DISABLE_MARIAN", "0").strip() in ("1", "true", "yes"):
-        _mt_available[direction] = False
-        return False
-
-    path = os.path.join(MODEL_DIR, direction)
-    onnx_path = os.path.join(MODEL_DIR, f"{direction}_onnx")
-
-    # â”€â”€ Try ONNX first (faster inference) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # Skip ONNX if DISABLE_ONNX=1 — load FP32 PyTorch directly
-    _disable_onnx_mt = os.getenv("DISABLE_ONNX", "0").strip() in ("1", "true", "yes")
-    if not _disable_onnx_mt and os.path.isdir(onnx_path) and any(
-        f.endswith(".onnx") for f in os.listdir(onnx_path)
-    ):
-        try:
-            from optimum.onnxruntime import ORTModelForSeq2SeqLM
-            from transformers import MarianTokenizer
-            import torch
-
-            logger.info("Loading ONNX model: %s", direction)
-            tokenizer = MarianTokenizer.from_pretrained(onnx_path)
-
-            # Determine available ONNX providers â€” prefer CPU (no onnxruntime-gpu needed)
-            import onnxruntime as _ort
-
-            available_providers = _ort.get_available_providers()
-            if "CUDAExecutionProvider" in available_providers:
-                provider = "CUDAExecutionProvider"
-            else:
-                provider = "CPUExecutionProvider"
-
-            # Newer optimum expects decoder_model_merged.onnx; fall back to
-            # decoder_model.onnx (which is what our export_to_onnx.py produced).
-            onnx_files = os.listdir(onnx_path)
-            if "decoder_model_merged.onnx" in onnx_files:
-                decoder_file = "decoder_model_merged.onnx"
-            elif "decoder_model.onnx" in onnx_files:
-                decoder_file = "decoder_model.onnx"
-            else:
-                raise FileNotFoundError(f"No decoder ONNX file found in {onnx_path}")
-
-            model = ORTModelForSeq2SeqLM.from_pretrained(
-                onnx_path,
-                provider=provider,
-                decoder_file_name=decoder_file,
-                use_cache=False,  # use_cache=True requires decoder_with_past model
-            )
-            device = "cuda" if "CUDA" in provider else "cpu"
-            _mt_models[direction] = (tokenizer, model, device)
-            _mt_available[direction] = True
-            _mt_onnx[direction] = True
-            logger.info("Loaded ONNX model: %s on %s", direction, provider)
-            return True
-        except Exception as e:
-            logger.warning("ONNX load failed (%s), falling back to PyTorch", e)
-
-    # â”€â”€ PyTorch fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # Auto-download from HuggingFace if not present locally
-    if not os.path.isdir(path) or not any(
-        f.endswith((".safetensors", ".bin"))
-        for f in os.listdir(path)
-        if os.path.isdir(path)
-    ):
-        hf_repos = {
-            "en2lun": "keithtwesigye/lunyoro-en2lun",
-            "lun2en": "keithtwesigye/lunyoro-lun2en",
-        }
-        repo_id = hf_repos.get(direction)
-        if repo_id:
-            try:
-                logger.info("Downloading %s from HuggingFace...", repo_id)
-                from huggingface_hub import snapshot_download
-
-                snapshot_download(
-                    repo_id=repo_id,
-                    local_dir=path,
-                    ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
-                )
-                logger.info("Downloaded %s model.", direction)
-            except Exception as e:
-                print(
-                    f"[translate] Could not download {direction} from HuggingFace: {e}"
-                )
-                _mt_available[direction] = False
-                return False
-
-    try:
-        from transformers import MarianMTModel, MarianTokenizer
-        import torch
-
-        tokenizer = MarianTokenizer.from_pretrained(path)
-        model = MarianMTModel.from_pretrained(path)
-        model.eval()
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model.to(device)
-        _mt_models[direction] = (tokenizer, model, device)
-        _mt_available[direction] = True
-        _mt_onnx[direction] = False
-        logger.info("Loaded PyTorch model: %s", direction)
-        return True
-    except Exception as e:
-        logger.error("Could not load %s model: %s", direction, e)
-        _mt_available[direction] = False
-        return False
-
-
-def _mt_translate(text: str, direction: str, context: str = "") -> str | None:
-    """Run inference with a fine-tuned MarianMT model."""
-    if not _load_mt(direction):
-        return None
-    import torch
-
-    tokenizer, model, device = _mt_models[direction]
-
-    # Pre-process lun→en input: normalise nasal clusters
-    if direction == "lun2en":
-        text = _preprocess_lunyoro_input(text)
-
-    input_text = f"{context} ||| {text}" if context else text
-    inputs = tokenizer(
-        input_text, return_tensors="pt", truncation=True, max_length=256
-    )
-    # ONNX models (ORTModelForSeq2SeqLM) handle device internally â€” don't call .to()
-    if not _mt_onnx.get(direction, False):
-        inputs = inputs.to(device)
-    with torch.no_grad():
-        output_ids = model.generate(
-            **inputs,
-            num_beams=8,
-            max_length=512,
-            early_stopping=True,
-            no_repeat_ngram_size=3,
-            repetition_penalty=1.3,
-            length_penalty=1.2,
-        )
-    result = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-
-    # Strip any domain tags the model may have reproduced from training data
-    import re as _re2
-
-    result = _re2.sub(r"^\s*\[[A-Za-z _]+\]\s*", "", result).strip()
-
-    # Strip source-copy artifact: model sometimes appends the English source
-    if text and len(text) > 8 and direction == "en2lun":
-        src_lower = text.lower().strip()
-        out_lower = result.lower()
-        idx = out_lower.find(src_lower[:20])
-        if idx > 5:
-            result = result[:idx].strip().rstrip("?.,;: ")
-        # Also strip trailing English sentences
-        result = _re2.sub(r"\s+[A-Z][a-z]+(?:\s+[a-z]+){3,}\??\s*$", "", result).strip()
-
-    # Post-process en→lun output: apply orthographic rules
-    if direction == "en2lun" and result:
-        result = _postprocess_lunyoro(result)
-
-    # Detect degenerate/hallucinated output (repetitive tokens like "Bi Bi Bi...")
-    if result:
-        import re as _re_deg
-        words = result.split()
-        if len(words) >= 5:
-            # Check if any single token makes up >40% of the output
-            from collections import Counter as _Counter
-            freq = _Counter(w.lower() for w in words)
-            most_common_word, most_common_count = freq.most_common(1)[0]
-            if most_common_count / len(words) > 0.4:
-                return None  # garbage â€” too repetitive
-            # Check for repeated bigrams (e.g. "Bi Bi Bi Bi")
-            bigrams = [f"{words[i]} {words[i+1]}" for i in range(len(words)-1)]
-            if bigrams:
-                bg_freq = _Counter(bigrams)
-                top_bg, top_bg_count = bg_freq.most_common(1)[0]
-                if top_bg_count / len(bigrams) > 0.35:
-                    return None  # garbage â€” repeated bigrams
-
-    return result
 
 
 def _load_nllb(direction: str) -> bool:
@@ -1030,7 +844,7 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
         words = _re3.findall(r"[a-z]+", nllb_result.lower())
         if words:
             en_ratio = sum(1 for w in words if w in common_en) / len(words)
-            if en_ratio > 0.5:
+            if en_ratio >= 0.4:  # catch English passthrough (was > 0.5, too lenient)
                 return None  # NLLB returned English â€” discard, fall back to MarianMT
         nllb_result = _postprocess_lunyoro(nllb_result)
 
@@ -1114,7 +928,6 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
                 return {
                     "translation": translation,
                     "translation_nllb": None,
-                    "translation_marian": None,
                     "method": "exact_match",
                     "confidence": 1.0,
                     "matched_source": sent,
@@ -1183,7 +996,6 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
         return {
             "translation": translation,
             "translation_nllb": None,
-            "translation_marian": None,
             "method": "selective_rag",
             "confidence": round(best_score, 3),
             "matched_source": matched_src,
@@ -1281,7 +1093,6 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
             context = context[-400:]
 
     # â”€â”€ Always run both neural MT models first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    marian = _mt_translate(text, "en2lun", context=context)
     nllb   = _nllb_translate(text, "en2lun", context=context)
 
     def _is_garbage(s: str | None) -> bool:
@@ -1314,13 +1125,11 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
     if marian:  marian  = _mirror_punctuation(text, marian)
 
     # Primary = NLLB if valid, else MarianMT
-    neural_best = nllb if not _is_garbage(nllb) else marian
 
     # â”€â”€ Selective RAG: try retrieval for high-confidence matches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     rag_result = _selective_rag(text, direction="en2lun", top_k=top_k)
     if rag_result:
         rag_result["translation_nllb"]   = nllb
-        rag_result["translation_marian"] = marian
         # Keep the verified corpus translation as primary â€” don't override with NLLB
         # NLLB output may differ but the corpus hit is human-verified
         return rag_result
@@ -1336,7 +1145,6 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
                     return {
                         "translation":         translation,
                         "translation_nllb":    nllb,
-                        "translation_marian":  marian,
                         "method": "exact_match",
                         "confidence": 1.0,
                         "alternatives": [],
@@ -1348,7 +1156,6 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
         return {
             "translation":         neural_best,
             "translation_nllb":    nllb,
-            "translation_marian":  marian,
             "method": "neural_mt",
             "confidence": 1.0,
             "alternatives": [],
@@ -1486,19 +1293,15 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
             context = context[-400:]
 
     # â”€â”€ Always run both neural MT models first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    marian = _mt_translate(text, "lun2en", context=context)
     nllb   = _nllb_translate(text, "lun2en", context=context)
 
     if nllb:    nllb    = _postprocess_english(_mirror_punctuation(text, nllb))
     if marian:  marian  = _postprocess_english(_mirror_punctuation(text, marian))
 
-    neural_best = nllb or marian
-
     # â”€â”€ Selective RAG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     rag_result = _selective_rag(text, direction="lun2en", top_k=top_k)
     if rag_result:
         rag_result["translation_nllb"]   = nllb
-        rag_result["translation_marian"] = marian
         # FIX: preserve the high-confidence corpus translation as primary.
         # Do NOT override it with NLLB here â€” that defeated the whole purpose of RAG.
         # NLLB is already in translation_nllb for the frontend to display.
@@ -1515,7 +1318,6 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
                     return {
                         "translation":         best,
                         "translation_nllb":    nllb,
-                        "translation_marian":  marian,
                         "method": "exact_match",
                         "confidence": 1.0,
                         "alternatives": [],
@@ -1527,7 +1329,6 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
         return {
             "translation":         neural_best,
             "translation_nllb":    nllb,
-            "translation_marian":  marian,
             "method": "neural_mt",
             "confidence": 1.0,
             "alternatives": [],
@@ -1934,21 +1735,6 @@ def _build_corpus_vocab() -> set:
     # Only add tokenizer vocab for words that look Bantu (not English)
     # Filter: must contain at least one of the Bantu vowel patterns and no English-only patterns
     lun2en_path = os.path.join(MODEL_DIR, "lun2en")
-    if os.path.isdir(lun2en_path):
-        try:
-            from transformers import MarianTokenizer
-
-            tok = MarianTokenizer.from_pretrained(lun2en_path)
-            _BANTU_STARTS = ("ok", "om", "ab", "ob", "eb", "ek", "ak", "ag",
-                             "or", "en", "em", "ni", "ba", "ka", "ku", "mu",
-                             "bu", "tu", "bi", "ki", "ga", "rw", "nt", "mb")
-            for token in tok.get_vocab().keys():
-                clean = token.lstrip("â–").lower()
-                if (clean.isalpha() and len(clean) >= 3
-                        and any(clean.startswith(p) for p in _BANTU_STARTS)):
-                    known.add(clean)
-        except Exception:
-            pass
 
     # Common English words that leak into the dictionary â€” exclude them from known vocab
     _EN_STOPLIST = frozenset({
@@ -2029,35 +1815,7 @@ def spellcheck(text: str) -> list:
         # â”€â”€ Bantu prefix check: skip words that look like valid formed Runyoro words
         # BUT always check words with suspicious double vowels (aa, ee, oo, ii, uu)
         # since doubled vowels are almost always a typo in Runyoro
-        import re as _re_dbl
-        has_suspicious_double = bool(_re_dbl.search(r"[aeiou]{3,}|([aeiou])\1{1,}", lower))
 
-        if not has_suspicious_double:
-            _BANTU_PREFIXES = (
-                "oku", "okw", "omu", "aba", "obu", "otu", "ama", "eri",
-                "ebi", "eki", "aka", "aga", "oru",
-            )
-            _SHORT_PREFIXES = ("en", "em", "ni", "ba", "ka", "ku", "mu", "bu",
-                               "tu", "bi", "ki", "ga", "in", "im")
-            if any(lower.startswith(p) for p in _BANTU_PREFIXES) and len(lower) >= 6:
-                continue
-            if any(lower.startswith(p) for p in _SHORT_PREFIXES) and len(lower) >= 9:
-                continue
-
-        # â”€â”€ Tokenizer check: does the MarianMT model know this word as a single token?
-        lun2en_path = os.path.join(MODEL_DIR, "lun2en")
-        model_knows = False
-        if os.path.isdir(lun2en_path) and _load_mt("lun2en"):
-            try:
-                tokenizer, _, _ = _mt_models["lun2en"]
-                pieces = tokenizer.tokenize(lower)
-                if pieces and "<unk>" not in pieces and len(pieces) == 1:
-                    model_knows = True
-            except Exception:
-                pass
-
-        if model_knows:
-            continue
 
         # â”€â”€ Fuzzy suggestion search â”€â”€
         # Use both fuzz.ratio AND fuzz.partial_ratio for better Bantu stem matching

@@ -20,7 +20,18 @@ Lightweight Python FastAPI service that runs alongside the C++ translator on the
 
 ### Chat Endpoint Details
 
-`POST /chat` provides a fully offline language assistant using pattern-matching and retrieval from `language_rules_data.py` — no LLM or internet connection needed.
+`POST /chat` provides an LLM-powered language assistant. It uses a two-stage pipeline:
+1. **Ollama LLM** (`qwen2.5:1.5b` by default) generates a concise English reply.
+2. **NLLB translation** (`_translate_to_runyoro`) translates the reply sentence-by-sentence via the C++ backend's `/translate` endpoint.
+
+If Ollama is unreachable, a static fallback help message is translated and returned instead.
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_URL` | `http://127.0.0.1:11434` | Base URL of the local Ollama instance |
+| `OLLAMA_MODEL` | `qwen2.5:1.5b` | Ollama model name to use for chat |
 
 **Request body:**
 ```json
@@ -32,20 +43,20 @@ Lightweight Python FastAPI service that runs alongside the C++ translator on the
 }
 ```
 
-**Supported topics:**
-- Translation requests (checked first — proxied to C++ backend)
-- Greetings and introductions
-
-Translation matching is prioritised over greetings so that inputs like "translate hi" or "what is hello" are routed to the translation pipeline rather than the greeting response.
+**Processing order (highest priority first):**
+1. **Quick chip topics** — if the message contains a topic word (`food`, `greetings`, `directions`, `emergency`, `numbers`) in quotes or alongside `phrases`, `words`, `vocabulary`, or `say`, a fixed English vocabulary list is translated to Runyoro and returned immediately without calling the LLM. This ensures chip-button taps (e.g. *How do I say "food" phrases in Runyoro-Rutooro?*) always get a fast, structured reply.
+2. **All other messages** — forwarded to Ollama (`qwen2.5:1.5b`), which replies in plain English (2–4 sentences max), and the reply is then translated to Runyoro via NLLB.
 
 **Response schema:**
 ```json
 {
-  "reply": "...",
-  "reply_marian": null,
-  "reply_nllb": null
+  "reply": "<runyoro_reply>\n\n(English: <english_reply>)",
+  "reply_nllb": "<runyoro_reply>",
+  "reply_marian": null
 }
 ```
+
+Both the Runyoro translation and the original English are included in `reply` for readability. `reply_nllb` carries the Runyoro-only output; `reply_marian` is always `null` on the sidecar.
 
 ## Architecture
 

@@ -2,7 +2,19 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# Remove Windows-only native binaries from package.json before installing.
+# They are locked to win32 and will never resolve on Linux — the Linux
+# equivalents (@tailwindcss/oxide, lightningcss) are already in devDependencies.
+RUN node -e " \
+  const fs = require('fs'); \
+  const pkg = JSON.parse(fs.readFileSync('package.json')); \
+  const winPkgs = ['@tailwindcss/oxide-win32-x64-msvc','lightningcss-win32-x64-msvc']; \
+  winPkgs.forEach(p => { delete pkg.dependencies[p]; }); \
+  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); \
+  console.log('Removed Windows-only native packages from package.json'); \
+"
+# Use npm install (not ci) so npm resolves platform-correct binaries on Linux
+RUN npm install --prefer-offline 2>&1 | tail -5
 
 COPY . .
 

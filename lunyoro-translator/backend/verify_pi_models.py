@@ -13,8 +13,15 @@ If this produces sane translations, the C++ port has a correct target to match.
 Any divergence here is a model/export problem, not a C++ bug — which is exactly
 the distinction worth establishing before writing the C++.
 
+Language token: run_Latn (Rundi proxy, ID 256146).
+  - nyo_Latn (ID 256205) is the custom fine-tuning token used by the FP32 PyTorch
+    model, but INT8 quantization distorts its embedding (tail of the matrix,
+    custom-added). run_Latn produces correct Runyoro output from INT8 ONNX models.
+  - The C++ backend on the Pi must also use run_Latn as forced_bos_token_id.
+    If it is still compiled with nyk_Latn or lug_Latn, rebuild with run_Latn.
+
 Usage:
-    python verify_pi_models.py --model-dir model/nllb_en2lun_pi --src eng_Latn --tgt nyk_Latn
+    python verify_pi_models.py --model-dir model/nllb_en2lun_pi --src eng_Latn --tgt run_Latn
     python verify_pi_models.py --all
 """
 
@@ -32,9 +39,14 @@ MODEL_DIR = BASE / "model"
 MAX_LENGTH = 200  # matches max_length_ in translator_v2.cpp
 
 # (model dir, source lang, target lang, probe sentence)
+# run_Latn is the effective Runyoro token for INT8 ONNX models — see module docstring.
 SUITE = [
-    ("nllb_en2lun_pi", "eng_Latn", "nyk_Latn", "Good morning, my friend."),
-    ("nllb_lun2en_pi", "nyk_Latn", "eng_Latn", "Oli ota"),
+    ("nllb_en2lun_pi", "eng_Latn", "run_Latn", "Good morning, my friend."),
+    ("nllb_en2lun_pi", "eng_Latn", "run_Latn", "How are you?"),
+    ("nllb_en2lun_pi", "eng_Latn", "run_Latn", "Thank you very much."),
+    ("nllb_lun2en_pi", "run_Latn", "eng_Latn", "Oraire ota mugenziwe."),
+    ("nllb_lun2en_pi", "run_Latn", "eng_Latn", "Webale muno"),
+    ("nllb_lun2en_pi", "run_Latn", "eng_Latn", "Ningenda omu isoko"),
 ]
 
 
@@ -47,8 +59,17 @@ def make_session(path: Path, threads: int = 4) -> ort.InferenceSession:
 
 def greedy_translate(model_dir: Path, src_lang: str, tgt_lang: str, text: str) -> tuple[str, float]:
     tok = AutoTokenizer.from_pretrained(str(model_dir), src_lang=src_lang)
-    encoder = make_session(model_dir / "encoder_model_quantized.onnx")
-    decoder = make_session(model_dir / "decoder_model_quantized.onnx")
+
+    # Accept both the original _pi naming (_quantized.onnx) and the patched _int8 naming (.onnx)
+    def _find(base: str) -> Path:
+        for name in (f"{base}_quantized.onnx", f"{base}.onnx"):
+            p = model_dir / name
+            if p.exists():
+                return p
+        raise FileNotFoundError(f"Neither {base}_quantized.onnx nor {base}.onnx found in {model_dir}")
+
+    encoder = make_session(_find("encoder_model"))
+    decoder = make_session(_find("decoder_model"))
 
     enc_inputs = {i.name for i in encoder.get_inputs()}
     dec_inputs = {i.name for i in decoder.get_inputs()}

@@ -147,12 +147,11 @@ async def _translate_label(label: str) -> dict:
                 return {
                     "translation": data.get("translation", label),
                     "translation_nllb": data.get("translation_nllb"),
-                    "translation_marian": data.get("translation_marian"),
                     "method": data.get("method", "unknown"),
                 }
     except Exception:
         pass
-    return {"translation": label, "translation_nllb": None, "translation_marian": None, "method": "passthrough"}
+    return {"translation": label, "translation_nllb": None, "method": "passthrough"}
 
 
 @app.post("/classify-image")
@@ -191,7 +190,6 @@ async def classify_image(file: UploadFile = File(...), top_k: int = Query(5, le=
             "label_en": pred["label"],
             "label_lun": tr["translation"],
             "label_lun_nllb": tr.get("translation_nllb"),
-            "label_lun_marian": tr.get("translation_marian"),
             "confidence": pred["confidence"],
             "method": tr["method"],
         })
@@ -343,12 +341,11 @@ async def _translate_sentence(client: httpx.AsyncClient, text: str, direction: s
             return {
                 "translation": data.get("translation", text),
                 "translation_nllb": data.get("translation_nllb"),
-                "translation_marian": data.get("translation_marian"),
                 "method": data.get("method", "unknown"),
             }
     except Exception:
         pass
-    return {"translation": text, "translation_nllb": None, "translation_marian": None, "method": "passthrough"}
+    return {"translation": text, "translation_nllb": None, "method": "passthrough"}
 
 
 @app.post("/summarize-pdf")
@@ -423,7 +420,6 @@ async def summarize_pdf(file: UploadFile = File(...)):
 
     # Translate summary to Lunyoro — get both model outputs
     summary_nllb_parts = []
-    summary_marian_parts = []
     summary_best_parts = []
     async with httpx.AsyncClient(timeout=15.0) as client:
         summary_sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', summary) if len(s.strip()) > 3]
@@ -431,11 +427,9 @@ async def summarize_pdf(file: UploadFile = File(...)):
             result = await _translate_sentence(client, sent, "en->lun")
             summary_best_parts.append(result["translation"])
             summary_nllb_parts.append(result.get("translation_nllb") or result["translation"])
-            summary_marian_parts.append(result.get("translation_marian") or result["translation"])
 
     summary_lunyoro = " ".join(summary_best_parts)
     summary_lunyoro_nllb = " ".join(summary_nllb_parts)
-    summary_lunyoro_marian = " ".join(summary_marian_parts)
 
     return {
         "filename": file.filename,
@@ -540,86 +534,162 @@ class ChatRequest(BaseModel):
     conversation_mode: bool = False
 
 
-@app.post("/chat")
-async def chat(req: ChatRequest):
-    """
-    Offline chat assistant — uses retrieval from grammar rules and corpus
-    instead of an LLM. Provides grammar explanations, vocabulary lookups,
-    and translation help without needing internet.
-    """
-    from language_rules_data import (
-        RL_RULE, EMPAAKO, INTERJECTIONS, IDIOMS, NUMBERS, PROVERBS,
-        NOUN_CLASSES, TENSES, CONJUNCTIONS, PREPOSITIONS, PERSONAL_PRONOUNS,
-        GRAMMAR_SUMMARY, apply_rl_rule,
-    )
-
-    msg = req.message.strip().lower()
-
-    # ── Pattern matching for common question types ────────────────────────────
-
-    # Translation request (check FIRST — before greetings)
-    if "translate" in msg or "how do you say" in msg or "what is" in msg:
-        # Extract text to translate and proxy to C++ backend
-        text_to_translate = msg.replace("translate", "").replace("how do you say", "").replace("what is", "").strip().strip('"\'')
-        if text_to_translate:
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post(f"{CPP_BACKEND}/translate", json={"text": text_to_translate})
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        nllb = data.get("translation_nllb") or ""
-                        marian = data.get("translation_marian") or ""
-                        primary = data.get("translation", "")
-                        method = data.get("method", "")
-
-                        reply_parts = [f'"{text_to_translate}" in Runyoro-Rutooro:\n']
-                        if nllb:
-                            reply_parts.append(f"  NLLB: {nllb}")
-                        if marian:
-                            reply_parts.append(f"  Marian: {marian}")
-                        if not nllb and not marian:
-                            reply_parts.append(f"  Translation: {primary}")
-                        reply_parts.append(f"\n(Method: {method})")
-
-                        return {
-                            "reply": "\n".join(reply_parts),
-                            "reply_nllb": nllb or None,
-                            "reply_marian": marian or None,
-                        }
-            except Exception:
-                pass
-        return _chat_response(
-            "I can translate for you! Try: 'translate good morning' or 'how do you say thank you'"
-        )
-
-    # Greetings
-    if any(g in msg for g in ["hello", "hi ", "hey ", "how are you"]) or msg in ("hi", "hey"):
-        return _chat_response(
-            "Agandi! (How are you?) Welcome to the Runyoro-Rutooro language assistant. "
-            "I can help you with grammar rules, vocabulary, translations, proverbs, and more. "
-            "Try asking about noun classes, the R/L rule, tenses, or empaako names."
-        )
-
-    # Default — general help
-    return _chat_response(
-        f"{GRAMMAR_SUMMARY}\n\n"
-        "I'm the offline language assistant. I can help with:\n"
-        "• Grammar rules (noun classes, tenses, R/L rule)\n"
-        "• Empaako (honorific names)\n"
-        "• Proverbs (enfumo) and idioms\n"
-        "• Numbers and counting\n"
-        "• Translations (say 'translate hello')\n"
-        "• Interjections and conjunctions\n\n"
-        "What would you like to learn about?"
-    )
-
-
 def _chat_response(reply: str) -> dict:
     """Format a chat response matching the expected frontend schema."""
+    return {"reply": reply, "reply_nllb": None}
+
+
+def _sentence_case(text: str) -> str:
+    """Capitalize first letter and add trailing punctuation if missing.
+    Mirrors backend normalization so NLLB (run_Latn token) gets well-formed input."""
+    text = text.strip()
+    if not text:
+        return text
+    if not text[0].isupper():
+        text = text[0].upper() + text[1:]
+    if text[-1] not in ".!?,;:":
+        question_words = ("how", "what", "where", "when", "who", "why", "which",
+                          "is ", "are ", "do ", "does ", "can ", "will ", "have ")
+        if any(text.lower().startswith(w) for w in question_words):
+            text = text + "?"
+        elif not text[-1].isdigit():
+            text = text + "."
+    return text
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CHAT — LLM (qwen2.5:1.5b via Ollama) + NLLB translation to Runyoro
+# ══════════════════════════════════════════════════════════════════════════════
+
+OLLAMA_URL   = os.getenv("OLLAMA_URL",   "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
+
+SYSTEM_PROMPT = (
+    "You are a helpful assistant for the Runyoro-Rutooro language spoken in western Uganda. "
+    "Your replies will be translated into Runyoro-Rutooro by a separate translation model, "
+    "so always answer in clear, simple English. "
+    "Be concise — 2 to 4 sentences maximum. "
+    "For vocabulary or phrase requests, provide a short list of simple English words or phrases "
+    "that the translation model can convert. "
+    "Do not include Runyoro words yourself — the translation model handles that. "
+    "Do not add disclaimers, markdown headers, or asterisks."
+)
+
+# Chip topics the frontend sends as 'How do I say "<topic>" phrases in Runyoro-Rutooro?'
+_CHIP_ENGLISH = {
+    "food": (
+        "Here are common food and eating words: food, water, meat, fish, "
+        "rice, porridge, banana, salt, sugar, cooking oil. "
+        "Useful phrases: I want to eat. I am hungry. I am full. The food is delicious."
+    ),
+    "greetings": (
+        "Common greeting phrases: How are you? Good morning. Good evening. "
+        "I am fine. Thank you very much. Goodbye. See you later. Welcome. Excuse me. Sorry."
+    ),
+    "directions": (
+        "Direction phrases: Where is the market? Go straight. Turn right. "
+        "Turn left. It is near. It is far. Let us go. Show me the way. I am lost."
+    ),
+    "emergency": (
+        "Emergency phrases: Help me! I am sick. I need a doctor. "
+        "Call the police. There is fire. I am in danger. Where is the hospital?"
+    ),
+    "numbers": (
+        "Numbers one to ten: one, two, three, four, five, "
+        "six, seven, eight, nine, ten. Also: twenty, one hundred, one thousand."
+    ),
+}
+
+
+async def _ollama_chat(message: str, history: list) -> str:
+    """Call Ollama and return the English reply."""
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for h in history[-4:]:
+        messages.append({
+            "role": "user" if h.get("role") == "user" else "assistant",
+            "content": h.get("content", ""),
+        })
+    messages.append({"role": "user", "content": message})
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{OLLAMA_URL}/api/chat",
+                json={"model": OLLAMA_MODEL, "messages": messages, "stream": False},
+            )
+            if resp.status_code == 200:
+                return resp.json()["message"]["content"].strip()
+    except Exception as e:
+        print(f"[sidecar] Ollama error: {e}")
+    return ""
+
+
+async def _translate_to_runyoro(text: str) -> str:
+    """Translate English text to Runyoro via NLLB backend, sentence by sentence."""
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    if not sentences:
+        return text
+    parts = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            for sent in sentences:
+                resp = await client.post(
+                    f"{CPP_BACKEND}/translate",
+                    json={"text": _sentence_case(sent)},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    translated = (
+                        (data.get("translation_nllb") or "").strip()
+                        or (data.get("translation") or "").strip()
+                        or sent
+                    )
+                    parts.append(translated)
+                else:
+                    parts.append(sent)
+    except Exception as e:
+        print(f"[sidecar] Translation error: {e}")
+        return text
+    return " ".join(parts)
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
+    sector: Optional[str] = None
+    conversation_mode: bool = False
+
+
+@app.post("/chat")
+async def chat(req: ChatRequest):
+    msg = req.message.strip()
+    msg_lower = msg.lower()
+
+    # Quick-chip topics: translate a fixed English vocabulary list
+    for topic, english_content in _CHIP_ENGLISH.items():
+        if (f'"{topic}"' in msg_lower or f"'{topic}'" in msg_lower or
+                (topic in msg_lower and any(
+                    w in msg_lower for w in ("phrases", "words", "vocabulary", "say")))):
+            runyoro = await _translate_to_runyoro(english_content)
+            return {
+                "reply": f"{runyoro}\n\n(English: {english_content})",
+                "reply_nllb": runyoro,
+            }
+
+    # All other messages — LLM generates English reply, NLLB translates it
+    english_reply = await _ollama_chat(msg, req.history)
+
+    if not english_reply:
+        english_reply = (
+            "I can help you learn Runyoro-Rutooro. "
+            "Try asking me to translate a word or phrase, "
+            "or ask about greetings, numbers, or grammar rules."
+        )
+
+    runyoro_reply = await _translate_to_runyoro(english_reply)
+
     return {
-        "reply": reply,
-        "reply_marian": None,
-        "reply_nllb": None,
+        "reply": f"{runyoro_reply}\n\n(English: {english_reply})",
+        "reply_nllb": runyoro_reply,
     }
 
 

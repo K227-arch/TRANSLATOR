@@ -113,8 +113,8 @@ def smoke_test_int8(out_dir: Path, direction: str):
             decoder_file_name="decoder_model.onnx",
             use_cache=False,
         )
-        src_lang = "eng_Latn" if "en2lun" in direction else "run_Latn"
-        tgt_lang = "run_Latn" if "en2lun" in direction else "eng_Latn"
+        src_lang = "eng_Latn" if "en2lun" in direction else "nyo_Latn"
+        tgt_lang = "nyo_Latn" if "en2lun" in direction else "eng_Latn"
         tokenizer.src_lang = src_lang
         test_text = "Hello world" if "en2lun" in direction else "ningenda omu isoko"
         inputs = tokenizer(test_text, return_tensors="pt")

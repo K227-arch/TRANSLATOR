@@ -1,7 +1,11 @@
 [Unit]
 Description=Lunyoro Translator Pi Sidecar (Python)
-After=network.target lunyoro-translator.service
+# Start after the C++ backend AND after Ollama has the model ready
+After=network.target lunyoro-translator.service ollama.service ollama-pull.service
 Wants=lunyoro-translator.service
+# ollama-pull.service must have completed successfully before the sidecar starts
+# so the chat endpoint has a model to talk to on first request.
+Requires=ollama-pull.service
 
 [Service]
 Type=simple
@@ -12,6 +16,9 @@ Restart=on-failure
 RestartSec=5
 Environment=CPP_BACKEND_URL=http://127.0.0.1:8080
 Environment=TRANSFORMERS_OFFLINE=1
+# Ollama is running locally on the Pi at the default port
+Environment=OLLAMA_URL=http://127.0.0.1:11434
+Environment=OLLAMA_MODEL=qwen2.5:1.5b
 
 # Resource limits — keep the sidecar from eating too much RAM
 MemoryMax=512M

@@ -8,35 +8,58 @@ version: "3.9"
 # All four services communicate only over pisim_net; nothing leaks out.
 #
 # Services:
-#   pi-sim-backend   Port 8080  Python ORT (NLLB INT8 + Marian FP32 ONNX)
-#   pi-sim-sidecar   Port 8001  Python FastAPI (batch, PDF, classify, chat)
-#   pi-sim-nginx     Port 8090  Nginx router (mirrors Pi's nginx-translator.conf)
-#   pi-sim-frontend  Port 3090  Next.js static frontend
+#   pi-sim-ollama    Port 11434  Ollama LLM server (qwen2.5:1.5b)
+#   pi-sim-backend   Port 8080   Python ORT (NLLB INT8 ONNX)
+#   pi-sim-sidecar   Port 8001   Python FastAPI (batch, PDF, classify, chat)
+#   pi-sim-nginx     Port 8090   Nginx router
+#   pi-sim-frontend  Port 3090   Next.js static frontend
 #
 # Usage (from inside lunyoro-translator/pi-sim/):
 #   docker compose --project-name pi-sim -f docker-compose.pi-sim.yml up --build
-#
-#   Or use the launcher script:
-#   .\start-pi-sim.ps1 -Build
 #
 # Then open: http://localhost:3090  (full UI)
 #            http://localhost:8090  (API via nginx)
 # ──────────────────────────────────────────────────────────────────────────────
 
-# Project-level network — completely separate from the original dev stack.
-# The original stack uses `lunyoro-translator_default`; this stack uses
-# `pi-sim_pisim_net`. The two networks are never connected.
 networks:
   pisim_net:
     driver: bridge
-    name: pisim_net   # explicit name avoids project-prefix collision
+    name: pisim_net
     ipam:
       config:
-        - subnet: 172.30.0.0/24   # distinct subnet from Docker's default 172.17/18
+        - subnet: 172.30.0.0/24
 
 services:
 
-  # ── Backend: Python ORT — greedy NLLB INT8 + Marian FP32 ONNX ──────────────
+  # ── Ollama LLM server — qwen2.5:1.5b (~1 GB Q4_K_M) ──────────────────────
+  # Mirrors what runs on the Pi AI Stick: Ollama + a small chat model.
+  # Model is stored in the pisim_ollama named volume so it survives restarts
+  # and is only downloaded once.
+  # Pull the model after first start:
+  #   docker exec pi-sim-ollama ollama pull qwen2.5:1.5b
+  pi-sim-ollama:
+    image: ollama/ollama:latest
+    container_name: pi-sim-ollama
+    networks:
+      - pisim_net
+    ports:
+      - "11436:11434"   # host 11436 → container 11434 (avoids clash with dev-stack Ollama on 11435)
+    volumes:
+      - pisim_ollama:/root/.ollama   # model weights persist across restarts
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+      OLLAMA_KEEP_ALIVE: "24h"       # keep model loaded in RAM between requests
+      OLLAMA_NUM_PARALLEL: "1"       # Pi has 1 CPU core dedicated — no parallelism
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list > /dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 2g      # qwen2.5:1.5b Q4 needs ~1 GB; 2g gives headroom
+
+  # ── Backend: Python ORT — greedy NLLB INT8 ONNX ───────────────────────────
   pi-sim-backend:
     build:
       context: ./backend
@@ -46,25 +69,19 @@ services:
     networks:
       - pisim_net
     ports:
-      - "8080:8080"   # host:container — only pi-sim uses 8080
+      - "8080:8080"
     volumes:
-      # ONNX model directories — mounted read-only (no writes needed)
       - ../backend/model:/models:ro
-      # Real backend source (translate.py, language_rules_data.py, etc.)
-      # mounted so pi-sim can import grammar helpers, retrieval, spellcheck
       - ../backend:/backend:ro
-      # Writable scratch for history.json and feedback entries
       - pisim_history:/tmp/pisim
     environment:
       MODEL_DIR: /models
       BACKEND_DIR: /backend
       HISTORY_FILE: /tmp/pisim/history.json
       CORS_ORIGINS: "http://localhost:3090,http://localhost:8090,http://pi-sim-frontend:3000,http://pi-sim-nginx:80"
+      NLLB_INT8_DIR: "nllb_{d}_int8"
       NLLB_THREADS: "4"
-      MARIAN_THREADS: "2"
-      MARIAN_GREEDY: "0"          # 0 = beam-search (higher quality); 1 = greedy (Pi-exact)
       LOG_LEVEL: INFO
-      # Offline — all models are on the mounted volume; no HF downloads
       TRANSFORMERS_OFFLINE: "1"
       HF_DATASETS_OFFLINE: "1"
       HF_HUB_OFFLINE: "1"
@@ -72,7 +89,7 @@ services:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 20s
       timeout: 10s
-      start_period: 120s    # NLLB INT8 takes ~60-90s to load on first run
+      start_period: 120s
       retries: 6
     restart: unless-stopped
     mem_limit: 8g
@@ -92,12 +109,16 @@ services:
     volumes:
       - pisim_mobilenet:/app/models/mobilenet_v2
     environment:
-      # Reaches backend by container name over pisim_net — never touches host network
       CPP_BACKEND_URL: "http://pi-sim-backend:8080"
+      # Ollama is now a sibling container on pisim_net — reach by service name
+      OLLAMA_URL: "http://pi-sim-ollama:11434"
+      OLLAMA_MODEL: "qwen2.5:1.5b"
       TRANSFORMERS_OFFLINE: "1"
       LOG_LEVEL: INFO
     depends_on:
       pi-sim-backend:
+        condition: service_healthy
+      pi-sim-ollama:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
@@ -108,7 +129,7 @@ services:
     restart: unless-stopped
     mem_limit: 512m
 
-  # ── Nginx router — mirrors Pi's nginx-translator.conf ─────────────────────
+  # ── Nginx router ───────────────────────────────────────────────────────────
   pi-sim-nginx:
     image: nginx:1.27-alpine
     container_name: pi-sim-nginx
@@ -132,9 +153,6 @@ services:
     restart: unless-stopped
 
   # ── Frontend: Next.js ──────────────────────────────────────────────────────
-  # Browser-side JS must reach the API at a host:port the user's browser can
-  # resolve — not a Docker container name. So NEXT_PUBLIC_API_URL points to
-  # localhost:8090 (the nginx host port), not the internal container name.
   pi-sim-frontend:
     build:
       context: ../frontend
@@ -159,6 +177,8 @@ services:
 
 volumes:
   pisim_history:
-    name: pisim_history     # explicit name avoids project-prefix in `docker volume ls`
+    name: pisim_history
   pisim_mobilenet:
     name: pisim_mobilenet
+  pisim_ollama:
+    name: pisim_ollama    # persists Ollama model weights across stack restarts
