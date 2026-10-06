@@ -115,6 +115,11 @@ if __name__ == "__main__":
         help="Download only MarianMT + sem_model (skip NLLB). NLLB loads lazily from HF Hub cache."
     )
     parser.add_argument(
+        "--nllb-only", action="store_true",
+        help="Download only NLLB models + sem_model (skip MarianMT and datasets). "
+             "Use for DISABLE_MARIAN=1 deployments to stay within Space storage limits."
+    )
+    parser.add_argument(
         "--model", action="append", dest="models", metavar="NAME",
         help="Download a specific model by local name (repeatable). "
              "e.g. --model en2lun --model nllb_en2lun_int8"
@@ -169,6 +174,31 @@ if __name__ == "__main__":
                               ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"])
             print(f"  [OK] {local_name}")
         # Cache sem_model
+        print(f"  Caching {SEM_MODEL_NAME}...")
+        try:
+            snapshot_download(repo_id=SEM_MODEL_NAME)
+            print("  [OK] sem model cached")
+        except Exception as e:
+            print(f"  [WARN] sem model: {e}")
+    elif args.nllb_only:
+        # Download only NLLB models + sem_model. Used when DISABLE_MARIAN=1.
+        # Avoids downloading dataset CSVs — keeps Space storage well under 50 GB limit.
+        nllb_models = {k: v for k, v in HF_MODELS.items()
+                       if k in ("nllb_en2lun", "nllb_lun2en")}
+        print("  [--nllb-only] Downloading NLLB + sem_model only (skipping MarianMT + datasets).\n")
+        for local_name, repo_id in nllb_models.items():
+            dest = MODEL_DIR / local_name
+            if dest.exists() and not args.force:
+                has_weights = any(dest.glob("*.safetensors")) or any(dest.glob("*.bin"))
+                if has_weights:
+                    print(f"  [OK] {local_name} already exists — skipping")
+                    continue
+            print(f"  Downloading {repo_id} -> model/{local_name}/")
+            dest.mkdir(parents=True, exist_ok=True)
+            snapshot_download(repo_id=repo_id, local_dir=str(dest),
+                              ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"])
+            print(f"  [OK] {local_name}")
+        # Cache sem_model (needed for retrieval/spellcheck)
         print(f"  Caching {SEM_MODEL_NAME}...")
         try:
             snapshot_download(repo_id=SEM_MODEL_NAME)

@@ -60,7 +60,7 @@ Additional pages accessible from Home dashboard cards:
 | Document & Audio | `camera` | Batch process documents and voice recordings |
 | Dictionary | `dictionary` | Offline etymology and comprehensive definitions |
 
-- **System Status section:** Fetches `GET /system-info` on mount and renders three live status pills — GPU Accelerated / CPU Mode, Neural Engine (NLLB), and Local Models (Marian); each pill cycles through `loading → ok / warn / off` states using colour-coded backgrounds and a dot indicator
+- **System Status section:** Fetches `GET /system-info` on mount and renders three live status pills — GPU Accelerated / CPU Mode, Neural Engine (NLLB), and Local Models (Marian); each pill cycles through `loading → ok / warn / off` states using colour-coded backgrounds and a dot indicator. The Neural Engine pill has four states: `loading` ("Neural Engine…"), `ok` when NLLB is ready ("Neural Engine Ready"), `warn` when NLLB is offline but MarianMT is available ("Translation Engine Ready"), and `off` when neither model is available ("Neural Engine Offline")
 - **Recent Translations:** Shows the last three history entries (from `GET /history`); each row displays the source text, direction, and time; tapping navigates to the Translate tab; an illustrated empty state is shown when no history exists
 - **Theme awareness:** Reads `useTheme()` (`"light"` or `"dark"`) and resolves all colour tokens inline — no CSS class names are used for themed colours; adapts hero gradient, badge colours, card backgrounds, text, and icon tints accordingly
 
@@ -128,6 +128,8 @@ The **BottomNav** bar itself also uses a frosted-glass background (`rgba(14,14,1
 - **Bidirectional:** Supports both English → Lunyoro and Lunyoro → English directions
 - **Qwen refinement:** Each detected region's NLLB draft is passed through Qwen 2.5 7B for grammar and accuracy improvement (`en→lun`: Runyoro noun-class agreement; `lun→en`: English fluency cleanup); refinement runs only when the NLLB translation is non-empty
 - **Confidence filtering:** Low-confidence detections (< 0.3) are automatically excluded
+- **Translation engine:** OCR regions are translated by **NLLB-200** (primary). If NLLB is unavailable or returns an empty result (e.g. when `DISABLE_NLLB=1` or the HF Space API times out), **MarianMT** is used as an automatic fallback for both `en→lun` and `lun→en` directions — ensuring OCR translation continues to work even when the primary model is offline. Qwen LLM refinement is applied when using the file-upload path (`/ocr-translate`); the base64/live-camera path (`/ocr-translate-base64`) skips refinement to keep latency low.
+- **OCR text pre-processing:** Before translation, each detected region is cleaned — control characters are stripped, whitespace is collapsed, ALL-CAPS text is converted to Title Case (NLLB handles Title Case better than ALL-CAPS), and trailing OCR noise characters (`|`, `—`, `-`, `_`, `.`) are removed
 - **GPU acceleration:** EasyOCR automatically uses CUDA GPU when available for faster text detection; falls back to CPU otherwise. On startup the server logs the detected GPU name (e.g. `[ocr] GPU detected: NVIDIA GeForce RTX 3080 — EasyOCR will use GPU`) or a CPU-fallback notice, making it easy to confirm hardware utilisation in the server logs
 - **Requires:** `easyocr` (Python < 3.12 only), `pytesseract`, `opencv-python-headless`
 
@@ -205,11 +207,18 @@ See **[TRAINING_GUIDE.md](TRAINING_GUIDE.md)** for full details.
 
 ### 0. Download Models and Dataset
 ```bash
-python backend/download_models.py           # download all models + dataset CSVs
-python backend/download_models.py --force   # re-download even if files already exist
+python backend/download_models.py                  # download all models + dataset CSVs
+python backend/download_models.py --force          # re-download even if files already exist
+python backend/download_models.py --marian-only    # MarianMT + sem_model only (skip NLLB)
+python backend/download_models.py --nllb-only      # NLLB + sem_model only (skip MarianMT + datasets)
+python backend/download_models.py --model en2lun   # download a single model by name (repeatable)
 ```
 
 Downloads fine-tuned MarianMT and NLLB-200 models from HuggingFace Hub, the sentence-transformer semantic search model, and training dataset CSVs from `keithtwesigye/lunyoro-dataset` into `data/cleaned/`, `data/training/`, and `data/raw/`. Skips files that already exist unless `--force` is passed.
+
+- `--marian-only` — downloads MarianMT + sem_model and skips NLLB (NLLB streams from HF Hub cache on first use). Useful for low-storage environments where NLLB is not needed at startup.
+- `--nllb-only` — downloads NLLB models + sem_model and skips MarianMT and dataset CSVs. Use this for `DISABLE_MARIAN=1` deployments (e.g. HuggingFace Spaces) to stay within Space storage limits.
+- `--model NAME` — downloads a single model directory by its local name (e.g. `en2lun`, `nllb_en2lun_int8`). Repeatable for multiple models.
 
 ### 1. Build Translation Index
 ```bash
@@ -1171,6 +1180,7 @@ python backend/analyze_bt_quality.py
 lunyoro-translator/
 ├── backend/
 │   ├── main.py                      # FastAPI server
+│   ├── proxy_main.py                # Colab/HF proxy layer — forwards requests to a remote backend URL; uses httpx for async HTTP and health-check polling
 │   ├── translate.py                 # Translation logic (MT + retrieval)
 │   ├── language_rules.py            # Runyoro grammar rules (3200+ lines)
 │   ├── language_rules_gr4.py        # Grammar Rules 4: copula, kinship, enumeratives, ka particle, demonstratives, dara presentative, verb-noun derivation
@@ -1341,10 +1351,12 @@ A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, d
   - Parameters: `file` (image upload, required), `direction` (query param, default `"en->lun"`)
   - Returns: `regions` (array of detected text with translations and bounding boxes), `image_size`, `direction`, `total_detected`, `total_translated`
   - Each region includes: `original`, `translated`, `confidence`, `bbox` (pixel coordinates), `bbox_norm` (0–1 normalized coordinates for responsive overlay)
+  - Translation engine: **NLLB-200 only** (MarianMT fallback removed). OCR text is pre-processed before translation: control characters stripped, whitespace collapsed, ALL-CAPS → Title Case, trailing noise characters removed. Qwen LLM refinement applied after NLLB for grammar accuracy.
   - Requires: `easyocr` (Python < 3.12 only), `pytesseract`, `opencv-python-headless`
 - `POST /ocr-translate-base64` — Accept a base64-encoded image frame (from camera feed), run OCR + translate. Optimized for real-time camera usage with a cached EasyOCR reader instance
   - Body: `{ "image": "<base64 string or data URL>", "direction": "en->lun" }`
   - Returns: `regions` (array with `original`, `translated`, `confidence`, `bbox_norm`), `image_size`, `direction`
+  - Translation engine: **NLLB-200 only** with the same OCR pre-processing as `/ocr-translate`. Qwen refinement is skipped on this path to minimize latency for live camera frames.
   - Low-confidence detections (< 0.3) are filtered out automatically
 
 ### Utilities
@@ -1354,6 +1366,11 @@ A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, d
 - `GET /history` — Translation history
 - `GET /health` — Health check
 - `GET /ping` — Lightweight keep-alive probe; returns `{"pong": true, "timestamp": "<ISO-8601>"}` instantly without invoking any model. Used by the self-ping keep-alive thread (see below).
+
+### Diagnostics
+- `GET /nllb-download-test` — Deep diagnostic that runs a three-step probe for both NLLB model repos (`keithtwesigye/lunyoro-nllb-en2lun` and `keithtwesigye/lunyoro-nllb-lun2en`). Returns a JSON object keyed by direction (`en2lun`, `lun2en`); each entry contains: `download` (`"ok"` or `"error"`), `path` (HF Hub cache path on success), `tokenizer` (vocab size or error traceback), `model` (parameter count in millions or error traceback), `load_dtype` (torch dtype used — `float16` on CPU, `float32` on CUDA), and `ram_gb` (available RAM in GB at the time of the check). If the download step fails the remaining steps are skipped and `download_error` contains the last 400 characters of the traceback. Msgpack, Flax, and TensorFlow weight files are excluded from the download. Useful for diagnosing HuggingFace Hub connectivity, tokenizer compatibility, and model-load issues in a deployed environment.
+- `GET /nllb-api-status` — Reports the current NLLB API circuit-breaker state. When a HuggingFace token (`HF_KATHAY_TOKEN` or `HF_TOKEN`) is present, it probes **both** HF endpoints independently (HF Router and the classic Inference API) using the input `"Hospital"` (25 s timeout), and always records the result for each — it no longer stops after the first success. When the circuit breaker is closed, a higher-level `_nllb_translate_via_api("Hello", "en2lun")` call is also attempted. Returns: `cb_failures` (consecutive failure count), `cb_open` (bool — whether the breaker is currently open), `cb_seconds_remaining` (seconds until the breaker resets), `hf_api_results` (dict with keys `"router"` and `"api_inference"`, each containing `{"status": <HTTP status code or "error">, "body": <first 400 chars of response or error message>}`; omitted if no token), `nllb_translate_result` (translation result from the high-level call when the breaker is closed, `null` otherwise), `hf_token_present` (bool — whether a HF token was found in the environment), `nllb_disabled` (bool — whether `DISABLE_NLLB=1` is set).
+- `POST /reset-nllb-breaker` — Resets the NLLB API circuit breaker immediately, forcing a retry on the next translation request. Returns the post-reset state: `status: "reset"`, `cb_failures: 0`, `cb_open_until: 0.0`. Useful for recovering from a breaker that was tripped by transient HuggingFace Space downtime.
 
 ### Keep-Alive (HuggingFace Spaces)
 HuggingFace Spaces hibernates after 48 hours of inactivity. To prevent this, `main.py` starts a daemon background thread (`keepalive`) at startup that pings `GET /ping` on the running Space every 25 minutes.
@@ -1720,6 +1737,7 @@ If you use this work, please cite:
 ## Version History
 
 ### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives (Current)
+- **`requirements.txt`:** Added `httpx>=0.27.0` as an explicit dependency. `httpx` is used by `proxy_main.py` for async HTTP requests to the Colab/HF backend and for health-check polling — it was previously assumed to be installed transitively but is now declared directly.
 - **`translate.py`:** NLLB tokenizer loading no longer passes `fix_mistral_regex=True` to `AutoTokenizer.from_pretrained()`. That flag triggers `_patch_mistral_regex()`, which attempts item assignment on the pre-tokenizer and crashes on `tokenizers < 0.21`. NLLB is not a Mistral model and does not require that patch — removing the flag restores compatibility with the tokenizers version pinned in `requirements.txt`.
 - **`translate.py`:** Added a circuit-breaker for outbound NLLB API calls (used when `DISABLE_NLLB=1`). After `_CB_FAIL_THRESHOLD` (3) consecutive failures the breaker opens and API calls are skipped for `_CB_OPEN_SECONDS` (120 s), preventing cascading timeouts when the HF Inference API is unreachable. The breaker resets automatically after the cooldown period.
 - **`translate.py`:** NLLB models are now loaded in float16 on CPU to halve memory usage (~2.3GB → ~1.2GB per direction). On GPU, float32 is used for maximum speed. Set `FORCE_FP32=1` in the environment to override and use float32 everywhere (useful if float16 causes numerical issues on your hardware). This reduces OOM risk on memory-constrained deployments (e.g. HF Space cpu-basic) without requiring `DISABLE_NLLB=1`.

@@ -581,11 +581,15 @@ def _nllb_translate_via_api(text: str, direction: str) -> str | None:
         try:
             resp = _req.post(url, headers=auth_headers, json=payload, timeout=15)
             if resp.status_code == 503:
-                # Model cold-starting â€” short backoff then one retry (don't block worker)
-                import time as _t
-                logger.warning("NLLB API cold-start (%s), retrying in 3s", url[:50])
-                _t.sleep(3)
-                resp = _req.post(url, headers=auth_headers, json=payload, timeout=20)
+                # 503 = HF Inference API model warming up ? NOT a circuit-breaker failure.
+                # Wait progressively and retry up to 2 more times.
+                import time as _t2
+                logger.warning("NLLB API cold-start (%s), waiting 8s", url[:50])
+                _t2.sleep(8)
+                resp = _req.post(url, headers=auth_headers, json=payload, timeout=30)
+                if resp.status_code == 503:
+                    _t2.sleep(12)
+                    resp = _req.post(url, headers=auth_headers, json=payload, timeout=40)
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list) and data:

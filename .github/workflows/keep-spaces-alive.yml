@@ -19,9 +19,11 @@ jobs:
           - name: runyoro-translator-api
             url: https://keithtwesigye-runyoro-translator-api.hf.space
             space_id: keithtwesigye/runyoro-translator-api
+            token_secret: HF_TOKEN
           - name: bwated-translation
             url: https://keithtwesigye-bwated-translation.hf.space
             space_id: keithtwesigye/bwated-translation
+            token_secret: HF_TOKEN
 
     steps:
       - name: Check Space status and wake if sleeping
@@ -65,9 +67,91 @@ jobs:
           done
 
           echo "  ✗ ${{ matrix.name }} did not respond after 5 attempts"
-          # Do NOT fail the workflow — just log. A sleeping Space may still be booting.
           exit 0
 
       - name: Log keep-alive timestamp
         run: |
           echo "Keep-alive run completed at $(date -u '+%Y-%m-%dT%H:%M:%SZ') for ${{ matrix.name }}"
+
+  # ── kathay Space — separate job because it uses a different token ───────────
+  # horizonx.kathay.tech uses kathay/runyoro-translator Space.
+  # The Space was on cpu-upgrade (paid) and got paused for lack of credits.
+  # This job downgrades it to cpu-basic (free) then restarts it.
+  wake-kathay-space:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Downgrade kathay Space to cpu-basic and restart
+        env:
+          HF_KATHAY_TOKEN: ${{ secrets.HF_KATHAY_TOKEN }}
+        run: |
+          echo "=== Checking kathay/runyoro-translator ==="
+
+          STAGE=$(curl -sf \
+            -H "Authorization: Bearer $HF_KATHAY_TOKEN" \
+            "https://huggingface.co/api/spaces/kathay/runyoro-translator" \
+            | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          r = d.get('runtime', {})
+          hw = r.get('hardware', {})
+          print('STAGE=' + r.get('stage','UNKNOWN'))
+          print('HW=' + str(hw.get('requested', 'unknown')))
+          " 2>/dev/null || echo "STAGE=UNKNOWN")
+
+          echo "$STAGE"
+          STAGE_VAL=$(echo "$STAGE" | grep STAGE= | cut -d= -f2)
+          HW_VAL=$(echo "$STAGE" | grep HW= | cut -d= -f2)
+          echo "Stage: $STAGE_VAL  Hardware: $HW_VAL"
+
+          # If on paid hardware and paused — downgrade to cpu-basic via settings endpoint
+          if [ "$HW_VAL" = "cpu-upgrade" ] || [ "$HW_VAL" = "t4-small" ] || [ "$HW_VAL" = "t4-medium" ]; then
+            echo "Space is on paid hardware ($HW_VAL) — downgrading to cpu-basic..."
+            curl -sf -X PUT \
+              -H "Authorization: Bearer $HF_KATHAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"hardware": "cpu-basic"}' \
+              "https://huggingface.co/api/spaces/kathay/runyoro-translator/settings" \
+              && echo "  Hardware downgrade requested" || echo "  Downgrade attempt failed (may need browser)"
+            sleep 5
+          fi
+
+          # Restart the Space
+          if [ "$STAGE_VAL" != "RUNNING" ]; then
+            echo "Space is $STAGE_VAL — restarting..."
+            HTTP=$(curl -sf -o /dev/null -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $HF_KATHAY_TOKEN" \
+              "https://huggingface.co/api/spaces/kathay/runyoro-translator/restart")
+            echo "  Restart HTTP: $HTTP"
+
+            if [ "$HTTP" = "402" ]; then
+              echo "  ⚠ 402 Payment Required — Space still on paid hardware."
+              echo "  Manual fix required: go to https://huggingface.co/spaces/kathay/runyoro-translator"
+              echo "  Settings → Hardware → change to 'CPU Basic (free)'"
+              exit 0
+            fi
+
+            echo "  Waiting 90s for boot..."
+            sleep 90
+          fi
+
+          # Ping to verify it's alive
+          echo "Pinging kathay Space..."
+          for i in 1 2 3 4 5; do
+            HTTP=$(curl -sf -o /dev/null -w "%{http_code}" \
+              --max-time 20 \
+              "https://kathay-runyoro-translator.hf.space/ping" 2>/dev/null || echo "000")
+            echo "  Attempt $i: HTTP $HTTP"
+            if [ "$HTTP" = "200" ]; then
+              echo "  ✓ kathay Space is alive!"
+              exit 0
+            fi
+            sleep 20
+          done
+
+          echo "  ✗ kathay Space not responding — may still be booting"
+          exit 0
+
+      - name: Log
+        run: echo "kathay keep-alive completed at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
