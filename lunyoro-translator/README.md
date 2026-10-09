@@ -1371,6 +1371,7 @@ A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, d
 - `GET /nllb-download-test` — Deep diagnostic that runs a three-step probe for both NLLB model repos (`keithtwesigye/lunyoro-nllb-en2lun` and `keithtwesigye/lunyoro-nllb-lun2en`). Returns a JSON object keyed by direction (`en2lun`, `lun2en`); each entry contains: `download` (`"ok"` or `"error"`), `path` (HF Hub cache path on success), `tokenizer` (vocab size or error traceback), `model` (parameter count in millions or error traceback), `load_dtype` (torch dtype used — `float16` on CPU, `float32` on CUDA), and `ram_gb` (available RAM in GB at the time of the check). If the download step fails the remaining steps are skipped and `download_error` contains the last 400 characters of the traceback. Msgpack, Flax, and TensorFlow weight files are excluded from the download. Useful for diagnosing HuggingFace Hub connectivity, tokenizer compatibility, and model-load issues in a deployed environment.
 - `GET /nllb-api-status` — Reports the current NLLB API circuit-breaker state. When a HuggingFace token (`HF_KATHAY_TOKEN` or `HF_TOKEN`) is present, it probes **both** HF endpoints independently (HF Router and the classic Inference API) using the input `"Hospital"` (25 s timeout), and always records the result for each — it no longer stops after the first success. When the circuit breaker is closed, a higher-level `_nllb_translate_via_api("Hello", "en2lun")` call is also attempted. Returns: `cb_failures` (consecutive failure count), `cb_open` (bool — whether the breaker is currently open), `cb_seconds_remaining` (seconds until the breaker resets), `hf_api_results` (dict with keys `"router"` and `"api_inference"`, each containing `{"status": <HTTP status code or "error">, "body": <first 400 chars of response or error message>}`; omitted if no token), `nllb_translate_result` (translation result from the high-level call when the breaker is closed, `null` otherwise), `hf_token_present` (bool — whether a HF token was found in the environment), `nllb_disabled` (bool — whether `DISABLE_NLLB=1` is set).
 - `POST /reset-nllb-breaker` — Resets the NLLB API circuit breaker immediately, forcing a retry on the next translation request. Returns the post-reset state: `status: "reset"`, `cb_failures: 0`, `cb_open_until: 0.0`. Useful for recovering from a breaker that was tripped by transient HuggingFace Space downtime.
+- `GET /debug-hf` *(Cloudflare Worker)* — Probes the HuggingFace Inference endpoints directly from the Worker edge, useful for diagnosing token or connectivity issues that are specific to the Worker environment (as opposed to the backend). Sends a test `en→lun` translation of `"Hello"` to both the HF Router and the classic Inference API, then returns a single JSON object with: `hf_token_present` (bool), `hf_token_prefix` (first 12 characters of `HF_TOKEN` for quick validation), `repo` (the model repo ID being called), `router` (`{status, body}` for the HF Router call), and `api_inference` (`{status, body}` for the classic Inference API call). Each `body` is truncated to 300 characters. On network error the corresponding key contains `{error: "<message>"}` instead.
 
 ### Keep-Alive (HuggingFace Spaces)
 HuggingFace Spaces hibernates after 48 hours of inactivity. To prevent this, `main.py` starts a daemon background thread (`keepalive`) at startup that pings `GET /ping` on the running Space every 25 minutes.
@@ -1667,6 +1668,28 @@ FORCE_FP32=0                       # Set to 1/true/yes to force float32 for all 
 ```bash
 NEXT_PUBLIC_API_URL=https://keithtwesigye-runyoro-translator-api.hf.space
 ```
+
+### Cloudflare Worker (wrangler.jsonc `vars`)
+These are plain (non-secret) variables set in `cloudflare-worker/wrangler.jsonc`. They can be changed and redeployed without touching secrets.
+
+```jsonc
+{
+  "vars": {
+    "HF_USERNAME":   "keithtwesigye",           // HuggingFace account whose model repos are used
+    "HF_CHAT_MODEL": "meta-llama/Llama-3.1-8B-Instruct", // LLM for the /chat endpoint
+    "CORS_ORIGINS":  "https://...,http://localhost:3002",  // Comma-separated allowed origins
+    "HF_SPACE_URL":  "https://keithtwesigye-runyoro-translator-api.hf.space" // HF Space backend URL — update this var to point the Worker at a different Space without redeploying
+  }
+}
+```
+
+Secrets (set once with `npx wrangler secret put <NAME>`, never stored in source):
+
+| Secret | Description |
+|--------|-------------|
+| `HF_TOKEN` | HuggingFace write token (keithtwesigye account) — required for NLLB Inference API and LLM chat |
+| `HF_TOKEN_KATHAY` | HuggingFace token for the kathay account (optional fallback) |
+| `GITHUB_TOKEN` | GitHub token for feedback sync (optional) |
 
 ---
 
