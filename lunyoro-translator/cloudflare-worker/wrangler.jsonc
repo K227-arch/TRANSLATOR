@@ -1,0 +1,26 @@
+{
+  "name": "lunyoro-translator-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // ── Routes ─────────────────────────────────────────────────────────────────
+  // Serves on workers.dev subdomain by default.
+  // Point your Vercel NEXT_PUBLIC_API_URL to this Worker URL.
+
+  // ── Secrets (set with: npx wrangler secret put HF_TOKEN) ──────────────────
+  // HF_TOKEN          — HuggingFace token (keithtwesigye account)
+  // HF_TOKEN_KATHAY   — HuggingFace token (kathay account, optional)
+  // GITHUB_TOKEN      — GitHub token (optional, for feedback sync)
+
+  // ── Variables ─────────────────────────────────────────────────────────────
+  "vars": {
+    "HF_USERNAME":    "keithtwesigye",
+    "HF_CHAT_MODEL":  "meta-llama/Llama-3.1-8B-Instruct",
+    "CORS_ORIGINS":   "https://frontend-six-phi-25.vercel.app,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app,http://localhost:3002",
+    "HF_SPACE_URL":   "https://keithtwesigye-runyoro-translator-api.hf.space"
+  }
+}
