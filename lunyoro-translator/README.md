@@ -147,6 +147,7 @@ The **BottomNav** bar itself also uses a frosted-glass background (`rgba(14,14,1
 ### Camera Translator (`CameraTranslator.tsx`)
 - **Full-screen camera mode:** When active, the camera fills the viewport above the bottom navigation bar (`fixed inset-0 z-40`, height `calc(100vh - 80px)`) for an immersive Google Lens-like experience while keeping the nav accessible; inactive state shows upload and launch UI
 - **Live camera feed:** Accesses device camera via `getUserMedia` with environment (rear) or user (front) facing mode; 1280×720 ideal resolution; pre-checks `navigator.mediaDevices.getUserMedia` availability and displays a clear error if the browser lacks support (requires HTTPS or localhost)
+- **Runtime API base resolution:** On component mount, `_resolveApiBase()` calls `GET /config` and upgrades the API base URL from the build-time `NEXT_PUBLIC_API_URL` to the backend's reported `ngrok_url` when one is available. All camera requests — including the live-scan `POST /ocr-translate-base64` — use this resolved `apiBase`, so phones served over a public ngrok tunnel automatically send OCR frames to the correct HTTPS endpoint without any manual reconfiguration
 - **Viewfinder overlay:** Corner brackets and animated scan-line provide visual feedback that the camera is actively scanning
 - **Auto-scan mode:** Captures and translates frames every 3 seconds while the camera is active; pause/resume pill toggle in the bottom control row
 - **Manual capture:** Large circular shutter button for on-demand frame translation; disabled while a scan is in progress to prevent duplicate requests
@@ -396,6 +397,11 @@ python backend/fix_nllb_embeddings.py
 # Resolves the vocab_size mismatch between a saved NLLB checkpoint and its tokenizer.
 # This can occur after adding the custom nyo_Latn token when the previous checkpoint
 # was already resized (e.g. 256206 vs. the tokenizer's 256205).
+#
+# Note on inference token: nyo_Latn (ID 256205) is the custom fine-tuning token used
+# during training only. At inference time, translate.py uses run_Latn (Rundi proxy,
+# ID 256146) as the forced BOS token — nyo_Latn's embedding is not well-trained and
+# produces wrong-language output (Kirundi) from both FP32 and INT8 ONNX models.
 #
 # For each direction (en2lun and lun2en):
 #   1. Loads the tokenizer and model from model/nllb_{direction}/
@@ -1637,6 +1643,26 @@ python push_benchmark_files.py
 # Run from the lunyoro-translator/ root directory.
 ```
 
+### Colab Proxy (GPU offload)
+
+When the HF Space is running on a CPU-only tier, you can offload inference to a Google Colab GPU session and route all Space requests to it via the `COLAB_URL` environment variable.
+
+**How it works:**
+
+`app.py` reads `COLAB_URL` at startup. When the variable is set and non-empty, `_proxy_to_colab()` forwards every incoming translation request (as a JSON `POST`) to `{COLAB_URL}{path}` with a 30-second timeout. If the Colab backend is unreachable — or the variable is unset — the request falls through to local inference on the Space as normal. No code changes are needed; toggling the env var is enough.
+
+**Setup:**
+1. Start the backend in Colab (expose it with ngrok or a similar tunnel)
+2. Copy the public HTTPS URL (e.g. `https://xxxx.ngrok.io`)
+3. In the HF Space: **Settings → Variables and secrets → Add variable** — set `COLAB_URL` to that URL
+4. The Space forwards requests immediately; no restart is required
+5. When the Colab session ends, delete or clear `COLAB_URL` — the Space falls back to local inference automatically
+
+**Notes:**
+- The proxy uses only the Python standard library (`urllib.request`, `json`) — no extra dependencies
+- Proxy failures (timeouts, connection errors) are logged at `print` level and return `None`, triggering the local fallback silently
+- Keep `COLAB_URL` empty or unset in production when Colab is not running to avoid failed proxy attempts
+
 ### Vercel (Frontend)
 ```bash
 cd frontend
@@ -1662,6 +1688,7 @@ DISABLE_NLLB=1                     # Set to 1/true/yes to skip loading NLLB-200 
 DISABLE_MARIAN=0                   # Set to 1/true/yes to skip loading MarianMT models at startup — useful when running NLLB-only deployments or on memory-constrained environments where loading both model families would cause OOM. Translation falls back to NLLB (or retrieval/dictionary) when MarianMT is disabled
 FORCE_OFFLINE=0                    # Set to 1/true/yes to force fully offline mode (sets TRANSFORMERS_OFFLINE=1, HF_DATASETS_OFFLINE=1, HF_HUB_OFFLINE=1). By default, HuggingFace Hub downloads are allowed so models can be fetched on first use and cached locally
 FORCE_FP32=0                       # Set to 1/true/yes to force float32 for all PyTorch model loads. By default, models are loaded in float16 on CPU (~1.2GB per NLLB direction) and float32 on GPU. Use this if float16 causes numerical issues or is unsupported on your hardware. Accepted values: 1, true, yes
+COLAB_URL=https://xxxx.ngrok.io    # Optional. When set, all translation requests are forwarded to a running Colab backend at this URL instead of running inference locally on the Space. Leave empty (or unset) to use local inference. Set via HF Space Settings → Variables when Colab is active; unset when Colab is stopped to fall back to local models automatically.
 ```
 
 ### Frontend (.env.local)
@@ -1763,7 +1790,7 @@ If you use this work, please cite:
 - **`requirements.txt`:** Added `httpx>=0.27.0` as an explicit dependency. `httpx` is used by `proxy_main.py` for async HTTP requests to the Colab/HF backend and for health-check polling — it was previously assumed to be installed transitively but is now declared directly.
 - **`translate.py`:** NLLB tokenizer loading no longer passes `fix_mistral_regex=True` to `AutoTokenizer.from_pretrained()`. That flag triggers `_patch_mistral_regex()`, which attempts item assignment on the pre-tokenizer and crashes on `tokenizers < 0.21`. NLLB is not a Mistral model and does not require that patch — removing the flag restores compatibility with the tokenizers version pinned in `requirements.txt`.
 - **`translate.py`:** Added a circuit-breaker for outbound NLLB API calls (used when `DISABLE_NLLB=1`). After `_CB_FAIL_THRESHOLD` (3) consecutive failures the breaker opens and API calls are skipped for `_CB_OPEN_SECONDS` (120 s), preventing cascading timeouts when the HF Inference API is unreachable. The breaker resets automatically after the cooldown period.
-- **`translate.py`:** NLLB models are now loaded in float16 on CPU to halve memory usage (~2.3GB → ~1.2GB per direction). On GPU, float32 is used for maximum speed. Set `FORCE_FP32=1` in the environment to override and use float32 everywhere (useful if float16 causes numerical issues on your hardware). This reduces OOM risk on memory-constrained deployments (e.g. HF Space cpu-basic) without requiring `DISABLE_NLLB=1`.
+- **`translate.py`:** NLLB models are now loaded in float16 on CPU to halve memory usage (~2.3GB → ~1.2GB per direction). On GPU, float32 is used for maximum speed. Set `FORCE_FP32=1` in the environment to override and use float32 everywhere (useful if float16 causes numerical issues on your hardware). This reduces OOM risk on memory-constrained deployments (e.g. HF Space cpu-basic) without requiring `DISABLE_NLLB=1`. The model is loaded in float32 first via `from_pretrained()` and then cast to float16 with `.half()` on CPU — this load-then-cast approach avoids `dtype`/`torch_dtype` kwarg incompatibilities across different `transformers` versions.
 - **`main.py`:** NLLB model loading at startup is now wrapped in error handling — if an NLLB model fails to load (e.g. OOM on memory-constrained hardware), the server logs the error and continues startup with MarianMT and retrieval-based translation still available. Previously, an OOM during NLLB loading would crash the entire server.
 - **`translate.py`:** Semantic search now guards against `_sem_model` being `None` — if the sentence-transformer model failed to load at startup, semantic search returns `None` immediately and the pipeline falls back to dictionary lookup, rather than raising an AttributeError. This mirrors the existing NLLB load-failure handling.
 - **`main.py`:** Semantic retrieval index (`get_index_and_model()`) is loaded synchronously at startup, ensuring the retrieval-based translation is available immediately when the server starts accepting requests. This guarantees consistent translation quality from the first request onward.

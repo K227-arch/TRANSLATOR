@@ -3,6 +3,61 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// Runtime API base — starts as the build-time value, but gets upgraded to
+// the ngrok HTTPS URL when the page is served over a public tunnel.
+// This lets phones use live camera (getUserMedia requires HTTPS).
+let _runtimeApiBase: string = API;
+
+/**
+ * Resolve the best API base URL for this device:
+ *   1. Fetch /config to get the ngrok URL + a probe endpoint
+ *   2. HEAD the probe endpoint with a 3s timeout to check if ngrok is reachable
+ *   3. If reachable → use ngrok (HTTPS, camera works through firewalls)
+ *   4. If blocked   → stay on same-origin local URL (Pi hotspot, file picker only)
+ *
+ * Result is cached in _runtimeApiBase after the first call.
+ */
+async function _resolveApiBase(): Promise<string> {
+  // Already upgraded to HTTPS — no need to re-probe
+  if (_runtimeApiBase.startsWith("https://")) return _runtimeApiBase;
+  if (typeof window === "undefined") return _runtimeApiBase;
+
+  try {
+    const cfgRes = await fetch(`${API}/config`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!cfgRes.ok) return _runtimeApiBase;
+    const cfg = await cfgRes.json();
+
+    const ngrokUrl: string | null = cfg?.ngrok_url ?? null;
+    const probeUrl: string | null = cfg?.probe_url ?? (ngrokUrl ? `${ngrokUrl}/health` : null);
+
+    if (!ngrokUrl || !probeUrl) return _runtimeApiBase;
+
+    // Probe whether the ngrok URL is reachable from this device's network
+    try {
+      const probe = await fetch(probeUrl, {
+        method: "HEAD",
+        headers: { "ngrok-skip-browser-warning": "1" },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (probe.ok || probe.status === 405) {
+        // Reachable — use ngrok (HTTPS unlocks getUserMedia on any device)
+        _runtimeApiBase = ngrokUrl;
+        console.log("[CameraTranslator] Using ngrok:", ngrokUrl);
+      } else {
+        console.log("[CameraTranslator] ngrok probe returned", probe.status, "— staying local");
+      }
+    } catch {
+      // Firewall blocked the probe — stay on local origin, camera uses file picker
+      console.log("[CameraTranslator] ngrok unreachable (firewall?) — using local origin");
+    }
+  } catch {
+    // /config not available — no change
+  }
+  return _runtimeApiBase;
+}
+
 interface TranslatedRegion {
   original: string;
   translated: string;
@@ -26,6 +81,14 @@ export default function CameraTranslator() {
   const fileRef = useRef<HTMLInputElement>(null);
   // Hidden input used only when getUserMedia is unavailable (plain-HTTP origins).
   const cameraCaptureRef = useRef<HTMLInputElement>(null);
+
+  const [apiBase, setApiBase] = useState<string>(API);
+
+  // Resolve ngrok URL on mount — upgrades apiBase to HTTPS if the tunnel is up.
+  // This makes getUserMedia available on phones connected via ngrok.
+  useEffect(() => {
+    _resolveApiBase().then(url => setApiBase(url));
+  }, []);
 
   const [cameraActive, setCameraActive] = useState(false);
   // Each tab has its own independent image + results state
@@ -262,7 +325,7 @@ export default function CameraTranslator() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
     try {
-      const res = await fetch(`${API}/ocr-translate-base64`, {
+      const res = await fetch(`${apiBase}/ocr-translate-base64`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: canvas.toDataURL("image/jpeg", 0.85), direction }),
         signal: controller.signal,
@@ -294,7 +357,7 @@ export default function CameraTranslator() {
     setLoading(true); setError(""); setOcrImage(objectUrl); setRenderedOcrImage(null); setShowOriginal(false); setShowOverlay(false); stopCamera();
     const fd = new FormData(); fd.append("file", file);
     try {
-      const res = await fetch(`${API}/ocr-translate?direction=${direction}`, { method: "POST", body: fd });
+      const res = await fetch(`${apiBase}/ocr-translate?direction=${direction}`, { method: "POST", body: fd });
       const data = await res.json();
       if (data.error) { setError(data.error); }
       else {
@@ -311,7 +374,7 @@ export default function CameraTranslator() {
     setClassifyLoading(true); setError(""); setClassifyImage(URL.createObjectURL(file)); setClassifications([]); stopCamera();
     const fd = new FormData(); fd.append("file", file);
     try {
-      const res = await fetch(`${API}/classify-image?top_k=1`, { method: "POST", body: fd });
+      const res = await fetch(`${apiBase}/classify-image?top_k=1`, { method: "POST", body: fd });
       const data = await res.json();
       if (data.detail) setError(data.detail); else setClassifications(data.predictions || []);
     } catch { setError("Could not connect to translation server."); }

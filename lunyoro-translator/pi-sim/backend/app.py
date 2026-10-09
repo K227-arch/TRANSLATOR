@@ -387,9 +387,12 @@ _cors_origins = [
         "http://localhost:3090,http://localhost:3002,http://localhost:3000,http://pi-sim-frontend:3000",
     ).split(",") if o.strip()
 ]
+# If any wildcard ngrok pattern is listed, open CORS entirely — ngrok URLs are already
+# authenticated via the auth token, and the Pi serves a closed hotspot network.
+_cors_allow_all = any("*" in o for o in _cors_origins)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=["*"] if _cors_allow_all else _cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -452,6 +455,51 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat(), "pi_sim": True}
+
+
+@app.get("/config")
+def get_config():
+    """Return runtime configuration with both local and ngrok URLs.
+
+    The frontend uses this to auto-select the best API base:
+      - If the device can reach the ngrok HTTPS URL → use it (camera works, firewall-resilient)
+      - If ngrok is blocked by a firewall → fall back to the local URL (same-origin)
+
+    Both URLs are returned so the frontend can probe and choose automatically.
+    The 'probe_url' field is a lightweight endpoint the frontend should HEAD-request
+    with a short timeout to check reachability before committing to either URL.
+    """
+    import urllib.request as _urllib
+
+    ngrok_url: str | None = None
+    # Check the pi-sim-ngrok container first, then the host ngrok (mapped to 4041)
+    for ngrok_api in ("http://pi-sim-ngrok:4040/api/tunnels",
+                      "http://host.docker.internal:4040/api/tunnels",
+                      "http://host.docker.internal:4041/api/tunnels"):
+        try:
+            with _urllib.urlopen(ngrok_api, timeout=2) as resp:
+                data = json.loads(resp.read())
+                for tunnel in data.get("tunnels", []):
+                    if tunnel.get("proto") == "https":
+                        ngrok_url = tunnel["public_url"]
+                        break
+            if ngrok_url:
+                break
+        except Exception:
+            continue
+
+    return {
+        "pi_sim":       True,
+        # ngrok HTTPS URL — works through firewalls, enables camera on any device
+        "ngrok_url":    ngrok_url,
+        # Local fallback — always works on the Pi hotspot, no HTTPS
+        "local_url":    "",              # empty = same-origin (relative URLs)
+        # Probe endpoint: the frontend HEADs this to check if ngrok is reachable
+        # before switching. If it gets a 2xx/3xx the ngrok path is open.
+        "probe_url":    f"{ngrok_url}/health" if ngrok_url else None,
+        # Convenience: whichever URL to prefer (client still probes before using)
+        "preferred_url": ngrok_url or "",
+    }
 
 @app.get("/ping")
 def ping():

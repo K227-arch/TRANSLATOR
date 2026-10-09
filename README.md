@@ -27,7 +27,7 @@ An AI-powered translation system for the Runyoro-Rutooro language of the Bunyoro
 |---|---|---|---|---|
 | MarianMT | en→lun | 68.15 | 78.55 | 7 epochs, fp32 |
 | MarianMT | lun→en | 54.39+ | 67.08+ | Fix1+Fix2+Fix3, 57k sentence pairs |
-| NLLB-200 | en→lun | 73.97 | — | nyn_Latn language code |
+| NLLB-200 | en→lun | 73.97 | — | `run_Latn` language code (Rundi proxy, ID 256146) |
 | NLLB-200 | lun→en | 42.30 | — | Improving with back-translation |
 
 ## Dataset

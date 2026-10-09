@@ -40,3 +40,5 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+lunyoro-translator/pi-sim/.env
