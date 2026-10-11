@@ -42,3 +42,6 @@ frontend/.env*.local
 # OS
 .DS_Store
 Thumbs.db
+
+# Colab manager — contains Drive file ID and session ID (not secrets, but no need to track)
+colab_config.json
