@@ -17,6 +17,11 @@
   // GITHUB_TOKEN      — GitHub token (optional, for feedback sync)
 
   // ── Variables ─────────────────────────────────────────────────────────────
+  // ── KV namespace for persisting Colab URL across Worker restarts ─────────────
+  "kv_namespaces": [
+    { "binding": "COLAB_KV", "id": "909d6eecde7347728b26d33b437a3ac4" }
+  ],
+
   "vars": {
     "HF_USERNAME":    "keithtwesigye",
     "HF_CHAT_MODEL":  "meta-llama/Llama-3.1-8B-Instruct",

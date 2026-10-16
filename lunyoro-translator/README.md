@@ -1265,6 +1265,8 @@ lunyoro-translator/
 │   └── app/                         # Next.js app router
 ├── TRAINING_GUIDE.md                # Model improvement guide
 ├── PIPELINE_GUIDE.md                # Data pipeline guide
+├── colab_auth_setup.py              # One-time Google OAuth setup for colab_manager.py — non-interactive CLI; pass --client-json <path> to provide the OAuth client JSON, or --check to verify existing credentials without re-authenticating
+├── colab_manager.py                 # Launch and manage the Lunyoro NLLB backend on Google Colab from Kiro — authenticates via OAuth, uploads the notebook to Drive, starts the Colab session, and writes the public Cloudflare URL to backend/.env + colab_config.json
 ├── show_benchmarks.py               # Print benchmark_scores.csv + .json to terminal
 └── push_benchmark_files.py          # Push benchmark_scores.csv + .json to GitHub repos
 ```
@@ -1377,7 +1379,8 @@ A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, d
 - `GET /nllb-download-test` — Deep diagnostic that runs a three-step probe for both NLLB model repos (`keithtwesigye/lunyoro-nllb-en2lun` and `keithtwesigye/lunyoro-nllb-lun2en`). Returns a JSON object keyed by direction (`en2lun`, `lun2en`); each entry contains: `download` (`"ok"` or `"error"`), `path` (HF Hub cache path on success), `tokenizer` (vocab size or error traceback), `model` (parameter count in millions or error traceback), `load_dtype` (torch dtype used — `float16` on CPU, `float32` on CUDA), and `ram_gb` (available RAM in GB at the time of the check). If the download step fails the remaining steps are skipped and `download_error` contains the last 400 characters of the traceback. Msgpack, Flax, and TensorFlow weight files are excluded from the download. Useful for diagnosing HuggingFace Hub connectivity, tokenizer compatibility, and model-load issues in a deployed environment.
 - `GET /nllb-api-status` — Reports the current NLLB API circuit-breaker state. When a HuggingFace token (`HF_KATHAY_TOKEN` or `HF_TOKEN`) is present, it probes **both** HF endpoints independently (HF Router and the classic Inference API) using the input `"Hospital"` (25 s timeout), and always records the result for each — it no longer stops after the first success. When the circuit breaker is closed, a higher-level `_nllb_translate_via_api("Hello", "en2lun")` call is also attempted. Returns: `cb_failures` (consecutive failure count), `cb_open` (bool — whether the breaker is currently open), `cb_seconds_remaining` (seconds until the breaker resets), `hf_api_results` (dict with keys `"router"` and `"api_inference"`, each containing `{"status": <HTTP status code or "error">, "body": <first 400 chars of response or error message>}`; omitted if no token), `nllb_translate_result` (translation result from the high-level call when the breaker is closed, `null` otherwise), `hf_token_present` (bool — whether a HF token was found in the environment), `nllb_disabled` (bool — whether `DISABLE_NLLB=1` is set).
 - `POST /reset-nllb-breaker` — Resets the NLLB API circuit breaker immediately, forcing a retry on the next translation request. Returns the post-reset state: `status: "reset"`, `cb_failures: 0`, `cb_open_until: 0.0`. Useful for recovering from a breaker that was tripped by transient HuggingFace Space downtime.
-- `GET /debug-hf` *(Cloudflare Worker)* — Probes the HuggingFace Inference endpoints directly from the Worker edge, useful for diagnosing token or connectivity issues that are specific to the Worker environment (as opposed to the backend). Sends a test `en→lun` translation of `"Hello"` to both the HF Router and the classic Inference API, then returns a single JSON object with: `hf_token_present` (bool), `hf_token_prefix` (first 12 characters of `HF_TOKEN` for quick validation), `repo` (the model repo ID being called), `router` (`{status, body}` for the HF Router call), and `api_inference` (`{status, body}` for the classic Inference API call). Each `body` is truncated to 300 characters. On network error the corresponding key contains `{error: "<message>"}` instead.
+- `POST /update-colab-url` *(Cloudflare Worker)* — Called by the Colab notebook each time it starts to register the new Cloudflare Tunnel URL. Requires the `X-Worker-Secret` header to match the `WORKER_SECRET` secret binding. Body: `{ "url": "https://xxxx.trycloudflare.com" }`. On success, persists the URL in the `COLAB_KV` KV namespace (TTL: 14 hours) when bound, then returns `{ "status": "ok", "colab_url": "..." }`. Returns 401 if the secret is wrong and 400 if the URL is missing or not `https://`.
+- `GET /colab-status` *(Cloudflare Worker)* — Returns the current registered Colab tunnel URL (from KV or the `COLAB_URL` secret). Response: `{ "colab_url": "<url or null>", "has_colab": <bool> }`. Useful for verifying whether an active Colab session is registered without triggering a liveness probe.
 
 ### Keep-Alive (HuggingFace Spaces)
 HuggingFace Spaces hibernates after 48 hours of inactivity. To prevent this, `main.py` starts a daemon background thread (`keepalive`) at startup that pings `GET /ping` on the running Space every 25 minutes.
@@ -1643,6 +1646,38 @@ python push_benchmark_files.py
 # Run from the lunyoro-translator/ root directory.
 ```
 
+### Colab Auth Setup (one-time)
+
+`colab_auth_setup.py` is a non-interactive CLI tool that performs the one-time Google OAuth flow required by `colab_manager.py`. Run it once before using `colab_manager.py`.
+
+**Usage:**
+```bash
+# First-time setup — provide your OAuth client JSON downloaded from Google Cloud Console
+python colab_auth_setup.py --client-json "C:\path\to\client_secret.json"
+
+# If the client JSON is already cached, just run without arguments to re-authenticate
+python colab_auth_setup.py
+
+# Check whether existing credentials are valid without triggering a new auth flow
+python colab_auth_setup.py --check
+```
+
+**Getting an OAuth client JSON (one-time):**
+1. Go to <https://console.cloud.google.com/apis/credentials>
+2. Enable the Google Drive API: <https://console.cloud.google.com/apis/library/drive.googleapis.com>
+3. Create credentials → **OAuth client ID** → **Desktop app** → Download JSON
+
+**Arguments:**
+
+| Flag | Description |
+|------|-------------|
+| `--client-json PATH` | Path to the OAuth client JSON from Google Cloud Console. Copied to `~/.lunyoro_colab_oauth_client.json` and reused on future runs. |
+| `--check` | Exit 0 if credentials are valid; exit 1 if not. Does not open a browser or re-authenticate. |
+
+After running successfully, the token is cached at `~/.lunyoro_colab_credentials.json` and is valid for ~6 months. Run `colab_manager.py` to start the Colab backend.
+
+---
+
 ### Colab Proxy (GPU offload)
 
 When the HF Space is running on a CPU-only tier, you can offload inference to a Google Colab GPU session and route all Space requests to it via the `COLAB_URL` environment variable.
@@ -1702,21 +1737,25 @@ These are plain (non-secret) variables set in `cloudflare-worker/wrangler.jsonc`
 ```jsonc
 {
   "vars": {
-    "HF_USERNAME":   "keithtwesigye",           // HuggingFace account whose model repos are used
-    "HF_CHAT_MODEL": "meta-llama/Llama-3.1-8B-Instruct", // LLM for the /chat endpoint
+    "HF_USERNAME":   "keithtwesigye",           // HuggingFace account (used by proxied backend)
+    "HF_CHAT_MODEL": "meta-llama/Llama-3.1-8B-Instruct", // LLM for the /chat endpoint (proxied)
     "CORS_ORIGINS":  "https://...,http://localhost:3002",  // Comma-separated allowed origins
-    "HF_SPACE_URL":  "https://keithtwesigye-runyoro-translator-api.hf.space" // HF Space backend URL — update this var to point the Worker at a different Space without redeploying
+    "HF_SPACE_URL":  "https://keithtwesigye-runyoro-translator-api.hf.space" // Permanent fallback when no Colab session is active
   }
 }
 ```
+
+The Worker resolves which backend to use on each request using the following priority:
+1. **Colab T4** — URL stored in `COLAB_KV` (updated via `POST /update-colab-url`), or the `COLAB_URL` secret if KV is not bound. A 4-second liveness probe (`GET /ping`) is issued first; on timeout or error the Worker falls through to HF Space.
+2. **HF Space** — `HF_SPACE_URL` var (defaults to `keithtwesigye-runyoro-translator-api.hf.space`) used when no live Colab session is detected.
 
 Secrets (set once with `npx wrangler secret put <NAME>`, never stored in source):
 
 | Secret | Description |
 |--------|-------------|
-| `HF_TOKEN` | HuggingFace write token (keithtwesigye account) — required for NLLB Inference API and LLM chat |
-| `HF_TOKEN_KATHAY` | HuggingFace token for the kathay account (optional fallback) |
-| `GITHUB_TOKEN` | GitHub token for feedback sync (optional) |
+| `HF_TOKEN` | HuggingFace token — forwarded to the proxied backend when needed |
+| `COLAB_URL` | Colab tunnel URL (e.g. `https://xxxx.trycloudflare.com`) — set automatically by `POST /update-colab-url`; overridden by KV when `COLAB_KV` is bound |
+| `WORKER_SECRET` | Shared secret used to authenticate `POST /update-colab-url` requests from the Colab notebook |
 
 ---
 
