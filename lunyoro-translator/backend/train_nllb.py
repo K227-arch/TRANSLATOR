@@ -174,7 +174,7 @@ def evaluate_metrics(model, tokenizer, val_df, direction, device,
     hypotheses = []
     total_val_loss = 0.0
     val_steps = 0
-    batch_size = 8
+    batch_size = 32   # larger batch → more GPU utilisation during eval
     tokenizer.src_lang = src_lang
     forced_bos = tokenizer.convert_tokens_to_ids(tgt_lang)
 
