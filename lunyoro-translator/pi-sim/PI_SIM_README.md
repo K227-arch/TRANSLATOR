@@ -98,6 +98,7 @@ The script:
 | http://localhost:8080 | Backend direct (bypass nginx) |
 | http://localhost:8080/docs | FastAPI Swagger UI — all endpoints documented |
 | http://localhost:8080/benchmark | Built-in probe suite with timings |
+| http://localhost:8080/config | Runtime config — reports ngrok public URL if available |
 | http://localhost:8001 | Sidecar direct |
 
 ### Stop
@@ -121,6 +122,34 @@ The script:
 ---
 
 ## Testing features
+
+### Runtime config and ngrok tunnel URL
+
+```powershell
+# Fetch runtime config (ngrok_url is null if ngrok is not running)
+Invoke-RestMethod -Uri http://localhost:8080/config
+```
+
+The `/config` endpoint returns both a ngrok HTTPS URL and a local fallback URL so the frontend
+can probe and choose the best API base automatically. The backend checks for ngrok in three
+locations in order: the `pi-sim-ngrok` container (`pi-sim-ngrok:4040`), then the host ngrok
+mapped to port 4040, then port 4041. The frontend should HEAD-request `probe_url` with a short
+timeout; if it gets a 2xx/3xx response the ngrok path is reachable and `preferred_url` should be
+used; otherwise it falls back to relative same-origin URLs.
+
+```json
+{
+  "pi_sim": true,
+  "ngrok_url":     "https://abc123.ngrok-free.app",
+  "local_url":     "",
+  "probe_url":     "https://abc123.ngrok-free.app/health",
+  "preferred_url": "https://abc123.ngrok-free.app"
+}
+```
+
+When ngrok is not running, `ngrok_url` is `null`, `probe_url` is `null`, `preferred_url` is an
+empty string (same-origin fallback), and `local_url` is always an empty string. The endpoint
+never errors — ngrok unavailability is silently swallowed.
 
 ### Core translation (replaces C++ backend)
 
@@ -258,10 +287,10 @@ The response always includes `reply_nllb` (the NLLB translation string or `null`
 |---|---|---|
 | NLLB decoding | C++ greedy, 4 threads | Python ORT greedy, same 4-thread config |
 | Marian decoding | C++ greedy (no KV cache) | **Removed** — Marian is not loaded; `translation_marian` is always `null` |
-| Live camera | Not possible (no HTTPS on Pi) | Not possible (same browser constraint on localhost) |
+| Live camera | Not possible (no HTTPS on Pi) | Possible via ngrok tunnel — frontend fetches `GET /config` on load, probes `probe_url` to check reachability, and uses `preferred_url` as the API base if ngrok is open; falls back to same-origin (upload only) if blocked or unavailable |
 | Chat assistant | Offline retrieval only | Ollama LLM (`qwen2.5:1.5b`) → NLLB translation pipeline for general messages; rule-based shortcuts for greetings/grammar/chip topics (see `/chat` topic table) |
 | Image classify | MobileNetV2 on Pi sidecar | MobileNetV2 on pi-sim-sidecar (needs model download) |
-| CORS | `horizonx.kathay.tech` etc. | `localhost:3090, localhost:8090` |
+| CORS | `horizonx.kathay.tech` etc. | `localhost:3090, localhost:8090` by default; if any entry in `CORS_ORIGINS` contains `*` (e.g. a wildcard ngrok pattern), CORS is opened to all origins (`allow_origins=["*"]`) — ngrok tunnels are already auth-gated and the Pi runs on a closed hotspot |
 
 ---
 

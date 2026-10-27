@@ -1,0 +1,16 @@
+# Ignore everything except the frontend
+lunyoro-translator/backend/
+lunyoro-translator/pi-sim/
+lunyoro-translator/pi-sidecar/
+lunyoro-translator/colab/
+lunyoro-translator/cloudflare-worker/
+*.py
+*.ps1
+*.sh
+*.ipynb
+*.log
+*.jsonl
+*.csv
+*.docx
+*.xlsx
+*.pdf

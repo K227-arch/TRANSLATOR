@@ -78,7 +78,7 @@ services:
       MODEL_DIR: /models
       BACKEND_DIR: /backend
       HISTORY_FILE: /tmp/pisim/history.json
-      CORS_ORIGINS: "http://localhost:3090,http://localhost:8090,http://pi-sim-frontend:3000,http://pi-sim-nginx:80"
+      CORS_ORIGINS: "http://localhost:3090,http://localhost:8090,http://pi-sim-frontend:3000,http://pi-sim-nginx:80,https://*.ngrok-free.app,https://*.ngrok.io"
       NLLB_INT8_DIR: "nllb_{d}_int8"
       NLLB_THREADS: "4"
       LOG_LEVEL: INFO
@@ -152,6 +152,34 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ── ngrok HTTPS tunnel ─────────────────────────────────────────────────────
+  # Exposes pi-sim-nginx (port 8090) via a public HTTPS URL so phones and
+  # other devices connected to the same network can access camera features.
+  # Camera (getUserMedia) requires HTTPS — ngrok provides this without a cert.
+  #
+  # NGROK_AUTHTOKEN is read from pi-sim/.env (never committed to git).
+  # Get the tunnel URL after startup:
+  #   docker logs pi-sim-ngrok 2>&1 | grep "url="
+  #   curl http://localhost:4040/api/tunnels
+  pi-sim-ngrok:
+    image: ngrok/ngrok:latest
+    container_name: pi-sim-ngrok
+    networks:
+      - pisim_net
+    ports:
+      - "4040:4040"   # ngrok web inspector — http://localhost:4040
+    environment:
+      NGROK_AUTHTOKEN: "${NGROK_AUTHTOKEN}"
+    command: >
+      http pi-sim-nginx:80
+      --domain=${NGROK_DOMAIN:-}
+      --log=stdout
+      --log-format=json
+    depends_on:
+      pi-sim-nginx:
+        condition: service_started
+    restart: unless-stopped
+
   # ── Frontend: Next.js ──────────────────────────────────────────────────────
   pi-sim-frontend:
     build:
@@ -182,3 +210,17 @@ volumes:
     name: pisim_mobilenet
   pisim_ollama:
     name: pisim_ollama    # persists Ollama model weights across stack restarts
+
+  # ── ngrok HTTPS tunnel ─────────────────────────────────────────────────────
+  # Exposes pi-sim-nginx (port 8090) via a public HTTPS URL so phones and
+  # other devices connected to the same network can access camera features.
+  # Camera (getUserMedia) requires HTTPS — ngrok provides this without a cert.
+  #
+  # Usage:
+  #   1. Sign up free at https://ngrok.com and copy your auth token
+  #   2. Set NGROK_AUTHTOKEN in .env or export it in your shell
+  #   3. docker compose --project-name pi-sim -f docker-compose.pi-sim.yml up -d
+  #   4. Get the HTTPS URL:
+  #        docker logs pi-sim-ngrok 2>&1 | grep "url="
+  #      or via the ngrok API: curl http://localhost:4040/api/tunnels
+  #   5. Open that URL on any phone — camera/OCR/Identify all work over HTTPS

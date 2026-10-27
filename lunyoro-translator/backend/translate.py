@@ -254,7 +254,11 @@ _cb_failures:    int   = 0
 _cb_open_until:  float = 0.0
 
 NLLB_LANG_EN = "eng_Latn"
-NLLB_LANG_LUN = "nyo_Latn"  # Custom Runyoro-Rutooro token — must match train_nllb.py
+NLLB_LANG_LUN = "run_Latn"  # Rundi proxy (ID 256146).
+# nyo_Latn (ID 256205) is the custom fine-tuning token but its embedding is
+# not well-trained — produces Kirundi output (e.g. "bize ota?" for "How are you?").
+# run_Latn produces correct Runyoro output from both FP32 and INT8 ONNX models.
+# Verified empirically: run_Latn → "Oroho ota?" ✓  nyo_Latn → "bize ota?" ✗
 
 
 def _load_nllb_whitelist() -> list | None:
@@ -490,11 +494,11 @@ def _load_nllb(direction: str) -> bool:
         # Set FORCE_FP32=1 to override and use float32 everywhere.
         import torch
         _force_fp32 = os.getenv("FORCE_FP32", "0").strip() in ("1", "true", "yes")
-        if _force_fp32:
-            load_dtype = torch.float32
-        else:
-            load_dtype = torch.float16 if not torch.cuda.is_available() else torch.float32
-        model = AutoModelForSeq2SeqLM.from_pretrained(path, dtype=load_dtype)
+        # Load as float32 first, then cast — avoids dtype/torch_dtype kwarg issues
+        # across different transformers versions
+        model = AutoModelForSeq2SeqLM.from_pretrained(path)
+        if not _force_fp32 and not torch.cuda.is_available():
+            model = model.half()   # cast to float16 on CPU to save ~1.2GB RAM
         model.eval()
         if torch.cuda.device_count() >= 2:
             device = "cuda:1"
@@ -716,10 +720,8 @@ def _nllb_translate(text: str, direction: str, context: str = "") -> str | None:
     inputs = tokenizer(
         input_text, return_tensors="pt", truncation=True, max_length=256
     )
-    # ONNX models expect CPU tensors â€” only move to device for PyTorch models
-    from optimum.onnxruntime import ORTModelForSeq2SeqLM as _ORT_cls
-    if not isinstance(model, _ORT_cls):
-        inputs = inputs.to(device)
+    # FP32 PyTorch model — always move inputs to device
+    inputs = inputs.to(device)
 
     generate_kwargs: dict = dict(
         num_beams=8,
@@ -946,7 +948,7 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
 
     # Guard: sem_model must be loaded to run semantic search
     if _sem_model is None:
-        return None
+        return {"translation": text, "method": "passthrough", "confidence": 0.0, "alternatives": []}
 
     if direction == "en2lun":
         query_sentences = _index["english_sentences"]
@@ -964,6 +966,8 @@ def _selective_rag(text: str, direction: str = "en2lun", top_k: int = 3) -> dict
         target_sentences = _index["english_sentences"]
         embeddings = _index["lunyoro_embeddings"]
 
+    if _sem_model is None:
+        return {"translation": text, "method": "passthrough", "confidence": 0.0, "alternatives": []}
     q_emb = _sem_model.encode(text, convert_to_numpy=True)
     scores = util.cos_sim(q_emb, embeddings)[0].numpy()
     top_idx = np.argsort(scores)[::-1][:top_k]
@@ -1126,13 +1130,12 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
 
     # Apply punctuation mirroring to both
     if nllb:    nllb    = _mirror_punctuation(text, nllb)
-    if marian:  marian  = _mirror_punctuation(text, marian)
 
     # Primary = NLLB if valid, else MarianMT
 
     # â”€â”€ Selective RAG: try retrieval for high-confidence matches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     rag_result = _selective_rag(text, direction="en2lun", top_k=top_k)
-    if rag_result:
+    if rag_result and rag_result.get("method") != "passthrough":
         rag_result["translation_nllb"]   = nllb
         # Keep the verified corpus translation as primary â€” don't override with NLLB
         # NLLB output may differ but the corpus hit is human-verified
@@ -1156,9 +1159,9 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
         except Exception:
             pass
 
-    if marian or nllb:
+    if nllb:
         return {
-            "translation":         neural_best,
+            "translation":         nllb,
             "translation_nllb":    nllb,
             "method": "neural_mt",
             "confidence": 1.0,
@@ -1189,6 +1192,8 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
                 "alternatives": [],
             }
 
+    if _sem_model is None:
+        return {"translation": text, "method": "passthrough", "confidence": 0.0, "alternatives": []}
     q_emb = _sem_model.encode(text, convert_to_numpy=True)
     scores = util.cos_sim(q_emb, _index["embeddings"])[0].numpy()
     top_idx = np.argsort(scores)[::-1][:top_k]
@@ -1300,11 +1305,10 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
     nllb   = _nllb_translate(text, "lun2en", context=context)
 
     if nllb:    nllb    = _postprocess_english(_mirror_punctuation(text, nllb))
-    if marian:  marian  = _postprocess_english(_mirror_punctuation(text, marian))
 
     # â”€â”€ Selective RAG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     rag_result = _selective_rag(text, direction="lun2en", top_k=top_k)
-    if rag_result:
+    if rag_result and rag_result.get("method") != "passthrough":
         rag_result["translation_nllb"]   = nllb
         # FIX: preserve the high-confidence corpus translation as primary.
         # Do NOT override it with NLLB here â€” that defeated the whole purpose of RAG.
@@ -1329,9 +1333,9 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
         except Exception:
             pass
 
-    if marian or nllb:
+    if nllb:
         return {
-            "translation":         neural_best,
+            "translation":         nllb,
             "translation_nllb":    nllb,
             "method": "neural_mt",
             "confidence": 1.0,
@@ -1360,6 +1364,8 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
             convert_to_numpy=True,
         )
 
+    if _sem_model is None:
+        return {"translation": text, "method": "passthrough", "confidence": 0.0, "alternatives": []}
     q_emb = _sem_model.encode(text, convert_to_numpy=True)
     scores = util.cos_sim(q_emb, _index["lunyoro_embeddings"])[0].numpy()
     top_idx = np.argsort(scores)[::-1][:top_k]

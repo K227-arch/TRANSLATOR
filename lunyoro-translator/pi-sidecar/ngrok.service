@@ -1,0 +1,33 @@
+[Unit]
+Description=ngrok HTTPS tunnel for Lunyoro Translator
+# Start after nginx is up so the tunnel immediately serves real traffic
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+# Auth token — set this to your ngrok token
+# Get one free at https://ngrok.com
+Environment=NGROK_AUTHTOKEN=2zdIV575mXW0Pjb1AgUSXPmCPOr_7w3y9t1f5xRAvNGPUMbRT
+# Tunnel nginx on port 80 (which proxies everything including the frontend)
+# Tunnel nginx on port 80.
+# If NGROK_DOMAIN is set, uses a fixed static domain (never changes on restart).
+# Set NGROK_DOMAIN in the service override or environment:
+#   sudo systemctl edit ngrok
+#   [Service]
+#   Environment=NGROK_DOMAIN=lunyoro-translator.ngrok-free.app
+ExecStart=/bin/bash -c '\
+    if [ -n "$NGROK_DOMAIN" ]; then \
+        exec /usr/local/bin/ngrok http 80 --domain="$NGROK_DOMAIN" --log=stdout --log-format=json; \
+    else \
+        exec /usr/local/bin/ngrok http 80 --log=stdout --log-format=json; \
+    fi'
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ngrok
+
+[Install]
+WantedBy=multi-user.target

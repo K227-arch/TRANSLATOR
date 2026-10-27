@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Colab Backend Status Check",
+      "trigger": "SessionStart",
+      "description": "On every Kiro session start, checks if the Colab NLLB backend is live and prints its URL. Does not start a new session — just reports health so you know whether to run colab_manager.py.",
+      "action": {
+        "type": "command",
+        "command": "cd \"c:\\Users\\HP OMEN\\Desktop\\projects\\TRANSLATOR\\TRANSLATOR\\lunyoro-translator\" && python colab_manager.py --status 2>&1",
+        "timeout": 15
+      }
+    }
+  ]
+}

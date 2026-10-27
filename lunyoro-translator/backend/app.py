@@ -186,6 +186,35 @@ def run_model(enc: dict, bos_id: Optional[int], capitalize: bool) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Colab proxy — when COLAB_URL is set in env, forward all requests there.
+# Set it in the HF Space Settings → Variables when Colab is running.
+# Unset it (or leave empty) to fall back to local inference on this Space.
+# ---------------------------------------------------------------------------
+_COLAB_URL = os.getenv("COLAB_URL", "").rstrip("/")
+
+
+def _proxy_to_colab(path: str, json_body: dict) -> dict | None:
+    """Forward a request to the running Colab backend. Returns None on failure."""
+    if not _COLAB_URL:
+        return None
+    import urllib.request as _req
+    import json as _json
+    try:
+        data = _json.dumps(json_body).encode()
+        req = _req.Request(
+            f"{_COLAB_URL}{path}",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with _req.urlopen(req, timeout=30) as resp:
+            return _json.loads(resp.read())
+    except Exception as _e:
+        print(f"[proxy] Colab unreachable ({_COLAB_URL}{path}): {_e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 class TranslateRequest(BaseModel):
@@ -212,11 +241,25 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model": MODEL_ID, "loaded": model is not None}
+    colab_live = bool(_COLAB_URL)
+    return {
+        "status": "ok",
+        "model": MODEL_ID,
+        "loaded": model is not None,
+        "colab_active": colab_live,
+        "colab_url": _COLAB_URL if colab_live else None,
+    }
 
 
 @app.post("/translate", response_model=TranslateResponse)
 def translate(req: TranslateRequest):
+    # ── Try Colab first (GPU, fine-tuned NLLB) ──────────────────────────────
+    colab_result = _proxy_to_colab("/translate", {"text": req.text, "direction": req.direction})
+    if colab_result:
+        return TranslateResponse(
+            translation=colab_result.get("translation", req.text),
+            direction=req.direction,
+        )
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
     if model is None:

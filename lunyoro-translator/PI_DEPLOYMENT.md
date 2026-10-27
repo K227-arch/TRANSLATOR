@@ -182,6 +182,90 @@ curl -s -X POST http://localhost/chat \
 
 ---
 
+## HTTPS camera access via ngrok
+
+Browsers block `getUserMedia` (live camera preview) on non-HTTPS origins. The Pi serves
+over plain HTTP on its hotspot (`192.168.4.1`), so the Lens tab's live viewfinder is
+unavailable by default. ngrok solves this by creating a public HTTPS tunnel to port 80 — any
+device that opens the ngrok URL gets a valid certificate and full camera access.
+
+### How it works
+
+```
+Phone browser → https://abc123.ngrok-free.app
+    └─ ngrok cloud (TLS termination)
+        └─ Pi port 80 (nginx)
+            ├─ /translate → C++ NLLB backend
+            ├─ /classify-image → Python sidecar
+            ├─ /ocr-translate → Python sidecar
+            └─ /* → static Next.js frontend
+```
+
+The frontend's `CameraTranslator` calls `GET /config` on load and receives both `ngrok_url` and
+`probe_url`. It HEAD-requests `probe_url` with a short timeout; if reachable it switches to
+`preferred_url` as the API base so all camera-related fetch calls go through the tunnel.
+`getUserMedia` works because `window.isSecureContext` is `true` on an HTTPS origin. If the
+probe fails (firewall, ngrok not running) the frontend falls back to same-origin relative URLs.
+
+### First-time setup on the Pi
+
+```bash
+# 1. Install ngrok
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt-get update && sudo apt-get install -y ngrok
+ngrok --version   # should print "ngrok version 3.x"
+
+# 2. Install the ngrok tunnel service
+sudo cp /home/pi/lunyoro-sidecar/ngrok.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ngrok
+sudo systemctl start ngrok
+
+# 3. Get the public URL (changes each restart unless you use a paid static domain)
+curl -s http://localhost:4040/api/tunnels | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); [print(t['public_url']) for t in d['tunnels'] if t['proto']=='https']"
+# → https://abc123.ngrok-free.app
+```
+
+### Giving devices the URL
+
+1. SSH into the Pi and run the `curl` command above to get the current ngrok URL
+2. Share that URL with anyone connected to the `Lunyoro-Translator` hotspot
+3. They open `https://abc123.ngrok-free.app` in their browser
+4. The Lens tab will show **"Open Camera"** (not the fallback file picker)
+5. Camera, OCR, and Identify all work over HTTPS
+
+### Making the URL permanent (optional)
+
+Free ngrok accounts get a random URL each restart. To get a stable subdomain:
+
+```bash
+# On your ngrok dashboard (ngrok.com) create a static domain, then
+# update ngrok.service ExecStart:
+ExecStart=/usr/local/bin/ngrok http 80 --domain=your-name.ngrok-free.app \
+    --log=stdout --log-format=json
+sudo systemctl daemon-reload && sudo systemctl restart ngrok
+```
+
+### Verifying it works
+
+```bash
+# From any device on the Pi hotspot:
+curl -s https://abc123.ngrok-free.app/health | python3 -m json.tool
+# → {"status": "ok", ...}
+
+# Camera test — the frontend /config endpoint returns ngrok + probe URLs:
+curl -s https://abc123.ngrok-free.app/config | python3 -m json.tool
+# → {"pi_sim": false, "ngrok_url": "https://abc123.ngrok-free.app",
+#    "local_url": "", "probe_url": "https://abc123.ngrok-free.app/health",
+#    "preferred_url": "https://abc123.ngrok-free.app"}
+```
+
+---
+
 ## Deploying a model update
 
 Only when models are retrained. Requires the PyTorch checkpoints in `backend/model/`:

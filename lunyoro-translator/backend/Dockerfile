@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+﻿FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -27,19 +27,20 @@ RUN mkdir -p /app/model /app/history
 EXPOSE 7860
 
 ENV PORT=7860
-# ── Startup mode ──────────────────────────────────────────────────────────────
-# COLAB_MODE=1  → run proxy_main.py (thin proxy, forwards to Colab NLLB backend)
-# COLAB_MODE=0  → run main.py       (full backend with local Marian as primary)
+# â”€â”€ Startup mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# COLAB_MODE=1  â†’ run proxy_main.py (thin proxy, forwards to Colab NLLB backend)
+# COLAB_MODE=0  â†’ run main.py       (full backend with local Marian as primary)
 #
 # Set COLAB_MODE and COLAB_URL as HF Space secrets.
 # All other secrets: DISABLE_NLLB, DISABLE_MARIAN, DISABLE_ONNX, CORS_ORIGINS.
 
 CMD ["sh", "-c", \
      "if [ \"$COLAB_MODE\" = '1' ]; then \
-        echo '=== Proxy mode — forwarding to Colab NLLB backend ===' && \
+        echo '=== Proxy mode â€” forwarding to Colab NLLB backend ===' && \
         echo \"COLAB_URL=$COLAB_URL\" && \
         exec uvicorn proxy_main:app --host 0.0.0.0 --port 7860 --workers 1; \
       else \
-        echo '=== Full backend mode — Marian running locally ===' && \
+        echo '=== Full backend mode â€” Marian running locally ===' && \
         exec uvicorn main:app --host 0.0.0.0 --port 7860 --workers 1; \
       fi"]
+
