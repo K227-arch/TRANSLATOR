@@ -47,11 +47,12 @@ export async function nllbInfer(
   const headers = {
     Authorization: `Bearer ${HF_TOKEN}`,
     "Content-Type": "application/json",
+    "X-Wait-For-Model": "true",   // tell HF to load the model if it's not warm
   };
 
-  // Try both endpoints — router endpoint is faster inside HF infra
+  // api-inference.huggingface.co supports m2m_100/NLLB with X-Wait-For-Model header.
+  // router.huggingface.co rejects models not registered as inference endpoints.
   const endpoints = [
-    `https://router.huggingface.co/hf-inference/models/${repo}`,
     `https://api-inference.huggingface.co/models/${repo}`,
   ];
 
