@@ -247,6 +247,9 @@ _nllb_models = {}  # {"en2lun": (tokenizer, model, device), "lun2en": ...}
 _nllb_available = {}  # {"en2lun": bool, "lun2en": bool}
 _nllb_whitelist: list | None = None  # token ID whitelist loaded once
 
+_marian_models = {}    # {"en2lun": (tokenizer, model, device), "lun2en": ...}
+_marian_available = {}  # {"en2lun": bool, "lun2en": bool}
+
 # â”€â”€ NLLB API circuit-breaker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _CB_FAIL_THRESHOLD = 3    # open breaker after this many consecutive failures
 _CB_OPEN_SECONDS   = 120  # keep breaker open for this long before retrying
@@ -285,6 +288,60 @@ def _load_nllb_whitelist() -> list | None:
 
 # â”€â”€ loaders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
+
+def _load_marian(direction: str) -> bool:
+    """Lazy-load a fine-tuned MarianMT model (en2lun or lun2en)."""
+    global _marian_models, _marian_available
+    if _marian_available.get(direction) is not None:
+        return _marian_available[direction]
+
+    model_path = os.path.join(MODEL_DIR, direction)
+    weights_sf  = os.path.join(model_path, "model.safetensors")
+    weights_bin = os.path.join(model_path, "pytorch_model.bin")
+    if not (os.path.exists(weights_sf) or os.path.exists(weights_bin)):
+        logger.warning("Marian %s: no weights found at %s", direction, model_path)
+        _marian_available[direction] = False
+        return False
+
+    try:
+        import torch
+        from transformers import MarianMTModel, MarianTokenizer
+        tokenizer = MarianTokenizer.from_pretrained(model_path)
+        model = MarianMTModel.from_pretrained(model_path)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = model.to(device)
+        model.eval()
+        _marian_models[direction] = (tokenizer, model, device)
+        _marian_available[direction] = True
+        logger.info("Loaded Marian model: %s on %s", direction, device)
+        return True
+    except Exception as exc:
+        logger.error("Failed to load Marian %s: %s", direction, exc)
+        _marian_available[direction] = False
+        return False
+
+
+def _mt_translate(text: str, direction: str) -> str | None:
+    """Run inference with a fine-tuned MarianMT model."""
+    if not text or not text.strip():
+        return None
+    if not _load_marian(direction):
+        return None
+    tokenizer, model, device = _marian_models[direction]
+    try:
+        import torch
+        inputs = tokenizer(
+            [text.strip()], return_tensors="pt",
+            padding=True, truncation=True, max_length=256
+        ).to(device)
+        with torch.no_grad():
+            outputs = model.generate(**inputs, num_beams=4, max_length=256)
+        result = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+        return result if result else None
+    except Exception as exc:
+        logger.warning("Marian %s inference error: %s", direction, exc)
+        return None
 
 def _load_retrieval():
     global _index, _sem_model, _dictionary, _corpus_vocab, _dict_word_map
@@ -1102,6 +1159,9 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
 
     # â”€â”€ Always run both neural MT models first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     nllb   = _nllb_translate(text, "en2lun", context=context)
+    marian = _mt_translate(text, "en2lun")
+    if marian:
+        marian = _postprocess_lunyoro(_mirror_punctuation(text, marian))
 
     def _is_garbage(s: str | None) -> bool:
         """Detect degenerate model output.
@@ -1152,6 +1212,7 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
                     return {
                         "translation":         translation,
                         "translation_nllb":    nllb,
+                        "translation_marian":  marian,
                         "method": "exact_match",
                         "confidence": 1.0,
                         "alternatives": [],
@@ -1163,8 +1224,19 @@ def translate(text: str, top_k: int = 3, context: str = "") -> dict:
         return {
             "translation":         nllb,
             "translation_nllb":    nllb,
+            "translation_marian":  marian,
             "method": "neural_mt",
             "confidence": 1.0,
+            "alternatives": [],
+        }
+
+    if marian:
+        return {
+            "translation":         marian,
+            "translation_nllb":    None,
+            "translation_marian":  marian,
+            "method": "marian_mt",
+            "confidence": 0.9,
             "alternatives": [],
         }
 
@@ -1303,6 +1375,9 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
 
     # â”€â”€ Always run both neural MT models first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     nllb   = _nllb_translate(text, "lun2en", context=context)
+    marian_en = _mt_translate(text, "lun2en")
+    if marian_en:
+        marian_en = _postprocess_english(_mirror_punctuation(text, marian_en))
 
     if nllb:    nllb    = _postprocess_english(_mirror_punctuation(text, nllb))
 
@@ -1326,6 +1401,7 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
                     return {
                         "translation":         best,
                         "translation_nllb":    nllb,
+                        "translation_marian":  marian_en,
                         "method": "exact_match",
                         "confidence": 1.0,
                         "alternatives": [],
@@ -1337,8 +1413,19 @@ def translate_to_english(text: str, top_k: int = 3, context: str = "") -> dict:
         return {
             "translation":         nllb,
             "translation_nllb":    nllb,
+            "translation_marian":  marian_en,
             "method": "neural_mt",
             "confidence": 1.0,
+            "alternatives": [],
+        }
+
+    if marian_en:
+        return {
+            "translation":         marian_en,
+            "translation_nllb":    None,
+            "translation_marian":  marian_en,
+            "method": "marian_mt",
+            "confidence": 0.9,
             "alternatives": [],
         }
 

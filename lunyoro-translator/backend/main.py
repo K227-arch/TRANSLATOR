@@ -137,6 +137,13 @@ def preload_model():
             except Exception as _e:
                 logger.warning("NLLB %s failed: %s", d, _e)
 
+        from translate import _load_marian
+        for d in ["en2lun", "lun2en"]:
+            try:
+                _load_marian(d)
+            except Exception as _e:
+                logger.warning("Marian %s failed: %s", d, _e)
+
         try:
             from language_rules import get_full_grammar_context
             from language_rules_gr4 import get_gr4_grammar_context
@@ -626,11 +633,11 @@ def health():
 @app.get("/system-info")
 def system_info():
     """Return which models are loaded and hardware info — used by frontend to show model badges."""
-    from translate import _nllb_available
+    from translate import _nllb_available, _marian_available
     import torch
     return {
-        "marian_en2lun":  False,
-        "marian_lun2en":  False,
+        "marian_en2lun":  _marian_available.get("en2lun", False),
+        "marian_lun2en":  _marian_available.get("lun2en", False),
         "marian_onnx":    False,
         "nllb_en2lun":    _nllb_available.get("en2lun", False),
         "nllb_lun2en":    _nllb_available.get("lun2en", False),
