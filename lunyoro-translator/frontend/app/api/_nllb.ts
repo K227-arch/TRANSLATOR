@@ -61,18 +61,33 @@ export async function nllbInfer(
         method: "POST",
         headers,
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(35_000),   // 35s — enough for warm model
       });
 
-      // 503 = model warming up — wait and retry once
+      // 503 = model warming up — wait and retry twice
       if (res.status === 503) {
-        await new Promise(r => setTimeout(r, 8_000));
+        await new Promise(r => setTimeout(r, 10_000));
         const retry = await fetch(url, {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(30_000),
+          signal: AbortSignal.timeout(40_000),
         });
+        if (retry.status === 503) {
+          // Second retry after another wait
+          await new Promise(r => setTimeout(r, 15_000));
+          const retry2 = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(40_000),
+          });
+          if (!retry2.ok) continue;
+          const data2 = await retry2.json();
+          const result2 = extractTranslation(data2);
+          if (result2) return result2;
+          continue;
+        }
         if (!retry.ok) continue;
         const data = await retry.json();
         const result = extractTranslation(data);
