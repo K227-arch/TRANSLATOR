@@ -452,9 +452,16 @@ def _load_nllb(direction: str) -> bool:
             logger.info("Loading NLLB %s: %s from %s", label, direction, load_path)
             # Suppress the spurious Mistral regex warning â€” only relevant for Mistral models
             import warnings as _warn
+            import logging as _logging
             with _warn.catch_warnings():
                 _warn.simplefilter("ignore")
-                tokenizer = AutoTokenizer.from_pretrained(load_path)
+                _tok_logger2 = _logging.getLogger("transformers.tokenization_utils_base")
+                _prev2 = _tok_logger2.level
+                _tok_logger2.setLevel(_logging.ERROR)
+                try:
+                    tokenizer = AutoTokenizer.from_pretrained(load_path)
+                finally:
+                    _tok_logger2.setLevel(_prev2)
             providers = _ort.get_available_providers()
             provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
             # ONNX models run on CPU via ORT â€” device label is "cpu" regardless of provider
@@ -540,13 +547,20 @@ def _load_nllb(direction: str) -> bool:
         import torch
 
         import warnings as _warn
+        import logging as _logging
         with _warn.catch_warnings():
             _warn.simplefilter("ignore")
-            # Note: do NOT pass fix_mistral_regex=True — that flag triggers
-            # _patch_mistral_regex() which tries to do item assignment on the
-            # pre_tokenizer, crashing on tokenizers < 0.21.  NLLB is not a
-            # Mistral model and does not need that patch.
-            tokenizer = AutoTokenizer.from_pretrained(path)
+            # Suppress the "incorrect regex pattern" log line that transformers
+            # emits for NLLB tokenizers — it's a false-positive (NLLB is not
+            # a Mistral model) and fix_mistral_regex=True crashes on
+            # tokenizers < 0.21 by trying item-assignment on pre_tokenizer.
+            _tok_logger = _logging.getLogger("transformers.tokenization_utils_base")
+            _prev_level = _tok_logger.level
+            _tok_logger.setLevel(_logging.ERROR)
+            try:
+                tokenizer = AutoTokenizer.from_pretrained(path)
+            finally:
+                _tok_logger.setLevel(_prev_level)
         # Load in float16 on CPU to halve memory usage (2.3GB → ~1.2GB)
         # Set FORCE_FP32=1 to override and use float32 everywhere.
         import torch
