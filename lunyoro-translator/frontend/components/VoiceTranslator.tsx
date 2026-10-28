@@ -1,7 +1,11 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const IS_VERCEL = typeof window !== "undefined" && (
+  window.location.hostname.endsWith(".vercel.app") ||
+  window.location.hostname === "horizonx.kathay.tech"
+);
+const API = IS_VERCEL ? "" : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 type Lang = "English" | "Lunyoro" | "Rutooro";
 
 declare global {
@@ -59,7 +63,9 @@ export default function VoiceTranslator() {
     if (!text.trim()) return;
     setLoading(true);
     try {
-      const endpoint = lang === "English" ? "/translate" : "/translate-reverse";
+      const endpoint = IS_VERCEL
+        ? (lang === "English" ? "/api/translate" : "/api/translate-reverse")
+        : (lang === "English" ? "/translate" : "/translate-reverse");
       const res = await fetch(`${API}${endpoint}`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text})});
       const data = await res.json();
       setTranslation(data.translation || "No translation found.");

@@ -1,7 +1,13 @@
 "use client";
 import { useState, useRef, useCallback } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// On Vercel, use the server-side API routes (NLLB via HF Inference API, token hidden).
+// Locally / on other hosts, fall back to the external backend URL.
+const IS_VERCEL = typeof window !== "undefined" && (
+  window.location.hostname.endsWith(".vercel.app") ||
+  window.location.hostname === "horizonx.kathay.tech"
+);
+const API = IS_VERCEL ? "" : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 type Direction = "en->lun" | "lun->en";
 type DimKey = "score_mng"|"score_grm"|"score_tns"|"score_vcb"|"score_ort"|"score_ctx"|"score_flu"|"score_cul";
 interface Misspelled { word: string; suggestions: string[]; }
@@ -92,7 +98,11 @@ export default function Translator() {
 
   const fromLabel = direction === "en->lun" ? "English" : "Runyoro / Rutooro";
   const toLabel   = direction === "en->lun" ? "Runyoro / Rutooro" : "English";
-  const endpoint  = direction === "en->lun" ? "/translate" : "/translate-reverse";
+  // On Vercel: use server-side route (/api/translate) so HF_TOKEN stays hidden
+  // Elsewhere: use the external backend directly
+  const endpoint  = IS_VERCEL
+    ? (direction === "en->lun" ? "/api/translate" : "/api/translate-reverse")
+    : (direction === "en->lun" ? "/translate" : "/translate-reverse");
 
   function resetFeedback() {
     setFeedbackRating(null); setFeedbackSent(false); setModelFeedbackSent(false);

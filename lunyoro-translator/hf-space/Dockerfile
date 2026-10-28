@@ -25,7 +25,7 @@ ENV TRANSFORMERS_OFFLINE=0
 ENV HF_DATASETS_OFFLINE=0
 ENV HF_HUB_OFFLINE=0
 ENV DOWNLOAD_MODELS_ON_START=1
-ENV CORS_ORIGINS=https://frontend-six-phi-25.vercel.app,http://localhost:3002,https://horizonx.kathay.tech
+ENV CORS_ORIGINS=https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app,https://frontend-six-phi-25.vercel.app,http://localhost:3002,https://lunyoro-translator-api.keithtwesigye74.workers.dev
 
 # NLLB-200 loads from HF Hub cache (/root/.cache) — separate from 1GB Space repo storage.
 # cpu-basic has 16GB RAM which fits one NLLB model (2.3GB).
