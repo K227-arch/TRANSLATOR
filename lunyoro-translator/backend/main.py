@@ -342,7 +342,10 @@ def ping():
 
 # ── Self-ping keep-alive ───────────────────────────────────────────────────────
 # HuggingFace Spaces sleep after 48 h of inactivity.
-# This background thread pings /health every 25 minutes to prevent that.
+# This background thread:
+#   1. Pings /ping every 25 min to prevent Space container sleep
+#   2. Runs a real /translate call every 20 min to keep NLLB loaded in RAM
+#      (cpu-basic has 16 GB RAM but will evict models under memory pressure)
 def _start_keepalive():
     import requests as _req
 
@@ -350,20 +353,55 @@ def _start_keepalive():
         "SPACE_URL",
         "https://keithtwesigye-runyoro-translator-api.hf.space",
     )
-    PING_INTERVAL = int(os.getenv("KEEPALIVE_INTERVAL", "1500"))  # 25 min default
+    PING_INTERVAL  = int(os.getenv("KEEPALIVE_INTERVAL", "1500"))   # 25 min — container alive
+    NLLB_INTERVAL  = int(os.getenv("NLLB_WARMUP_INTERVAL", "1200")) # 20 min — model warm
+
+    # Short sentences — fast to translate, enough to keep NLLB hot
+    _WARMUP_SENTENCES = [
+        "Good morning.",
+        "How are you?",
+        "The child is sleeping.",
+        "Water is life.",
+    ]
+    _warmup_idx = 0
 
     def _loop():
+        nonlocal _warmup_idx
+        last_nllb_ping = 0.0
+
         while True:
-            time.sleep(PING_INTERVAL)
+            time.sleep(60)  # check every 60s, act based on elapsed time
+            now = time.monotonic()
+
+            # ── 1. Container alive ping (every PING_INTERVAL) ────────────────
             try:
                 r = _req.get(f"{SPACE_URL}/ping", timeout=15)
-                logger.info("keep-alive ping → %s %s", r.status_code, SPACE_URL)
+                logger.info("keep-alive ping → %s", r.status_code)
             except Exception as _e:
                 logger.debug("keep-alive ping failed (non-fatal): %s", _e)
 
+            # ── 2. NLLB warm-up translate (every NLLB_INTERVAL) ─────────────
+            if now - last_nllb_ping >= NLLB_INTERVAL:
+                sentence = _WARMUP_SENTENCES[_warmup_idx % len(_WARMUP_SENTENCES)]
+                _warmup_idx += 1
+                try:
+                    r2 = _req.post(
+                        f"{SPACE_URL}/translate",
+                        json={"text": sentence},
+                        timeout=45,
+                    )
+                    result = r2.json().get("translation", "?") if r2.ok else f"HTTP {r2.status_code}"
+                    logger.info("NLLB warm-up: '%s' → '%s'", sentence, result[:60])
+                    last_nllb_ping = now
+                except Exception as _e:
+                    logger.debug("NLLB warm-up failed (non-fatal): %s", _e)
+
     t = threading.Thread(target=_loop, daemon=True, name="keepalive")
     t.start()
-    logger.info("Keep-alive thread started — pinging every %ds", PING_INTERVAL)
+    logger.info(
+        "Keep-alive thread started — container ping every %ds, NLLB warm-up every %ds",
+        PING_INTERVAL, NLLB_INTERVAL,
+    )
 
 
 _start_keepalive()
