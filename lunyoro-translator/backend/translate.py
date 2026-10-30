@@ -518,15 +518,21 @@ def _load_nllb(direction: str) -> bool:
         if repo_id:
             try:
                 from huggingface_hub import snapshot_download
+                _hf_dl_token = os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN") or None
                 if is_cpu_only:
-                    # On cpu-basic: use HF Hub cache (don't write to /app/model)
-                    logger.info("CPU-only: caching %s to HF Hub cache...", repo_id)
+                    # On cpu-basic: download to /app/model (10GB disk, no LFS limit at runtime)
+                    # HF Hub cache (/root/.cache) is also fine — either works
+                    logger.info("CPU-only: downloading %s -> %s (token=%s)",
+                                repo_id, path, "set" if _hf_dl_token else "unset")
+                    os.makedirs(path, exist_ok=True)
                     local_path = snapshot_download(
                         repo_id=repo_id,
+                        local_dir=path,
                         ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
+                        token=_hf_dl_token,
                     )
                     path = local_path
-                    logger.info("Cached NLLB %s at %s", direction, path)
+                    logger.info("Downloaded NLLB %s to %s", direction, path)
                 else:
                     # GPU machine: download to /app/model as before
                     logger.info("Downloading %s -> %s", repo_id, path)
@@ -535,6 +541,7 @@ def _load_nllb(direction: str) -> bool:
                         repo_id=repo_id,
                         local_dir=path,
                         ignore_patterns=["*.msgpack", "flax_model*", "tf_model*"],
+                        token=_hf_dl_token,
                     )
                     logger.info("Downloaded nllb_%s model.", direction)
             except Exception as e:

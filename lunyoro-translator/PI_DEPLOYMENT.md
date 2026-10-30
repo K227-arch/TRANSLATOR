@@ -98,7 +98,14 @@ This relies on components reading the variable with `??`, not `||` — an empty 
 the existing pattern:
 
 ```ts
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// On Vercel (*.vercel.app / horizonx.kathay.tech), use "" so requests go to
+// same-origin Next.js API routes (HF token stays server-side).
+// Locally or on other hosts, fall back to NEXT_PUBLIC_API_URL or localhost.
+const IS_VERCEL = typeof window !== "undefined" && (
+  window.location.hostname.endsWith(".vercel.app") ||
+  window.location.hostname === "horizonx.kathay.tech"
+);
+const API = IS_VERCEL ? "" : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 ```
 
 ### Why the icon font is committed

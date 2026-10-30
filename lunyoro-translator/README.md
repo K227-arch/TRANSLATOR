@@ -1383,14 +1383,20 @@ A structured graph of Runyoro-Rutooro grammar knowledge (noun classes, tenses, d
 - `GET /colab-status` *(Cloudflare Worker)* — Returns the current registered Colab tunnel URL (from KV or the `COLAB_URL` secret). Response: `{ "colab_url": "<url or null>", "has_colab": <bool> }`. Useful for verifying whether an active Colab session is registered without triggering a liveness probe.
 
 ### Keep-Alive (HuggingFace Spaces)
-HuggingFace Spaces hibernates after 48 hours of inactivity. To prevent this, `main.py` starts a daemon background thread (`keepalive`) at startup that pings `GET /ping` on the running Space every 25 minutes.
+HuggingFace Spaces hibernates after 48 hours of inactivity, and the NLLB model can be evicted from RAM under memory pressure on `cpu-basic` instances. To address both issues, `main.py` starts a daemon background thread (`keepalive`) at startup that runs two periodic tasks:
+
+1. **Container alive ping** — calls `GET /ping` every 25 minutes to prevent Space hibernation.
+2. **NLLB warm-up translate** — posts a short sentence to `POST /translate` every 20 minutes to keep the NLLB model loaded in RAM. Sentences rotate through a small fixed set (`"Good morning."`, `"How are you?"`, etc.) so the calls are lightweight and fast.
+
+The thread wakes every 60 seconds and fires each action based on elapsed time, so the two intervals are independent.
 
 | Env variable | Default | Description |
 |---|---|---|
-| `SPACE_URL` | `https://keithtwesigye-runyoro-translator-api.hf.space` | URL the thread pings |
-| `KEEPALIVE_INTERVAL` | `1500` (25 min) | Ping interval in seconds |
+| `SPACE_URL` | `https://keithtwesigye-runyoro-translator-api.hf.space` | Base URL the thread targets |
+| `KEEPALIVE_INTERVAL` | `1500` (25 min) | Container ping interval in seconds |
+| `NLLB_WARMUP_INTERVAL` | `1200` (20 min) | NLLB warm-up translate interval in seconds |
 
-The thread is non-blocking and daemon-flagged — it never delays startup or requests, and it exits automatically when the process stops. Ping failures are logged at `DEBUG` level and do not affect normal operation.
+The thread is non-blocking and daemon-flagged — it never delays startup or requests, and it exits automatically when the process stops. Both ping and warm-up failures are logged at `DEBUG` level and do not affect normal operation.
 
 ---
 
@@ -1407,6 +1413,8 @@ All models are automatically loaded from HuggingFace Hub on first use and cached
 - **Chat:** [meta-llama/Llama-3.1-8B-Instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct) via HF Router
 
 **Note:** Models are downloaded automatically on first translation request. To pre-download all models, run `python backend/download_models.py`.
+
+**NLLB download behaviour:** `translate.py` downloads NLLB models via `huggingface_hub.snapshot_download` into the local model directory (`/app/model` on HF Space). This applies to both CPU-only and GPU deployments — on CPU-only (`is_cpu_only=True`) the model is written to the same on-disk path as GPU deployments rather than relying solely on the HF Hub default cache. `HF_TOKEN` (or `HUGGING_FACE_HUB_TOKEN`) is forwarded to the download call when set, enabling access to private or gated model repos and avoiding anonymous rate limits.
 
 ---
 
@@ -1711,7 +1719,7 @@ vercel --prod
 
 ### Backend (.env)
 ```bash
-HF_TOKEN=hf_...                    # HuggingFace API token (optional, for private models and model push). Must be set here or in the environment — never hardcoded in pipeline scripts.
+HF_TOKEN=hf_...                    # HuggingFace API token (optional). Used during NLLB model downloads via snapshot_download (both CPU-only and GPU paths), for private/gated model access, higher download rate limits, and model push. Must be set here or in the environment — never hardcoded in pipeline scripts. HUGGING_FACE_HUB_TOKEN is accepted as an alias and checked when HF_TOKEN is unset.
 HF_USERNAME=keithtwesigye          # HuggingFace username for model repositories
 HF_CHAT_MODEL=meta-llama/Llama-3.1-8B-Instruct
 CORS_ORIGINS=http://localhost:3002,http://localhost:3000,https://horizonx.kathay.tech,https://runyoro-rutooro-translator.vercel.app
@@ -1730,6 +1738,8 @@ COLAB_URL=https://xxxx.ngrok.io    # Optional. When set, all translation request
 ```bash
 NEXT_PUBLIC_API_URL=https://keithtwesigye-runyoro-translator-api.hf.space
 ```
+
+> **Vercel deployments:** `NEXT_PUBLIC_API_URL` is not required when deploying to Vercel (`.vercel.app` domains) or `horizonx.kathay.tech`. `Translator.tsx` detects these hosts at runtime via `IS_VERCEL` and sets `API = ""`, routing all requests to the same-origin Next.js API routes (which call the HF Inference API server-side, keeping the token hidden). Set `NEXT_PUBLIC_API_URL` only for local development or self-hosted deployments where the frontend and backend run on different origins.
 
 ### Cloudflare Worker (wrangler.jsonc `vars`)
 These are plain (non-secret) variables set in `cloudflare-worker/wrangler.jsonc`. They can be changed and redeployed without touching secrets.
@@ -1826,8 +1836,10 @@ If you use this work, please cite:
 ## Version History
 
 ### v2.9 - Grammar Rules 5: Adverbial Suffix, Objectival Concord, Negative Nouns, Class 9 Professional Nouns & Augmentatives (Current)
+- **`translate.py`:** NLLB model downloads via `snapshot_download` now use `local_dir=path` on CPU-only deployments, writing models directly to `/app/model` (matching the GPU path) rather than relying solely on the default HF Hub cache. `HF_TOKEN` (or `HUGGING_FACE_HUB_TOKEN`) is now forwarded to `snapshot_download` in both CPU-only and GPU code paths, enabling authenticated downloads to private/gated repos and avoiding anonymous rate limits.
+- **`frontend/app/api/_nllb.ts`:** Improved HuggingFace Inference API warm-up handling. The `"X-Wait-For-Model": "true"` header is now sent on every request, instructing the HF Inference API to hold the connection and load the model before responding rather than returning a 503 immediately when the model is cold — reducing the number of retries needed in practice. The initial request timeout was raised from 20 s to 35 s. On a 503 (model cold-start) response, the first retry wait was extended from 8 s to 10 s and its timeout from 30 s to 40 s. A second retry is now attempted when the first retry also returns 503 — after an additional 15 s wait, a final request is issued with a 40 s timeout — giving a cold HF Space model up to ~60 s of total warm-up time before the endpoint gives up and falls through to the next URL in the endpoint list.
 - **`requirements.txt`:** Added `httpx>=0.27.0` as an explicit dependency. `httpx` is used by `proxy_main.py` for async HTTP requests to the Colab/HF backend and for health-check polling — it was previously assumed to be installed transitively but is now declared directly.
-- **`translate.py`:** NLLB tokenizer loading no longer passes `fix_mistral_regex=True` to `AutoTokenizer.from_pretrained()`. That flag triggers `_patch_mistral_regex()`, which attempts item assignment on the pre-tokenizer and crashes on `tokenizers < 0.21`. NLLB is not a Mistral model and does not require that patch — removing the flag restores compatibility with the tokenizers version pinned in `requirements.txt`.
+- **`translate.py`:** NLLB tokenizer loading no longer passes `fix_mistral_regex=True` to `AutoTokenizer.from_pretrained()`. That flag triggers `_patch_mistral_regex()`, which attempts item assignment on the pre-tokenizer and crashes on `tokenizers < 0.21`. NLLB is not a Mistral model and does not require that patch — removing the flag restores compatibility with the tokenizers version pinned in `requirements.txt`. Additionally, the `transformers.tokenization_utils_base` logger is temporarily raised to `ERROR` level around the `AutoTokenizer.from_pretrained()` call (restored via `try/finally`) to suppress the false-positive "incorrect regex pattern" log line that `transformers` still emits for NLLB tokenizers even without the flag — the message is a Mistral-model artefact and is not actionable for NLLB.
 - **`translate.py`:** Added a circuit-breaker for outbound NLLB API calls (used when `DISABLE_NLLB=1`). After `_CB_FAIL_THRESHOLD` (3) consecutive failures the breaker opens and API calls are skipped for `_CB_OPEN_SECONDS` (120 s), preventing cascading timeouts when the HF Inference API is unreachable. The breaker resets automatically after the cooldown period.
 - **`translate.py`:** NLLB models are now loaded in float16 on CPU to halve memory usage (~2.3GB → ~1.2GB per direction). On GPU, float32 is used for maximum speed. Set `FORCE_FP32=1` in the environment to override and use float32 everywhere (useful if float16 causes numerical issues on your hardware). This reduces OOM risk on memory-constrained deployments (e.g. HF Space cpu-basic) without requiring `DISABLE_NLLB=1`. The model is loaded in float32 first via `from_pretrained()` and then cast to float16 with `.half()` on CPU — this load-then-cast approach avoids `dtype`/`torch_dtype` kwarg incompatibilities across different `transformers` versions.
 - **`main.py`:** NLLB model loading at startup is now wrapped in error handling — if an NLLB model fails to load (e.g. OOM on memory-constrained hardware), the server logs the error and continues startup with MarianMT and retrieval-based translation still available. Previously, an OOM during NLLB loading would crash the entire server.
